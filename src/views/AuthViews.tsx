@@ -19,7 +19,7 @@ export function AuthViews() {
       <header className="border-b">
         <div className="container mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
           <button onClick={() => navigate({ view: "landing" })} className="flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6 text-primary" />
+            <img src="/images/logo.png" alt="GigSure AI logo" className="h-7 w-7 object-contain" />
             <span className="font-semibold text-lg">GigSure<span className="text-primary"> AI</span></span>
           </button>
           <Button variant="ghost" onClick={() => navigate({ view: "landing" })}>← Back</Button>

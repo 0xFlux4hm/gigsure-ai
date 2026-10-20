@@ -19,18 +19,24 @@ export const metadata: Metadata = {
   keywords: ["GigSure AI", "freelance", "Nigeria", "project collaboration", "milestone funding", "contracts", "AI assistants"],
   authors: [{ name: "GigSure AI" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: [
+      { url: "/images/icon.png", type: "image/png", sizes: "32x32" },
+      { url: "/images/icon.png", type: "image/png", sizes: "192x192" },
+    ],
+    apple: [{ url: "/images/icon.png", sizes: "180x180" }],
   },
   openGraph: {
-    title: "GigSure AI",
-    description: "Work with confidence. Get paid with trust.",
+    title: "GigSure AI — Work with confidence. Get paid with trust.",
+    description: "A secure, AI-assisted project collaboration and payment-coordination platform for the Nigerian freelance market.",
     siteName: "GigSure AI",
     type: "website",
+    images: [{ url: "/images/og-image.png", width: 1344, height: 768, alt: "GigSure AI" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "GigSure AI",
     description: "Work with confidence. Get paid with trust.",
+    images: ["/images/og-image.png"],
   },
 };
 

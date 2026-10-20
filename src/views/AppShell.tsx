@@ -120,7 +120,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() => navigate({ view: "dashboard", projectId: undefined })}
             className="flex items-center gap-2"
           >
-            <ShieldCheck className="h-6 w-6 text-primary" />
+            <img src="/images/logo.png" alt="GigSure AI" className="h-7 w-7 object-contain" />
             <span className="font-semibold hidden sm:inline">GigSure<span className="text-primary"> AI</span></span>
           </button>
 
