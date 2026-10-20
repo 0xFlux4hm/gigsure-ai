@@ -37,20 +37,27 @@ export const POST = apiRoute(async (req) => {
   if (record.consumedAt) return fail("Token already used", 400);
   if (record.expiresAt < new Date()) return fail("Token expired", 400);
 
+  // SECURITY (2026-10): atomic conditional update — `updateMany` with
+  // `where: { id, consumedAt: null }` so concurrent same-token requests
+  // can't both succeed. The loser returns count=0 and we 400.
   const newHash = hashPassword(parsed.data.newPassword);
-  await db.$transaction([
-    db.passwordResetToken.update({
-      where: { id: record.id },
-      data: { consumedAt: new Date() },
-    }),
-    db.user.update({
-      where: { id: record.userId },
-      data: {
-        passwordHash: newHash,
-        lastLoginAt: new Date(),
-      },
-    }),
-  ]);
+  const now = new Date();
+  const consumed = await db.passwordResetToken.updateMany({
+    where: { id: record.id, consumedAt: null },
+    data: { consumedAt: now },
+  });
+  if (consumed.count === 0) {
+    return fail("Token already used", 400);
+  }
+  await db.user.update({
+    where: { id: record.userId },
+    data: {
+      passwordHash: newHash,
+      // SECURITY (2026-10): invalidate all existing JWTs
+      passwordChangedAt: now,
+      lastLoginAt: now,
+    },
+  });
 
   // Notify user
   await db.notification.create({

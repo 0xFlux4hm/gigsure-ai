@@ -36,6 +36,7 @@ model User {
   accountStatus   String   @default("ACTIVE")
   platformRole    String   @default("USER")
   lastLoginAt     DateTime?
+  passwordChangedAt DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
@@ -477,6 +478,7 @@ model DisputeReview {
   dispute  Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
   reviewer User    @relation(fields: [reviewerId], references: [id])
 
+  @@unique([disputeId, reviewerId])
   @@index([disputeId])
 }
 

@@ -4,16 +4,20 @@
  * ALWAYS returns the same response shape to prevent account enumeration.
  * If the email is registered, a single-use token (24h) is created and the
  * raw token is logged in dev mode (in prod it would be emailed).
+ *
+ * SECURITY (2026-10): replaced ad-hoc `forgotStore` Map with the central
+ * `checkRateLimit` rate limiter (which has periodic cleanup). Old code
+ * leaked memory indefinitely.
  */
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail, ok } from "@/lib/api";
 import { normalizeEmail, validateEmail } from "@/lib/security/validation";
 import { generateToken, hashToken } from "@/lib/security/tokens";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { sendEmail, passwordResetEmail } from "@/lib/email/provider";
 import { z } from "zod";
 
-const forgotStore = new Map<string, { count: number; firstAt: number }>();
 const Schema = z.object({ email: z.string().min(5).max(254) });
 
 export const POST = apiRoute(async (req) => {
@@ -24,20 +28,14 @@ export const POST = apiRoute(async (req) => {
   const email = normalizeEmail(parsed.data.email);
   if (!validateEmail(email)) return fail("Invalid email", 400);
 
-  // Rate limit
-  const now = Date.now();
-  const entry = forgotStore.get(email);
-  if (entry) {
-    if (now - entry.firstAt < 10 * 60 * 1000 && entry.count >= 3) {
-      return fail("Too many requests. Please try again later.", 429);
-    }
-    if (now - entry.firstAt >= 10 * 60 * 1000) {
-      forgotStore.set(email, { count: 1, firstAt: now });
-    } else {
-      entry.count += 1;
-    }
-  } else {
-    forgotStore.set(email, { count: 1, firstAt: now });
+  // SECURITY (2026-10): use the central rate limiter (has periodic cleanup)
+  // instead of an ad-hoc Map that grows indefinitely.
+  const rateResult = await checkRateLimit(
+    `forgotpw:email:${email}`,
+    RATE_LIMITS.FORGOT_PASSWORD_PER_EMAIL,
+  );
+  if (!rateResult.ok) {
+    return fail("Too many requests. Please try again later.", 429);
   }
 
   const user = await db.user.findUnique({

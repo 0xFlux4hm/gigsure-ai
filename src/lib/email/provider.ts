@@ -35,6 +35,21 @@ class MockEmailProvider implements EmailProvider {
   }
 }
 
+// SECURITY (2026-10): HTML-escape any user-controlled value interpolated
+// into email HTML to prevent HTML/script injection in email clients.
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => {
+    switch (c) {
+      case "&": return "&amp;";
+      case "<": return "&lt;";
+      case ">": return "&gt;";
+      case '"': return "&quot;";
+      case "'": return "&#39;";
+      default: return c;
+    }
+  });
+}
+
 /**
  * SMTP provider — uses Node's nodemailer under the hood.
  * Lazy-loads nodemailer so dev installs don't require it.
@@ -57,7 +72,7 @@ class SMTPEmailProvider implements EmailProvider {
       return this.transporter;
     } catch (err) {
       throw new Error(
-        `SMTP email provider requires 'nodemailer'. Install with: bun add nodemailer. Original error: ${(err as Error).message}`,
+        `SMTP email provider requires 'nodemailer'. Install with: bun add nodemailer.`,
       );
     }
   }
@@ -68,9 +83,13 @@ class SMTPEmailProvider implements EmailProvider {
       const result = await transporter.sendMail(message);
       return { ok: true, messageId: result.messageId };
     } catch (err) {
-      const msg = (err as Error).message;
-      console.error("[email] SMTP send failed:", msg);
-      return { ok: false, error: msg };
+      // SECURITY (2026-10): never expose the raw error message — it may
+      // contain the SMTP URL with embedded credentials. Log details with
+      // URL redacted server-side, return generic message to caller.
+      const msg = (err as Error).message ?? "Unknown SMTP error";
+      const redacted = msg.replace(/(smtp:\/\/)[^@]+@/gi, "$1***:***@");
+      console.error("[email] SMTP send failed:", redacted);
+      return { ok: false, error: "SMTP send failed" };
     }
   }
 }
@@ -153,6 +172,7 @@ export function passwordResetEmail(to: string, resetUrl: string): EmailMessage {
 
 export function securityNotificationEmail(to: string, subject: string, body: string): EmailMessage {
   const from = process.env.EMAIL_FROM ?? "GigSure AI <noreply@localhost>";
+  // SECURITY (2026-10): escape subject/body before interpolating into HTML.
   return {
     to,
     from,
@@ -160,8 +180,8 @@ export function securityNotificationEmail(to: string, subject: string, body: str
     text: body,
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
-        <h2 style="color: #0F5132;">${subject}</h2>
-        <p style="white-space: pre-wrap;">${body}</p>
+        <h2 style="color: #0F5132;">${escapeHtml(subject)}</h2>
+        <p style="white-space: pre-wrap;">${escapeHtml(body)}</p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
         <p style="color: #6b7280; font-size: 12px;">If this wasn't you, please sign in immediately and change your password.</p>
         <p style="color: #6b7280; font-size: 12px;">— GigSure AI security</p>

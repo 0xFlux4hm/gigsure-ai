@@ -37,9 +37,14 @@ export const POST = apiRoute(async (req) => {
   }
 
   const newHash = hashPassword(parsed.data.newPassword);
+  // SECURITY (2026-10): set passwordChangedAt so existing JWTs are invalidated
+  // (the NextAuth jwt callback checks token.issuedAt vs passwordChangedAt).
   await db.user.update({
     where: { id: userId },
-    data: { passwordHash: newHash },
+    data: {
+      passwordHash: newHash,
+      passwordChangedAt: new Date(),
+    },
   });
 
   await db.notification.create({

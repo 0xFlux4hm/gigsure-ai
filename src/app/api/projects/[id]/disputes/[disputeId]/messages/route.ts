@@ -19,6 +19,16 @@ export const POST = apiRoute(async (req, { params }) => {
   const dispute = await db.dispute.findUnique({ where: { id: disputeId } });
   if (!dispute || dispute.projectId !== projectId) return fail("Dispute not found", 404);
 
+  // SECURITY (2026-10): REVIEWER role can only post to disputes assigned to them.
+  // The sibling GET handler already had this check, but POST didn't.
+  if (membership.role === "REVIEWER") {
+    const assigned = await db.disputeReview.findFirst({
+      where: { disputeId, reviewerId: userId },
+      select: { id: true },
+    });
+    if (!assigned) throw new AuthzError("Dispute not assigned to you", 403);
+  }
+
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
   if (!parsed.success) return fail("Invalid message", 422);

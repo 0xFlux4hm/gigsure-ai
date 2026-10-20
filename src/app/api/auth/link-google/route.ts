@@ -11,6 +11,24 @@
  *
  * Auto-merge by email is FORBIDDEN. Even if the email strings match, we will
  * NOT silently transfer a Google identity from one account to another.
+ *
+ * SECURITY (2026-10): This endpoint previously accepted an arbitrary
+ * client-supplied `googleSub` and `email` with no proof of Google identity
+ * ownership. That allowed account-squatting: an attacker could pre-claim any
+ * victim's Google sub, blocking the victim from ever linking their real
+ * account (409 on real link attempt).
+ *
+ * The fix:
+ *   - In demo mode (no real Google creds), reject `googleSub` values that
+ *     start with `demo_` UNLESS the demo-google code was actually issued
+ *     (verified via the `issuedCodes` map).
+ *   - In production mode, this endpoint should exchange a Google OIDC `code`
+ *     server-side and read `sub`/`email` from Google's verified response.
+ *     That refactor is tracked in docs/PAYMENT_INTEGRATION.md.
+ *
+ * For now, the demo path is the supported flow. We require a freshly-issued
+ * `code` from /api/auth/google-demo/callback, which proves the user actually
+ * completed the (simulated) Google OAuth flow.
  */
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail, ok } from "@/lib/api";
@@ -19,26 +37,69 @@ import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { normalizeEmail, validateEmail } from "@/lib/security/validation";
 import { z } from "zod";
 
+// Schema accepts either:
+//   - { code } — preferred, looked up in issuedCodes (demo flow)
+//   - { googleSub, email } — LEGACY, rejected in demo mode + prod mode unless
+//     GOOGLE_ALLOW_UNVERIFIED_LINK=true is set (debugging only).
 const Schema = z.object({
-  googleSub: z.string().min(8).max(128),
-  email: z.string().min(5).max(254),
+  code: z.string().min(8).max(128).optional(),
+  googleSub: z.string().min(8).max(128).optional(),
+  email: z.string().min(5).max(254).optional(),
+}).refine((d) => d.code || (d.googleSub && d.email), {
+  message: "Either `code` or (`googleSub` + `email`) is required",
 });
 
 export const POST = apiRoute(async (req) => {
   const userId = await requireUserId();
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) return fail("Invalid input", 422);
+  if (!parsed.success) return fail("Invalid input", 422, { issues: parsed.error.issues });
 
-  const email = normalizeEmail(parsed.data.email);
-  if (!validateEmail(email)) return fail("Invalid email", 400);
+  let googleSub: string;
+  let email: string;
+
+  if (parsed.data.code) {
+    // Preferred path: verify the code was actually issued by our demo OAuth flow
+    const { issuedCodes } = await import("@/app/api/auth/google-demo/callback/route");
+    const record = issuedCodes.get(parsed.data.code);
+    if (!record) {
+      logSecurityEvent("warn", "auth.link_google_unknown_code", { userId });
+      return fail("Invalid or expired code", 400);
+    }
+    if (record.exp < Date.now()) {
+      issuedCodes.delete(parsed.data.code);
+      return fail("Code expired", 400);
+    }
+    googleSub = record.sub;
+    email = record.email;
+    // Consume the code so it can't be reused
+    issuedCodes.delete(parsed.data.code);
+  } else {
+    // Legacy path: trust client-supplied googleSub + email
+    // SECURITY: only allow when explicitly enabled via env (debugging only).
+    // Demo googleSub values always start with "demo_" — never trust them via
+    // this path because they're trivially forgeable.
+    if (process.env.GOOGLE_ALLOW_UNVERIFIED_LINK !== "true") {
+      logSecurityEvent("warn", "auth.link_google_legacy_blocked", { userId });
+      return fail(
+        "Direct googleSub linking is disabled. Use the Google OAuth flow to obtain a code.",
+        400,
+      );
+    }
+    if (parsed.data.googleSub!.startsWith("demo_")) {
+      return fail("Demo Google identities cannot be linked via this path.", 400);
+    }
+    googleSub = parsed.data.googleSub!;
+    email = normalizeEmail(parsed.data.email!);
+    if (!validateEmail(email)) return fail("Invalid email", 400);
+  }
 
   // Check if Google identity is already linked to a DIFFERENT account.
   const existingIdentity = await db.userIdentity.findUnique({
     where: {
       provider_providerSubject: {
         provider: "google",
-        providerSubject: parsed.data.googleSub,
+        providerSubject: googleSub,
       },
     },
     include: { user: { select: { id: true, email: true } } },
@@ -64,7 +125,7 @@ export const POST = apiRoute(async (req) => {
       data: {
         userId,
         provider: "google",
-        providerSubject: parsed.data.googleSub,
+        providerSubject: googleSub,
         lastAuthenticatedAt: new Date(),
       },
     }),
@@ -72,7 +133,7 @@ export const POST = apiRoute(async (req) => {
       data: {
         userId,
         provider: "google",
-        providerSubject: parsed.data.googleSub,
+        providerSubject: googleSub,
       },
     }),
   ]);

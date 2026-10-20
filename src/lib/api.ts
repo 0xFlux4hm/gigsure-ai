@@ -1,10 +1,20 @@
 /**
  * API helper: standard JSON responses + error envelope.
+ *
+ * SECURITY (2026-10):
+ *   - parseJsonBody enforces 1 MiB body-size cap (DoS protection).
+ *   - apiRoute no longer echoes raw `err.message` for unknown errors with a
+ *     `status` field — only whitelisted error classes (AuthnError, AuthzError,
+ *     PaymentProviderError) return their message. Everything else returns
+ *     generic "Internal server error".
+ *   - Zod validation errors no longer echo `issues` to client (prevents
+ *     schema probing). Issues are logged server-side instead.
  */
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { AuthnError, AuthzError } from "@/lib/auth/authorization";
 import { logSecurityEvent } from "@/lib/auth/audit";
+import { PaymentProviderError } from "@/lib/payments/mock-provider";
 
 export type ApiHandler<T> = (req: Request, ctx: { params: Record<string, string> }) => Promise<T>;
 
@@ -28,43 +38,76 @@ export function apiRoute<T>(
       if (data instanceof NextResponse) return data;
       return ok(data);
     } catch (err) {
+      // Whitelist of error classes whose messages are safe to return.
       if (err instanceof AuthnError) {
         return fail(err.message, err.status);
       }
       if (err instanceof AuthzError) {
         return fail(err.message, err.status);
       }
+      if (err instanceof PaymentProviderError) {
+        return fail(err.message, err.status);
+      }
       if (err instanceof ZodError) {
-        return fail("Validation failed", 422, { issues: err.issues });
+        // SECURITY: log issues server-side only — don't echo to client
+        // (prevents schema-probing reconnaissance).
+        logSecurityEvent("warn", "api.validation_failed", {
+          issues: err.issues.map((i) => ({ path: i.path, message: i.message })),
+        });
+        return fail("Validation failed", 422);
       }
       if (err instanceof SyntaxError) {
         return fail("Invalid JSON body", 400);
       }
-      // Custom app errors with status
-      const e = err as { status?: number; message?: string };
-      if (e?.status && e?.message) {
-        return fail(e.message, e.status);
-      }
+      // SECURITY: removed the generic `e?.status && e?.message` branch —
+      // third-party errors (Prisma, z-ai SDK, nodemailer) can carry .status
+      // + .message with internal context (hostnames, query fragments,
+      // connection strings). All unknown errors return generic 500.
       logSecurityEvent("error", "api.unhandled_error", {
+        name: (err as Error)?.name,
         message: (err as Error)?.message,
         stack: (err as Error)?.stack?.split("\n").slice(0, 5),
       });
-      // Never leak stack traces to the client.
+      // Never leak stack traces or internal messages to the client.
       return fail("Internal server error", 500);
     }
   };
 }
 
-/** Parse JSON body, throwing a friendly 400 on malformed input. */
+/** Maximum JSON request body size — 1 MiB. */
+const MAX_JSON_BODY_BYTES = 1 * 1024 * 1024;
+
+/** Parse JSON body with size cap (DoS protection). Throws SyntaxError on malformed/oversized. */
 export async function parseJsonBody<T = unknown>(req: Request): Promise<T> {
+  // Check Content-Length first (fast path — rejects before reading body).
+  const contentLength = Number(req.headers.get("content-length") ?? "0");
+  if (contentLength && contentLength > MAX_JSON_BODY_BYTES) {
+    throw new SyntaxError("Request body too large");
+  }
   const text = await req.text();
+  // Defense in depth: also check actual body length in case Content-Length was missing/spoofed.
+  if (text.length > MAX_JSON_BODY_BYTES) {
+    throw new SyntaxError("Request body too large");
+  }
   if (!text) return {} as T;
-  return JSON.parse(text) as T;
+  // SECURITY: strip __proto__ / constructor keys to defend against prototype
+  // pollution if any caller ever spreads the parsed result into an object.
+  const parsed = JSON.parse(text) as T;
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    const obj = parsed as Record<string, unknown>;
+    delete obj.__proto__;
+    delete obj.constructor;
+    delete obj.prototype;
+  }
+  return parsed;
 }
 
 export function getQueryParam(req: Request, key: string): string | null {
   const url = new URL(req.url);
-  return url.searchParams.get(key);
+  // SECURITY: cap query param length (defense in depth against search DoS).
+  const v = url.searchParams.get(key);
+  if (v && v.length > 500) return v.slice(0, 500);
+  return v;
 }
 
 export function getQueryInt(req: Request, key: string, def = 0): number {

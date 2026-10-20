@@ -28,16 +28,23 @@ export const POST = apiRoute(async (req) => {
   if (record.consumedAt) return fail("Token already used", 400);
   if (record.expiresAt < new Date()) return fail("Token expired", 400);
 
-  await db.$transaction([
-    db.emailVerificationToken.update({
-      where: { id: record.id },
-      data: { consumedAt: new Date() },
-    }),
-    db.user.update({
-      where: { id: record.userId },
-      data: { emailVerifiedAt: new Date() },
-    }),
-  ]);
+  // SECURITY (2026-10): atomic conditional update — `updateMany` with
+  // `where: { id, consumedAt: null }` so two concurrent requests with the
+  // same token can't both pass the consumedAt check. The loser's updateMany
+  // returns count=0, and we return "already used" without doing the user
+  // update.
+  const consumed = await db.emailVerificationToken.updateMany({
+    where: { id: record.id, consumedAt: null },
+    data: { consumedAt: new Date() },
+  });
+  if (consumed.count === 0) {
+    return fail("Token already used", 400);
+  }
+
+  await db.user.update({
+    where: { id: record.userId },
+    data: { emailVerifiedAt: new Date() },
+  });
 
   await recordAuditEvent({
     actorId: record.userId,

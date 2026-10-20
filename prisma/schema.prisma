@@ -32,6 +32,9 @@ model User {
   accountStatus   String   @default("ACTIVE") // ACTIVE | SUSPENDED | PENDING_DELETION | DELETED
   platformRole    String   @default("USER") // USER | ADMIN
   lastLoginAt     DateTime?
+  // SECURITY: when set, any JWT with issuedAt < passwordChangedAt is rejected
+  // (forces re-auth after password change/reset)
+  passwordChangedAt DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
@@ -498,6 +501,9 @@ model DisputeReview {
   dispute  Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
   reviewer User    @relation(fields: [reviewerId], references: [id])
 
+  // SECURITY: prevent duplicate reviews by same reviewer on same dispute
+  // Required by /api/projects/[id]/disputes/[disputeId]/reviews POST (upsert)
+  @@unique([disputeId, reviewerId])
   @@index([disputeId])
 }
 
