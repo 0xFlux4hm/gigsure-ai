@@ -175,3 +175,136 @@ Artifacts:
 - scripts/docker-entrypoint.sh + scripts/deploy.sh + scripts/reset-db.sh
 - SECURITY.md
 - Updated: package.json, postcss.config.mjs, .env.example
+
+---
+Task ID: gigsure-ai-security-audit-october-2026
+Agent: main (Z.ai) — bug hunter + cyber security analyst
+Task: Security audit — find and fix concrete bugs in the GigSure AI codebase
+
+Work Log:
+- Launched 3 parallel security audits via subagents:
+  1. Auth/Authz/IDOR audit — found 19 bugs (1 critical, 8 high, 6 medium, 4 low)
+  2. Crypto/token/secrets audit — found 18 bugs (3 critical, 8 high, 7 medium)
+  3. Input validation/injection/info-disclosure audit — found 17 bugs (1 critical, 8 high, 4 medium, 4 low)
+- Consolidated + de-duplicated into 42 unique findings + 1 schema migration need.
+- Wrote docs/SECURITY_AUDIT_2026-10.md documenting every finding with file:line refs,
+  severity, attack scenario, and fix code.
+
+Schema migrations applied:
+- Added @@unique([disputeId, reviewerId]) on DisputeReview (both SQLite + Postgres
+  schema variants) — required by the upsert in disputes/[disputeId]/reviews POST.
+- Added passwordChangedAt DateTime? column on User — used by NextAuth jwt callback
+  to invalidate sessions after password change/reset.
+
+CRITICAL fixes (4):
+- C1: MOCK_WEBHOOK_SECRET no longer defaults to public constant in production.
+      mock-provider.ts now throws on missing env var in NODE_ENV=production.
+- C2: /api/auth/link-google no longer trusts client-supplied googleSub+email.
+      Now requires a freshly-issued `code` from the demo OAuth flow, looked up
+      in the `issuedCodes` Map. Prevents account-squatting attacks.
+- C3: verifyPassword rejects hashes whose scrypt N/r/p/keyLen don't match
+      SCRYPT_PARAMS. Prevents DB-tamper downgrade attacks (e.g., replacing
+      victim's hash with scrypt:2:1:1:... that any password satisfies).
+- C4: /api/projects/[id]/disputes/[disputeId]/reviews now verifies dispute
+      belongs to project in URL + checks dispute:review permission +
+      verifies REVIEWER is assigned to the dispute. Was a clean IDOR.
+
+HIGH fixes (17):
+- H1-H6: IDOR cluster — disputes POST, tasks POST/PATCH, milestone submit
+  now verify cross-project ownership + enforce proper permission checks.
+- H7-H8: Race conditions in contract + compensation acceptance now wrapped
+  in single db.$transaction (interactive, with find+create+count+update).
+- H9: Password change/reset now sets passwordChangedAt. NextAuth jwt callback
+  compares token.issuedAt vs user.passwordChangedAt — invalidates old JWTs.
+- H10: Login rate limiter reads IP from req.headers['x-forwarded-for'] instead
+  of req.body.ipAddress (which was attacker-controlled).
+- H11: Login decoy hash replaced with real scrypt-formatted hash so timing
+  is uniform between existing and non-existing users (eliminates enumeration
+  oracle).
+- H12: issuedCodes Map bounded at 10k entries + sweep on every insert.
+- H13: CSP no longer includes 'unsafe-inline' or 'unsafe-eval' in production
+  (dev still gets 'unsafe-eval' for Next.js HMR).
+- H14: parseJsonBody enforces 1 MiB body size cap (Content-Length + post-read
+  length check).
+- H15: apiRoute no longer echoes raw err.message for unknown errors with .status.
+      Only whitelisted error classes (AuthnError, AuthzError, PaymentProviderError)
+      return their message.
+- H16: Webhook receiver validates provider header against known providers map +
+      provider-specific secret. Rejects unknown providers.
+- H17: Audit log + logSecurityEvent recursively redact sensitive keys
+      (token, password, secret, hash, key, signature, etc.) before persistence.
+
+MEDIUM fixes (12):
+- M1: Idempotency in mock-provider wrapped in try/catch on P2002 — returns
+  existing record on concurrent same-key requests.
+- M2: OAuth-only accounts can no longer self-delete without reauth.
+- M3: REVIEWER role can only post messages to disputes assigned to them.
+- M4: Last admin account cannot self-delete.
+- M5: REFUND funding type now requires existing PROVIDER_CONFIRMED FUNDING
+  record + enforces refund ≤ original amount.
+- M6: Project PATCH status:'CANCELLED' now requires project:delete permission.
+- M7: Webhook receiver enforces 5-minute replay window on payload timestamp.
+- M8: Health endpoint no longer leaks raw Prisma error message.
+- M9: AI assistant uses unique delimiter pair + escape to defend against
+  prompt injection via dispute messages.
+- M10: Prisma query logging disabled in production.
+- M11: Zod error issues no longer echoed to client. parseJsonBody strips
+  __proto__/constructor/prototype keys (prototype pollution defense).
+- M12: Admin search endpoints cap ?q= length to 100 chars.
+
+LOW fixes (9):
+- L1: verify-email + reset-password use updateMany with consumedAt:null
+  conditional — fixes TOCTOU race on token consumption.
+- L2: NextAuth secret explicitly set. Throws in prod if NEXTAUTH_SECRET missing.
+- L3: Email HTML templates escape user-controlled values (subject, body).
+- L4: SMTP errors redacted (URL with credentials stripped from logs).
+- L7: notifications unread filter uses URL parsing instead of substring match.
+- L8: Removed dead GET_token export.
+- L9: forgot-password + resend-verification use central rate limiter
+  (with cleanup) instead of ad-hoc Maps.
+
+Test coverage:
+- 92 tests pass (up from 60). 5 new security regression test files in tests/security/:
+  - password-downgrade.test.ts (C3 + H11)
+  - audit-redaction.test.ts (H17)
+  - webhook-forgery.test.ts (C1, H4, H2)
+  - body-size-and-pollution.test.ts (H14, M11)
+  - authorization-idor.test.ts (H1, H5, C4, H2, H6, H4)
+
+Stage Summary:
+- ✅ All 42 bugs fixed
+- ✅ 92/92 tests pass (32 new regression tests added)
+- ✅ Lint clean
+- ✅ Dev server starts, health check returns 200
+- ✅ Login + admin endpoint still work after all changes
+- ✅ Committed + pushed to GitHub (commit 5b2933c)
+
+Artifacts:
+- docs/SECURITY_AUDIT_2026-10.md (full audit report)
+- prisma/schema.prisma + prisma/schema.postgres.prisma (migrations)
+- src/lib/security/password.ts (scrypt param validation + decoy hash)
+- src/lib/security/rate-limit.ts (already existed; central limiter now used everywhere)
+- src/lib/auth/audit.ts (redactSensitive helper)
+- src/lib/auth/nextauth-config.ts (IP from headers, jwt invalidation, explicit secret)
+- src/lib/api.ts (body-size cap, prototype pollution defense, error whitelist, Zod redaction)
+- src/lib/payments/mock-provider.ts (P2002 handling, prod secret enforcement)
+- src/lib/email/provider.ts (HTML escape, SMTP error redaction)
+- src/lib/db.ts (prod log config)
+- src/middleware.ts (CSP tightening)
+- src/app/api/auth/link-google/route.ts (code-based verification)
+- src/app/api/auth/google-demo/callback/route.ts (issuedCodes cap + sweep)
+- src/app/api/auth/{change-password,reset-password,verify-email,forgot-password,resend-verification}/route.ts (rate limit centralization, TOCTOU fixes, passwordChangedAt)
+- src/app/api/payments/webhook/route.ts (provider map, replay window, body-size)
+- src/app/api/projects/[id]/disputes/route.ts (cross-project milestone check, dispute:open perm)
+- src/app/api/projects/[id]/disputes/[disputeId]/{reviews,messages}/route.ts (project-match check, REVIEWER assignment check)
+- src/app/api/projects/[id]/tasks/{route,[taskId]/route.ts} (cross-project milestone check, task:create perm on field edits, task:review on CANCELLED)
+- src/app/api/projects/[id]/milestones/[milestoneId]/submit/route.ts (task:submit perm)
+- src/app/api/projects/[id]/funding/route.ts (REFUND validation)
+- src/app/api/projects/[id]/{compensation/[agreementId]/accept,contracts/[versionId]/accept}/route.ts (transactional acceptance)
+- src/app/api/projects/[id]/route.ts (project:delete on CANCELLED)
+- src/app/api/privacy/delete/route.ts (last-admin protection, OAuth-only reauth requirement)
+- src/app/api/admin/{users,projects,disputes}/route.ts (?q= length cap)
+- src/app/api/ai/assistant/route.ts (prompt injection delimiter defense)
+- src/app/api/health/route.ts (no error leak)
+- src/app/api/notifications/route.ts (URL parsing for unread filter)
+- tests/security/{password-downgrade,audit-redaction,webhook-forgery,body-size-and-pollution,authorization-idor}.test.ts (32 new regression tests)
