@@ -26,6 +26,7 @@ import { SettingsAuditView } from "@/views/SettingsAuditView";
 import { NotificationsView } from "@/views/NotificationsView";
 import { InvitationView } from "@/views/InvitationView";
 import { GoogleDemoConsentView } from "@/views/GoogleDemoConsentView";
+import { AdminView } from "@/views/AdminView";
 
 function Router() {
   const { data: session, status } = useSession();
@@ -84,6 +85,7 @@ function Router() {
       {view === "settings-privacy" && <SettingsPrivacyView />}
       {view === "settings-audit" && <SettingsAuditView />}
       {view === "notifications" && <NotificationsView />}
+      {view === "admin" && <AdminView />}
     </AppShell>
   );
 }

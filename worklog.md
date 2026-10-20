@@ -56,3 +56,75 @@ Artifacts produced:
 - /home/z/my-project/README.md
 - /home/z/my-project/.env.example
 - /home/z/my-project/download/gigsure-ai-screenshot.png (browser verification)
+
+---
+Task ID: gigsure-ai-admin-dashboard
+Agent: main (Z.ai)
+Task: Add admin dashboard to GigSure AI — platform-wide oversight, user management, transaction auditing
+
+Work Log:
+- Added `platformRole` field to User model (`USER` | `ADMIN`), pushed schema.
+- Added `requireAdmin()` helper in `src/lib/auth/session.ts`:
+  - Checks User.platformRole === "ADMIN" in DB (preferred)
+  - Falls back to ADMIN_EMAILS env var (comma-separated, for bootstrapping first admin)
+  - Auto-promotes env-listed users to DB admin on first call (idempotent)
+  - Throws AuthzError (403) for non-admins
+- Added `isCurrentUserAdmin()` non-throwing variant for frontend gating.
+- Built 9 admin API routes under `/api/admin/`:
+  - `/me` — current admin identity (used for frontend gate)
+  - `/stats` — platform-wide counts + 7-day trends + recent audit events + funding volume aggregates
+  - `/users` — paginated user list with search (q), status filter, role filter
+  - `/users/[id]` PATCH — suspend / activate / promote_admin / demote_admin (blocks self-action, sends notification, audits)
+  - `/projects` — all projects across platform with status filter
+  - `/funding` — all funding records with status/type/simulated filters + aggregates (count by status, count by type, volume by status)
+  - `/disputes` — all disputes with status/category filters
+  - `/audit` — all audit events with action prefix + actor + date range filters + top actions aggregate
+  - `/ai-activity` — all AI calls with assistant/user filters + aggregates (count by assistant, total tokens, fallback count, fallback rate)
+  - `/privacy-requests` — privacy request queue with PATCH to update status (PROCESSING/READY/COMPLETED/DENIED)
+  - `/webhooks` — webhook delivery log with provider/signature/processed filters + aggregates (invalid signatures, unprocessed count, by provider)
+- Built `AdminView.tsx` (~900 lines) with 9 tabbed sections:
+  - Overview: stat cards (users, projects, disputes, funding), 7-day trends, financial overview (with NGN formatting), system counts, recent audit events
+  - Users: searchable table with suspend/activate/promote/demote actions
+  - Projects: filterable table, click row to navigate to project detail
+  - Funding: aggregate cards + filterable transaction table with webhook delivery status per record
+  - Disputes: filterable list, click to navigate to dispute detail
+  - Audit: top actions chips + filterable event log with metadata viewer
+  - AI: aggregate cards (calls, tokens, fallback rate) + by-assistant breakdown + activity log with prompt/response expandable
+  - Privacy: pending request queue with status update actions
+  - Webhooks: aggregate cards + filterable event log with payload viewer
+- Wired admin route into page.tsx router + added "Admin dashboard" link in AppShell sidebar (only visible when isAdmin=true) + added to user dropdown menu.
+- Updated `.env` and `.env.example` to document `ADMIN_EMAILS` env var.
+- Fixed two Prisma schema issues found during testing:
+  - Added `initiatedBy User @relation("FundingInitiator", ...)` to FundingRecord + back-relation `fundingInitiated FundingRecord[]` on User.
+  - Added `project Project? @relation(...)` to AiActivity + back-relation `aiActivities AiActivity[]` on Project.
+- Fixed variable name typo in stats route (`pendingPrivacyRequest` → `pendingPrivacyRequests`).
+- Browser-verified end-to-end:
+  - Logged in as admin user → "Admin dashboard" link appears in sidebar
+  - Overview tab renders all stat cards, trends, financial overview, recent audit events
+  - Users tab shows all 6 users with correct roles + suspend/promote/demote buttons
+  - Funding tab shows both transactions with SIMULATED labels + webhook delivery status
+  - Audit tab shows top actions + recent events with metadata
+  - All endpoints return correct data via curl tests
+
+Stage Summary:
+- ✅ Full admin dashboard with 9 sections, all backend-enforced with requireAdmin()
+- ✅ Admin sidebar link only visible to admins (frontend gating via /api/admin/me check)
+- ✅ User management actions (suspend/activate/promote/demote) audited + notify user
+- ✅ Privacy request queue with admin status workflow
+- ✅ All platform-wide data visible: users, projects, funding, disputes, audit, AI activity, webhooks
+- ✅ Aggregate stats + 7-day trends + financial volume calculations
+- ✅ Filterable tables + searchable user list
+- ✅ Self-action protection (admin can't suspend/demote themselves)
+- ✅ Lint passes clean
+- ✅ Browser-verified end-to-end
+- ✅ Screenshots saved: /home/z/my-project/download/gigsure-ai-admin.png + gigsure-ai-admin-users.png
+
+Artifacts:
+- /home/z/my-project/prisma/schema.prisma (added platformRole, fundingInitiated relation, AiActivity.project relation)
+- /home/z/my-project/src/lib/auth/session.ts (added requireAdmin + isCurrentUserAdmin)
+- /home/z/my-project/src/app/api/admin/{me,stats,users,users/[id],projects,funding,disputes,audit,ai-activity,privacy-requests,webhooks}/route.ts
+- /home/z/my-project/src/views/AdminView.tsx (9-section tabbed dashboard)
+- /home/z/my-project/src/views/AppShell.tsx (admin sidebar section + dropdown link)
+- /home/z/my-project/src/app/page.tsx (added admin route)
+- /home/z/my-project/src/lib/nav.ts (added "admin" to ViewName)
+- /home/z/my-project/.env + .env.example (added ADMIN_EMAILS)

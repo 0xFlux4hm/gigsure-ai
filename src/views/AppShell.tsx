@@ -30,6 +30,7 @@ import {
   Bot,
   ScrollText,
   Lock,
+  ShieldAlert,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
@@ -78,6 +79,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [projectCtx, setProjectCtx] = useState<ProjectNavContext>({});
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -95,6 +97,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const id = setInterval(loadUnread, 60_000);
     return () => clearInterval(id);
   }, [view]);
+
+  // Check admin status once per session
+  useEffect(() => {
+    api.get<{ platformRole: string }>("/api/admin/me")
+      .then(() => setIsAdmin(true))
+      .catch(() => setIsAdmin(false));
+  }, [session?.user?.id]);
 
   const inProject = PROJECT_NAV.some((n) => n.view === view);
 
@@ -169,6 +178,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <n.icon className="mr-2 h-4 w-4" /> {n.label}
                   </DropdownMenuItem>
                 ))}
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate({ view: "admin", projectId: undefined })}>
+                      <ShieldAlert className="mr-2 h-4 w-4 text-primary" /> Admin dashboard
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => signOut({ callbackUrl: "/?view=landing" })}
@@ -203,6 +220,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 badge={n.view === "notifications" && unread > 0 ? unread : undefined}
               />
             ))}
+
+            {isAdmin && (
+              <>
+                <div className="pt-4 pb-1 px-2 text-xs uppercase tracking-wider text-primary flex items-center gap-1">
+                  <ShieldAlert className="h-3 w-3" /> Admin
+                </div>
+                <SidebarLink
+                  active={view === "admin"}
+                  icon={ShieldAlert}
+                  label="Admin dashboard"
+                  onClick={() => {
+                    navigate({ view: "admin", projectId: undefined });
+                    setMobileOpen(false);
+                  }}
+                />
+              </>
+            )}
 
             {inProject && (
               <>

@@ -33,7 +33,8 @@ export type ViewName =
   | "settings-privacy"
   | "settings-audit"
   | "notifications"
-  | "invitation";
+  | "invitation"
+  | "admin";
 
 export interface ViewState {
   view: ViewName;

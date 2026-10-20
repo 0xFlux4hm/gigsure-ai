@@ -30,6 +30,7 @@ model User {
   passwordHash    String?
   emailVerifiedAt DateTime?
   accountStatus   String   @default("ACTIVE") // ACTIVE | SUSPENDED | PENDING_DELETION | DELETED
+  platformRole    String   @default("USER") // USER | ADMIN
   lastLoginAt     DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -56,6 +57,7 @@ model User {
   notifications     Notification[]
   privacyRequests   PrivacyRequest[]
   aiActivities      AiActivity[]
+  fundingInitiated  FundingRecord[]     @relation("FundingInitiator")
   linkedAccounts    LinkedAccount[]
 }
 
@@ -198,6 +200,7 @@ model Project {
   disputes         Dispute[]
   auditEvents      AuditEvent[]
   notifications    Notification[]
+  aiActivities     AiActivity[]
 
   @@index([ownerId])
   @@index([clientId])
@@ -418,6 +421,7 @@ model FundingRecord {
 
   project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   milestone     Milestone?      @relation(fields: [milestoneId], references: [id])
+  initiatedBy   User            @relation("FundingInitiator", fields: [initiatedById], references: [id])
   webhookEvents WebhookEvent[]
   auditEvents   AuditEvent[]
 
@@ -565,7 +569,8 @@ model AiActivity {
   fallbackUsed  Boolean  @default(false)
   createdAt     DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id])
 
   @@index([userId])
   @@index([projectId])
