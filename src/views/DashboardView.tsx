@@ -1,0 +1,128 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useNav } from "@/lib/nav";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { api, formatDate, timeAgo, formatMinor } from "@/lib/client-api";
+import { FolderKanban, Plus, ArrowRight, Loader2 } from "lucide-react";
+
+type DashboardData = {
+  projects: Array<{
+    id: string;
+    title: string;
+    status: string;
+    currency: string;
+    budgetMinor: number;
+    updatedAt: string;
+    myRole: string;
+    _count: { tasks: number; milestones: number; disputes: number };
+  }>;
+};
+
+export function DashboardView() {
+  const { navigate } = useNav();
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get<DashboardData>("/api/projects?limit=5").then(setData).finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">Welcome back. Here&apos;s what&apos;s happening across your projects.</p>
+        </div>
+        <Button onClick={() => navigate({ view: "projects" })}>
+          <Plus className="mr-2 h-4 w-4" /> New project
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard label="Active projects" value={data?.projects.length ?? 0} />
+        <StatCard label="Open tasks" value={data?.projects.reduce((s, p) => s + p._count.tasks, 0) ?? 0} />
+        <StatCard label="Open disputes" value={data?.projects.reduce((s, p) => s + p._count.disputes, 0) ?? 0} />
+        <StatCard label="Total milestones" value={data?.projects.reduce((s, p) => s + p._count.milestones, 0) ?? 0} />
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Recent projects</CardTitle>
+            <CardDescription>Your most recently updated projects.</CardDescription>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => navigate({ view: "projects" })}>
+            View all <ArrowRight className="ml-1 h-3 w-3" />
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : data?.projects.length === 0 ? (
+            <EmptyProjects onNew={() => navigate({ view: "projects" })} />
+          ) : (
+            <ul className="divide-y">
+              {data?.projects.map((p) => (
+                <li key={p.id}>
+                  <button
+                    onClick={() => navigate({ view: "project-detail", projectId: p.id })}
+                    className="w-full text-left py-3 flex items-center gap-4 hover:bg-muted/50 -mx-2 px-2 rounded transition-colors"
+                  >
+                    <div className="h-10 w-10 rounded bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <FolderKanban className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{p.title}</div>
+                      <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-xs">{p.status}</Badge>
+                        <Badge variant="secondary" className="text-xs">{p.myRole}</Badge>
+                        <span>{p._count.tasks} tasks · {p._count.milestones} milestones</span>
+                        <span>· Updated {timeAgo(p.updatedAt)}</span>
+                      </div>
+                    </div>
+                    {p.budgetMinor > 0 && (
+                      <div className="text-right text-sm hidden sm:block">
+                        <div className="font-medium">{formatMinor(p.budgetMinor, p.currency)}</div>
+                        <div className="text-xs text-muted-foreground">budget</div>
+                      </div>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-xs text-muted-foreground">{label}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function EmptyProjects({ onNew }: { onNew: () => void }) {
+  return (
+    <div className="text-center py-12">
+      <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+      <h3 className="font-semibold mb-1">No projects yet</h3>
+      <p className="text-sm text-muted-foreground mb-4">Create your first project to start collaborating.</p>
+      <Button onClick={onNew}>
+        <Plus className="mr-2 h-4 w-4" /> Create project
+      </Button>
+    </div>
+  );
+}

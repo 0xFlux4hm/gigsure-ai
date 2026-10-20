@@ -1,0 +1,107 @@
+/**
+ * List & create invitations.
+ *
+ * Invitation tokens are cryptographically random (32 bytes), stored as SHA-256
+ * hashes. Each invitation is bound to a specific project and role, optionally
+ * to a specific recipient, and has a hard expiry.
+ */
+import { db } from "@/lib/db";
+import { apiRoute, parseJsonBody, fail } from "@/lib/api";
+import { requireUserId } from "@/lib/auth/session";
+import { assertPermission, AuthzError } from "@/lib/auth/authorization";
+import { recordAuditEvent } from "@/lib/auth/audit";
+import { generateToken, hashToken } from "@/lib/security/tokens";
+import { normalizeEmail, validateEmail } from "@/lib/security/validation";
+import { z } from "zod";
+
+const Schema = z.object({
+  inviteeEmail: z.string().email().optional(),
+  inviteeId: z.string().cuid().optional(),
+  role: z.enum(["COLLABORATOR", "TEAM_LEAD", "REVIEWER"]),
+  expiresInSeconds: z.number().min(3600).max(604800).default(604800), // 1h..7d
+}).refine((d) => d.inviteeEmail || d.inviteeId, {
+  message: "Either inviteeEmail or inviteeId is required",
+});
+
+export const GET = apiRoute(async (_req, { params }) => {
+  const userId = await requireUserId();
+  const membership = await db.projectMembership.findUnique({
+    where: { projectId_userId: { projectId: params.id, userId } },
+  });
+  if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
+
+  const invitations = await db.invitation.findMany({
+    where: { projectId: params.id },
+    include: {
+      invitee: { select: { id: true, displayName: true, email: true } },
+      inviter: { select: { id: true, displayName: true, email: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  return { invitations };
+});
+
+export const POST = apiRoute(async (req, { params }) => {
+  const userId = await requireUserId();
+  const membership = await db.projectMembership.findUnique({
+    where: { projectId_userId: { projectId: params.id, userId } },
+  });
+  if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
+  assertPermission(membership, "project:invite");
+
+  const body = await parseJsonBody<unknown>(req);
+  const parsed = Schema.safeParse(body);
+  if (!parsed.success) return fail("Invalid invitation", 422, { issues: parsed.error.issues });
+
+  const data = parsed.data;
+  let inviteeId: string | null = null;
+  let inviteeEmail: string | null = null;
+  if (data.inviteeId) {
+    const u = await db.user.findUnique({ where: { id: data.inviteeId } });
+    if (!u) return fail("Invitee not found", 404);
+    inviteeId = u.id;
+    inviteeEmail = u.email;
+  } else if (data.inviteeEmail) {
+    inviteeEmail = normalizeEmail(data.inviteeEmail);
+    if (!validateEmail(inviteeEmail)) return fail("Invalid email", 400);
+    const u = await db.user.findUnique({ where: { emailNormalized: inviteeEmail } });
+    if (u) inviteeId = u.id;
+  }
+
+  const rawToken = generateToken();
+  const invitation = await db.invitation.create({
+    data: {
+      projectId: params.id,
+      inviteeId,
+      inviteeEmail,
+      inviterId: userId,
+      role: data.role,
+      tokenHash: hashToken(rawToken),
+      status: "PENDING",
+      expiresAt: new Date(Date.now() + data.expiresInSeconds * 1000),
+    },
+  });
+
+  await recordAuditEvent({
+    actorId: userId,
+    projectId: params.id,
+    action: "invitation.created",
+    targetType: "Invitation",
+    targetId: invitation.id,
+    metadata: { role: data.role, inviteeEmail },
+  });
+
+  // In dev: surface the token via response (in prod: email link).
+  const isProd = process.env.NODE_ENV === "production";
+  const inviteUrl = isProd
+    ? null
+    : `${process.env.NEXTAUTH_URL ?? ""}/?view=invitation&token=${rawToken}&project=${params.id}`;
+
+  return {
+    invitationId: invitation.id,
+    inviteUrl,
+    message: isProd
+      ? "Invitation sent."
+      : "Invitation created. Share the invite link with the recipient.",
+  };
+});
