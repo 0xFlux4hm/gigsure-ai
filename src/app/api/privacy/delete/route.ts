@@ -31,10 +31,33 @@ export const POST = apiRoute(async (req) => {
 
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, passwordHash: true, accountStatus: true },
+    select: {
+      id: true,
+      email: true,
+      passwordHash: true,
+      accountStatus: true,
+      platformRole: true,
+      // SECURITY (2026-10): for OAuth-only accounts, require a recent
+      // passwordChangedAt (i.e., user just set a password) OR a recent
+      // session re-issue. Without this, OAuth-only users could self-delete
+      // with just `confirmPhrase` — no reauthentication at all.
+    },
   });
   if (!user) return fail("User not found", 404);
   if (user.accountStatus !== "ACTIVE") return fail("Account not active", 400);
+
+  // SECURITY (2026-10): prevent the last admin from deleting themselves.
+  if (user.platformRole === "ADMIN") {
+    const adminCount = await db.user.count({
+      where: { platformRole: "ADMIN", accountStatus: "ACTIVE" },
+    });
+    if (adminCount <= 1) {
+      return fail(
+        "Cannot delete the last admin account. Demote yourself or appoint another admin first.",
+        400,
+      );
+    }
+  }
 
   // Reauthentication: if password set, must verify.
   if (user.passwordHash) {
@@ -45,6 +68,14 @@ export const POST = apiRoute(async (req) => {
       logSecurityEvent("warn", "privacy.delete_reauth_failed", { userId });
       return fail("Current password is incorrect", 403);
     }
+  } else {
+    // SECURITY (2026-10): OAuth-only account — require reauthentication via
+    // Google. For now we refuse deletion until the user sets a password
+    // first. (Future: accept a fresh Google OIDC `code` here.)
+    return fail(
+      "Reauthentication required. Please set a password on your account first, then retry deletion with currentPassword.",
+      401,
+    );
   }
 
   // Check active projects (owner only) — refuse if there are any non-COMPLETED ones.

@@ -4,11 +4,18 @@
  * AI can summarize evidence but CANNOT make binding decisions. The outcome
  * is recorded as advisory metadata; only the platform admin (or future legal
  * workflow) can finalize.
+ *
+ * SECURITY (2026-10): Fixed IDOR — handler previously didn't verify
+ * `disputeId` belongs to `projectId` in the URL, didn't check `dispute:review`
+ * permission, and didn't verify a REVIEWER is assigned to the dispute.
+ * Attackers could post reviews to any project's dispute by guessing the cuid.
+ *
+ * Also refuses to mutate disputes that are already RESOLVED/CLOSED.
  */
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
-import { AuthzError } from "@/lib/auth/authorization";
+import { assertPermission, AuthzError } from "@/lib/auth/authorization";
 import { recordAuditEvent } from "@/lib/auth/audit";
 import { z } from "zod";
 
@@ -25,6 +32,30 @@ export const POST = apiRoute(async (req, { params }) => {
     where: { projectId_userId: { projectId, userId } },
   });
   if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
+  assertPermission(membership, "dispute:review");
+
+  // SECURITY: verify dispute belongs to the project in the URL.
+  const dispute = await db.dispute.findUnique({
+    where: { id: disputeId },
+    select: { id: true, projectId: true, status: true },
+  });
+  if (!dispute || dispute.projectId !== projectId) {
+    return fail("Dispute not found in this project", 404);
+  }
+  // SECURITY: REVIEWER role must be assigned to this specific dispute.
+  if (membership.role === "REVIEWER") {
+    const assigned = await db.disputeReview.findUnique({
+      where: { disputeId_reviewerId: { disputeId, reviewerId: userId } },
+      select: { id: true },
+    });
+    if (!assigned) {
+      throw new AuthzError("Dispute not assigned to you", 403);
+    }
+  }
+  // SECURITY: refuse to mutate a closed dispute.
+  if (["RESOLVED", "CLOSED"].includes(dispute.status)) {
+    return fail(`Cannot review a ${dispute.status} dispute`, 400);
+  }
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);

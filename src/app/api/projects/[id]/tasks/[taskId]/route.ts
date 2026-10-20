@@ -56,6 +56,16 @@ export const PATCH = apiRoute(async (req, { params }) => {
   const data = parsed.data;
   const update: Record<string, unknown> = {};
 
+  // SECURITY (2026-10): Editing task metadata (title, description, priority,
+  // dueDate) requires `task:create` permission (OWNER or TEAM_LEAD only).
+  // Without this check, any member — including CLIENT with no task perms —
+  // could vandalize task fields.
+  const isEditingFields = ["title", "description", "priority", "dueDate"].some(
+    (k) => k in (parsed.data as Record<string, unknown>),
+  );
+  if (isEditingFields) {
+    assertPermission(membership, "task:create");
+  }
   if (data.title) update.title = data.title;
   if (data.description !== undefined) update.description = data.description;
   if (data.priority) update.priority = data.priority;
@@ -75,15 +85,19 @@ export const PATCH = apiRoute(async (req, { params }) => {
     if (!TRANSITIONS[task.status]?.has(data.status)) {
       return fail(`Cannot transition from ${task.status} to ${data.status}`, 400);
     }
-    const isReviewAction = ["APPROVED", "CHANGES_REQUESTED"].includes(data.status);
-    const isSubmitAction = ["IN_PROGRESS", "SUBMITTED"].includes(data.status);
+    // SECURITY (2026-10): Transitions to APPROVED/CHANGES_REQUESTED require
+    // task:review (OWNER or TEAM_LEAD). CANCELLED from terminal states also
+    // requires task:review — only project owners can cancel tasks.
+    const isReviewAction = ["APPROVED", "CHANGES_REQUESTED", "CANCELLED"].includes(data.status);
+    const isSubmitAction = data.status === "SUBMITTED";
+    const isStartAction = data.status === "IN_PROGRESS";
     if (isReviewAction) {
       assertPermission(membership, "task:review");
-    } else if (isSubmitAction && data.status !== "IN_PROGRESS") {
+    } else if (isSubmitAction) {
       if (!canSubmitTask(membership, task.assigneeId)) {
         throw new AuthzError("Only the assignee or project owner may submit this task", 403);
       }
-    } else if (data.status === "IN_PROGRESS" && task.assigneeId !== userId) {
+    } else if (isStartAction && task.assigneeId !== userId) {
       if (!canSubmitTask(membership, task.assigneeId)) {
         throw new AuthzError("Only the assignee may start this task", 403);
       }

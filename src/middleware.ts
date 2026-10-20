@@ -23,14 +23,17 @@ export function middleware(req: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
 
   // CSP: restricts where resources can be loaded from.
-  // - 'self' for scripts/styles/images/fonts
-  // - Allow Google fonts + avatar inline styles
-  // - Allow Google OIDC redirects (accounts.google.com)
-  // - Allow data: for images (shadcn/ui avatars use data URIs)
-  // - 'unsafe-inline' for styles (Next.js requires it for now; nonce can be added later)
+  // SECURITY (2026-10): removed `'unsafe-inline'` and `'unsafe-eval'` from
+  // script-src in production — both undermined the per-request nonce. With
+  // both allowed, any HTML injection became executable JS.
+  // In development, Next.js Turbopack HMR requires 'unsafe-eval' — we add
+  // it back only in dev.
+  const scriptSrc = isProduction
+    ? `script-src 'self' 'nonce-${nonce}'`
+    : `script-src 'self' 'nonce-${nonce}' 'unsafe-eval'`;
   const csp = [
     `default-src 'self'`,
-    `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'unsafe-eval'`,
+    scriptSrc,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `font-src 'self' data: https://fonts.gstatic.com`,
     `img-src 'self' data: blob: https:`,

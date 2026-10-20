@@ -12,7 +12,8 @@ export const GET = apiRoute(async (req) => {
   const offset = getQueryInt(req, "offset", 0);
   const status = getQueryParam(req, "status");
   const category = getQueryParam(req, "category");
-  const q = getQueryParam(req, "q")?.toLowerCase().trim();
+  // SECURITY (2026-10): cap query length
+  const q = (getQueryParam(req, "q") ?? "").toLowerCase().trim().slice(0, 100);
 
   const where: Record<string, unknown> = {};
   if (status) where.status = status;

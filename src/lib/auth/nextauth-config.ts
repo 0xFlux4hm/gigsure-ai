@@ -19,7 +19,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { db } from "@/lib/db";
-import { verifyPassword } from "@/lib/security/password";
+import { verifyPassword, getDecoyPasswordHash } from "@/lib/security/password";
 import { normalizeEmail, validateEmail } from "@/lib/security/validation";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
@@ -30,6 +30,15 @@ const hasGoogleCreds =
   !process.env.GOOGLE_CLIENT_ID.startsWith("demo_");
 
 export const authOptions: NextAuthOptions = {
+  // SECURITY (2026-10): explicitly set secret (was implicit via env var).
+  // Fail loudly in production if NEXTAUTH_SECRET is missing.
+  secret: (() => {
+    const s = process.env.NEXTAUTH_SECRET;
+    if (!s && process.env.NODE_ENV === "production") {
+      throw new Error("NEXTAUTH_SECRET must be set in production. Generate with: openssl rand -base64 32");
+    }
+    return s;
+  })(),
   session: {
     strategy: "jwt",
     maxAge: 60 * 60 * 24 * 7, // 7 days
@@ -77,11 +86,17 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Rate-limit login attempts (per email + per IP).
-        // We can't read headers from the NextAuth authorize signature reliably, so we
-        // derive an IP fallback from the request body if available.
-        const ip = (req as { body?: { ipAddress?: string } } | undefined)?.body?.ipAddress
-          ?? "unknown";
+        // SECURITY (2026-10): derive IP from request headers, NOT from
+        // req.body.ipAddress (which was fully attacker-controlled — bypassed
+        // the per-IP rate limit trivially). NextAuth passes the NextRequest
+        // as `req`. We trust the leftmost X-Forwarded-For entry as the
+        // client IP — if you're behind a CDN that overwrites this header
+        // (recommended), this is correct. If your CDN appends, an attacker
+        // can still spoof the leftmost — but Vercel/Cloudflare overwrite.
+        const headers = (req as { headers?: Record<string, string | string[]> } | undefined)?.headers;
+        const xff = headers?.["x-forwarded-for"] ?? headers?.["x-forwarded-for".toLowerCase()];
+        const ip = (Array.isArray(xff) ? xff[0] : xff)?.split(",")[0]?.trim() ?? "unknown";
+
         const emailLimit = await checkRateLimit(`login:email:${email}`, RATE_LIMITS.LOGIN_PER_EMAIL);
         const ipLimit = await checkRateLimit(`login:ip:${ip}`, RATE_LIMITS.LOGIN_PER_IP);
         if (!emailLimit.ok || !ipLimit.ok) {
@@ -97,8 +112,11 @@ export const authOptions: NextAuthOptions = {
         const user = await db.user.findUnique({
           where: { emailNormalized: email },
         });
-        // Always perform a hash verification attempt to reduce timing-based enumeration.
-        const hash = user?.passwordHash ?? "$scrypt$0$0$0$00$00";
+        // SECURITY (2026-10): use a real scrypt-formatted decoy hash so
+        // verifyPassword runs the full scryptSync path even when the user
+        // doesn't exist. Previously the decoy was "$scrypt$..." which failed
+        // the startsWith("scrypt:") check immediately, leaking timing info.
+        const hash = user?.passwordHash ?? getDecoyPasswordHash();
         const ok = verifyPassword(password, hash);
         if (!user || !user.passwordHash || !ok) {
           logSecurityEvent("warn", "auth.login_failed", { email });
@@ -168,9 +186,29 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account }) {
       if (user?.id) {
         token.userId = user.id;
+        // SECURITY (2026-10): record issuedAt so we can invalidate the
+        // session after a password change/reset (see jwt callback below).
+        token.issuedAt = Date.now();
       }
       if (account?.provider) {
         token.provider = account.provider;
+      }
+      // SECURITY (2026-10): if the user has changed their password since
+      // this JWT was issued, force re-authentication by returning an empty
+      // token (NextAuth treats this as "not authenticated").
+      if (token.userId && token.issuedAt) {
+        const u = await db.user.findUnique({
+          where: { id: token.userId as string },
+          select: { passwordChangedAt: true, accountStatus: true },
+        });
+        if (!u || u.accountStatus !== "ACTIVE") {
+          // User deleted or suspended — invalidate session
+          return { ...token, userId: undefined } as typeof token;
+        }
+        if (u.passwordChangedAt && u.passwordChangedAt.getTime() > (token.issuedAt as number)) {
+          // Password changed after this JWT was issued — invalidate
+          return { ...token, userId: undefined } as typeof token;
+        }
       }
       return token;
     },
@@ -224,5 +262,6 @@ declare module "next-auth/jwt" {
   interface JWT {
     userId?: string;
     provider?: string;
+    issuedAt?: number;
   }
 }

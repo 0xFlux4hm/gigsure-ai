@@ -62,9 +62,9 @@ export const POST = apiRoute(async (req, { params }) => {
   if (parsed.data.milestoneId) {
     milestone = await db.milestone.findUnique({
       where: { id: parsed.data.milestoneId },
-      select: { id: true, status: true, amountMinor: true },
+      select: { id: true, status: true, amountMinor: true, projectId: true },
     });
-    if (!milestone || (await db.milestone.findUnique({ where: { id: parsed.data.milestoneId } }))?.projectId !== params.id) {
+    if (!milestone || milestone.projectId !== params.id) {
       return fail("Milestone not found in this project", 404);
     }
     if (parsed.data.type === "FUNDING" && !["DRAFT", "AWAITING_FUNDING"].includes(milestone.status)) {
@@ -72,6 +72,25 @@ export const POST = apiRoute(async (req, { params }) => {
     }
     if (parsed.data.type === "RELEASE" && milestone.status !== "APPROVED") {
       return fail(`Milestone must be APPROVED to release (current: ${milestone.status})`, 400);
+    }
+    // SECURITY (2026-10): REFUND requires an existing PROVIDER_CONFIRMED
+    // FUNDING record (header comment says so but it wasn't enforced).
+    // Refund amount must not exceed the original funding amount.
+    if (parsed.data.type === "REFUND") {
+      const originalFunding = await db.fundingRecord.findFirst({
+        where: {
+          milestoneId: parsed.data.milestoneId,
+          type: "FUNDING",
+          status: "PROVIDER_CONFIRMED",
+        },
+        select: { id: true, amountMinor: true },
+      });
+      if (!originalFunding) {
+        return fail("Cannot refund: no confirmed funding record for this milestone", 400);
+      }
+      if (parsed.data.amountMinor > originalFunding.amountMinor) {
+        return fail("Refund amount exceeds original funding amount", 400);
+      }
     }
     // Block release if dispute is open on this milestone.
     const openDispute = await db.dispute.findFirst({

@@ -4,25 +4,42 @@
  * Uses Node's built-in `scrypt` (a memory-hard KDF recommended by OWASP).
  * Hashes are stored as `scrypt:N:r:p:saltHex:hashHex` so we can later verify
  * parameters without silent migration. Never log hash strings.
+ *
+ * SECURITY: verifyPassword rejects hashes whose N/r/p/keyLen don't match
+ * SCRYPT_PARAMS — prevents an attacker with DB write access from downgrading
+ * a victim's hash to weak parameters (e.g., scrypt:2:1:1:...) that would
+ * make any password trivially hashable.
  */
 import { scryptSync, randomBytes, timingSafeEqual } from "crypto";
 
 const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1, keyLen: 64 } as const;
 
+// Precomputed decoy hash for non-existent users, so login timing is uniform.
+// Produced by hashPassword("__decoy__"). Format is valid so verifyPassword
+// runs the full scryptSync path even when the user doesn't exist.
+const DECOY_HASH = hashPasswordInternal("__decoy__", SCRYPT_PARAMS);
+
 export function hashPassword(plain: string): string {
   if (typeof plain !== "string" || plain.length === 0) {
     throw new Error("Password must be a non-empty string");
   }
+  if (plain.length > 1024) {
+    // Defense in depth against DoS via huge password buffers.
+    // validatePasswordPolicy enforces 8-128 chars at the API layer.
+    throw new Error("Password too long");
+  }
+  return hashPasswordInternal(plain, SCRYPT_PARAMS);
+}
+
+function hashPasswordInternal(plain: string, params: typeof SCRYPT_PARAMS): string {
   const salt = randomBytes(16);
-  const hash = scryptSync(plain, salt, SCRYPT_PARAMS.keyLen, {
-    N: SCRYPT_PARAMS.N,
-    r: SCRYPT_PARAMS.r,
-    p: SCRYPT_PARAMS.p,
+  const hash = scryptSync(plain, salt, params.keyLen, {
+    N: params.N,
+    r: params.r,
+    p: params.p,
     maxmem: 64 * 1024 * 1024,
   });
-  return `scrypt:${SCRYPT_PARAMS.N}:${SCRYPT_PARAMS.r}:${SCRYPT_PARAMS.p}:${salt.toString(
-    "hex",
-  )}:${hash.toString("hex")}`;
+  return `scrypt:${params.N}:${params.r}:${params.p}:${salt.toString("hex")}:${hash.toString("hex")}`;
 }
 
 export function verifyPassword(plain: string, stored: string): boolean {
@@ -34,7 +51,15 @@ export function verifyPassword(plain: string, stored: string): boolean {
   const p = Number(parts[3]);
   const salt = Buffer.from(parts[4], "hex");
   const expected = Buffer.from(parts[5], "hex");
+
+  // SECURITY: reject attacker-downgraded hash parameters.
+  // Only accept hashes that match our SCRYPT_PARAMS, so a DB-tamper attack
+  // that replaces a victim's hash with scrypt:2:1:1:... can't succeed.
   if (!Number.isFinite(N) || !Number.isFinite(r) || !Number.isFinite(p)) return false;
+  if (N !== SCRYPT_PARAMS.N || r !== SCRYPT_PARAMS.r || p !== SCRYPT_PARAMS.p) return false;
+  if (expected.length !== SCRYPT_PARAMS.keyLen) return false;
+  if (salt.length !== 16) return false;
+
   try {
     const computed = scryptSync(plain, salt, expected.length, {
       N,
@@ -46,6 +71,11 @@ export function verifyPassword(plain: string, stored: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Returns a valid scrypt-formatted decoy hash for use when a user lookup misses. */
+export function getDecoyPasswordHash(): string {
+  return DECOY_HASH;
 }
 
 /** Password policy: 8–128 chars, at least one letter and one digit. */

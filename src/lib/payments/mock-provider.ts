@@ -24,8 +24,23 @@ import {
 import { recordAuditEvent } from "@/lib/auth/audit";
 
 export const MOCK_PROVIDER_NAME = "mock";
-export const MOCK_WEBHOOK_SECRET =
-  process.env.MOCK_WEBHOOK_SECRET ?? "mock-webhook-secret-dev-only";
+
+// SECURITY: never default to a public constant in production.
+// If MOCK_WEBHOOK_SECRET is unset in production, we refuse to start.
+// In dev/test, we use a clearly-marked dev-only default.
+function resolveMockWebhookSecret(): string {
+  const envVal = process.env.MOCK_WEBHOOK_SECRET;
+  if (envVal) return envVal;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "MOCK_WEBHOOK_SECRET must be set in production. Generate with: openssl rand -hex 32",
+    );
+  }
+  // Dev/test fallback
+  return "mock-webhook-secret-dev-only";
+}
+
+export const MOCK_WEBHOOK_SECRET = resolveMockWebhookSecret();
 
 export type FundingType = "FUNDING" | "RELEASE" | "REFUND";
 export type FundingStatus =
@@ -80,38 +95,50 @@ export async function initiateFunding(
   const idempotencyKey = input.idempotencyKey ?? generateIdempotencyKey();
   const providerTxRef = generateProviderTxRef();
 
-  // Idempotency: if a record with this idempotency key already exists, return it.
-  const existing = await db.fundingRecord.findUnique({
-    where: { idempotencyKey },
-  });
-  if (existing) {
-    return {
-      fundingRecordId: existing.id,
-      providerTxRef: existing.providerTxRef ?? providerTxRef,
-      status: existing.status as FundingStatus,
-      isSimulated: true,
-    };
+  // SECURITY (2026-10): wrap the findUnique + create in a try/catch on
+  // Prisma P2002 (unique constraint). If two concurrent requests share the
+  // same idempotencyKey, both pass the findUnique check (race window), but
+  // only one create succeeds — the other hits P2002 and we return the
+  // already-created record instead of failing with 500.
+  let record;
+  try {
+    record = await db.fundingRecord.create({
+      data: {
+        projectId: input.projectId,
+        milestoneId: input.milestoneId ?? null,
+        type: input.type,
+        amountMinor: input.amountMinor,
+        currency: input.currency,
+        status: "INITIATED",
+        provider: MOCK_PROVIDER_NAME,
+        providerTxRef,
+        idempotencyKey,
+        initiatedById: input.initiatedById,
+        isSimulated: true,
+      },
+    });
+  } catch (err) {
+    if ((err as { code?: string }).code === "P2002") {
+      // Unique constraint on idempotencyKey — concurrent request already
+      // created the record. Return the existing one.
+      const existing = await db.fundingRecord.findUnique({
+        where: { idempotencyKey },
+      });
+      if (existing) {
+        return {
+          fundingRecordId: existing.id,
+          providerTxRef: existing.providerTxRef ?? providerTxRef,
+          status: existing.status as FundingStatus,
+          isSimulated: true,
+        };
+      }
+    }
+    throw err;
   }
 
   // Magic-failure pattern: amountMinor ending in 1 (1 kobo remainder)
   // simulates a provider rejection. Used in integration tests.
   const willFail = input.amountMinor % 1000 === 1;
-
-  const record = await db.fundingRecord.create({
-    data: {
-      projectId: input.projectId,
-      milestoneId: input.milestoneId ?? null,
-      type: input.type,
-      amountMinor: input.amountMinor,
-      currency: input.currency,
-      status: "INITIATED",
-      provider: MOCK_PROVIDER_NAME,
-      providerTxRef,
-      idempotencyKey,
-      initiatedById: input.initiatedById,
-      isSimulated: true,
-    },
-  });
 
   await recordAuditEvent({
     actorId: input.initiatedById,

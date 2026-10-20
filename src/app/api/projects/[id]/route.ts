@@ -74,10 +74,17 @@ export const PATCH = apiRoute(async (req, { params }) => {
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = UpdateSchema.safeParse(body);
-  if (!parsed.success) return fail("Invalid update", 422, { issues: parsed.error.issues });
+  if (!parsed.success) return fail("Invalid update", 422);
 
   const data = parsed.data;
   if (data.currency && !validateCurrency(data.currency)) return fail("Unsupported currency", 400);
+  // SECURITY (2026-10): setting status to CANCELLED is equivalent to deletion
+  // and must require project:delete (defense in depth — currently both
+  // permissions are OWNER-only, but if a future role gets project:edit
+  // without project:delete, they shouldn't be able to cancel projects).
+  if (data.status === "CANCELLED") {
+    assertPermission(membership, "project:delete");
+  }
   const update: Record<string, unknown> = {};
   if (data.title) update.title = data.title;
   if (data.description) update.description = data.description;
