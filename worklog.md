@@ -128,3 +128,50 @@ Artifacts:
 - /home/z/my-project/src/app/page.tsx (added admin route)
 - /home/z/my-project/src/lib/nav.ts (added "admin" to ViewName)
 - /home/z/my-project/.env + .env.example (added ADMIN_EMAILS)
+
+---
+Task ID: gigsure-ai-phase1-production
+Agent: main (Z.ai)
+Task: Phase 1 — production readiness hardening
+
+Work Log:
+- PostgreSQL schema variant: prisma/schema.postgres.prisma (identical to SQLite schema but with postgresql provider). Switch with `bun run db:switch-postgres`.
+- Security headers middleware (src/middleware.ts): CSP with nonce + Google OIDC allowed origins, HSTS (prod), X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy (camera/mic/geo off), COOP, CORP. Excludes /_next/static, /_next/image, /favicon.ico, /robots.txt, /images/.
+- Rate limiter (src/lib/security/rate-limit.ts): InMemoryRateLimiter + Redis-ready interface. Pre-defined limits: LOGIN_PER_EMAIL (5/15min), LOGIN_PER_IP (20/15min), REGISTER_PER_IP (3/hr), FORGOT_PASSWORD (3/10min), RESEND_VERIFICATION (3/10min), RESET_PASSWORD (5/hr), AI_ASSISTANT_PER_USER (20/min), AI_ASSISTANT_PER_IP (30/min). Wired into NextAuth Credentials provider + /api/ai/assistant.
+- Test suite (Vitest): 60 tests pass — 54 unit tests (password hashing, tokens/crypto, validation, rate limiter) + 6 integration tests (funding idempotency, dispute-blocks-release). Isolated test DB at /tmp/gigsure-test.db. Custom postcss.config.mjs detects vitest and skips Tailwind plugin.
+- GitHub Actions CI (.github/workflows/ci.yml): lint + typecheck + db:push + unit tests + integration tests + dependency audit + committed-secret scan. Least-privilege permissions. Cancel-in-progress for same branch.
+- Multi-stage Dockerfile (deps -> builder -> runner): non-root user, openssl for Prisma, HEALTHCHECK on /api/health.
+- docker-compose.yml: app + postgres:16-alpine + caddy:2-alpine with persistent volumes, healthchecks, internal-only port 3000 (Caddy handles external).
+- Caddyfile: auto-HTTPS via Let's Encrypt, security headers, gzip/zstd, static asset caching.
+- scripts/docker-entrypoint.sh: validates env vars, runs migrations, starts app.
+- scripts/deploy.sh: validates env, optionally builds, waits for Postgres, runs migrations, starts app, verifies /api/health responds 200.
+- scripts/reset-db.sh: wipes DB before production deploy (interactive confirm).
+- /api/health endpoint: pings DB, returns 200 healthy or 503 unhealthy with timestamps + per-check latency.
+- SECURITY.md: responsible disclosure policy with response SLAs, scope clarification, known limitations.
+- .env.example: comprehensive documentation of all production vars (Postgres, NextAuth, Google OAuth, ADMIN_EMAILS, MOCK_WEBHOOK_SECRET, SMTP, payment providers, rate-limit backend, deploy config).
+- package.json: added test, test:unit, test:integration, test:watch, test:coverage, typecheck, db:switch-postgres scripts.
+
+Stage Summary:
+- ✅ All 14 Phase 1 items completed
+- ✅ 60/60 tests pass (54 unit + 6 integration)
+- ✅ Lint passes clean
+- ✅ Dev server still works (HTTP 200 + healthy)
+- ✅ Security headers active (verified via curl -I)
+- ✅ Rate limiter active (login blocked after 5 attempts per email)
+- ✅ Health check active (/api/health returns 200 with DB latency)
+- ✅ Committed + pushed to GitHub (commit 2512f48)
+
+Artifacts:
+- prisma/schema.postgres.prisma
+- src/middleware.ts
+- src/lib/security/rate-limit.ts
+- src/app/api/health/route.ts
+- src/app/api/ai/assistant/route.ts (rate-limited)
+- src/lib/auth/nextauth-config.ts (rate-limited)
+- tests/setup.ts + tests/unit/* + tests/integration/*
+- vitest.config.ts
+- .github/workflows/ci.yml
+- Dockerfile + docker-compose.yml + Caddyfile
+- scripts/docker-entrypoint.sh + scripts/deploy.sh + scripts/reset-db.sh
+- SECURITY.md
+- Updated: package.json, postcss.config.mjs, .env.example
