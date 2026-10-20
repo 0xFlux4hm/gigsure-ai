@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail, ok } from "@/lib/api";
 import { normalizeEmail, validateEmail } from "@/lib/security/validation";
 import { generateToken, hashToken } from "@/lib/security/tokens";
+import { sendEmail, verificationEmail } from "@/lib/email/provider";
+import { logSecurityEvent } from "@/lib/auth/audit";
 import { z } from "zod";
 
 const resendStore = new Map<string, { count: number; firstAt: number }>();
@@ -50,6 +52,19 @@ export const POST = apiRoute(async (req) => {
         expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
       },
     });
+
+    // Send verification email
+    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+    const verificationUrl = `${baseUrl}/?view=verify-email&token=${rawToken}`;
+    if (process.env.NODE_ENV === "production" || process.env.SMTP_URL) {
+      const result = await sendEmail(verificationEmail(email, verificationUrl));
+      if (!result.ok) {
+        logSecurityEvent("error", "email.verification_resend_failed", {
+          userId: user.id,
+          error: result.error,
+        });
+      }
+    }
     // In dev: surface the token via log only.
     if (process.env.NODE_ENV !== "production") {
       console.info(`[dev] verification token for ${email}: ${rawToken}`);

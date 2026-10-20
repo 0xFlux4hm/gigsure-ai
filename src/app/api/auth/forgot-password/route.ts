@@ -10,6 +10,7 @@ import { apiRoute, parseJsonBody, fail, ok } from "@/lib/api";
 import { normalizeEmail, validateEmail } from "@/lib/security/validation";
 import { generateToken, hashToken } from "@/lib/security/tokens";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
+import { sendEmail, passwordResetEmail } from "@/lib/email/provider";
 import { z } from "zod";
 
 const forgotStore = new Map<string, { count: number; firstAt: number }>();
@@ -52,6 +53,19 @@ export const POST = apiRoute(async (req) => {
         expiresAt: new Date(Date.now() + 1000 * 60 * 60), // 1h
       },
     });
+
+    // Send the password reset email
+    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+    const resetUrl = `${baseUrl}/?view=reset-password&token=${rawToken}`;
+    if (process.env.NODE_ENV === "production" || process.env.SMTP_URL) {
+      const result = await sendEmail(passwordResetEmail(email, resetUrl));
+      if (!result.ok) {
+        logSecurityEvent("error", "email.password_reset_send_failed", {
+          userId: user.id,
+          error: result.error,
+        });
+      }
+    }
     if (process.env.NODE_ENV !== "production") {
       console.info(`[dev] password reset token for ${email}: ${rawToken}`);
     }

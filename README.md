@@ -8,6 +8,30 @@ Built for the Nigerian freelance market — designed mobile-first, with explicit
 
 ---
 
+## 🚀 Deploy for $0/month
+
+The fastest path to production is the **free-tier deployment**:
+
+| Service | Free tier | Purpose |
+|---------|----------|---------|
+| **Vercel** | 100 GB bandwidth, auto-HTTPS | Hosting |
+| **Neon** | 0.5 GB Postgres, serverless | Database |
+| **Gmail SMTP** | 500 emails/day | Email verification + resets |
+| **Google OAuth** | Unlimited | Real Google sign-in |
+
+**Total cost without a domain: $0/month.**
+**With a domain (~$10/year): ~$0.83/month.**
+
+To deploy now:
+```bash
+./scripts/setup-free-tier.sh   # generates secrets + switches to Postgres schema
+```
+Then follow [`docs/DEPLOYMENT_FREE_TIER.md`](docs/DEPLOYMENT_FREE_TIER.md) for the cloud setup (~90 minutes total).
+
+When you have money for a domain, follow [`docs/GO_LIVE_CHECKLIST.md`](docs/GO_LIVE_CHECKLIST.md).
+
+---
+
 ## What this build includes
 
 **Implemented & working**

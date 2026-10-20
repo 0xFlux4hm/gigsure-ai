@@ -22,6 +22,7 @@ import {
 } from "@/lib/security/validation";
 import { generateToken, hashToken } from "@/lib/security/tokens";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
+import { sendEmail, verificationEmail } from "@/lib/email/provider";
 import { z } from "zod";
 
 const RegisterSchema = z.object({
@@ -115,16 +116,30 @@ export const POST = apiRoute(async (req) => {
     metadata: { provider: "password", email },
   });
 
-  // In production we would email the link. In dev, return the token.
+  // Always construct the verification URL — in production we email it,
+  // in dev we ALSO return it in the response so the developer can click through.
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const verificationUrl = `${baseUrl}/?view=verify-email&token=${user.rawToken}`;
+
+  // Send verification email (production: SMTP; dev: logged to console)
+  if (process.env.NODE_ENV === "production" || process.env.SMTP_URL) {
+    const result = await sendEmail(verificationEmail(email, verificationUrl));
+    if (!result.ok) {
+      logSecurityEvent("error", "email.verification_send_failed", {
+        userId: user.user.id,
+        error: result.error,
+      });
+      // Don't fail registration — user can request resend via /api/auth/resend-verification
+    }
+  }
+
   const isProd = process.env.NODE_ENV === "production";
-  const verificationUrl = isProd
-    ? null
-    : `${process.env.NEXTAUTH_URL ?? ""}/?view=verify-email&token=${user.rawToken}`;
 
   return ok({
     created: true,
     userId: user.user.id,
-    verificationUrl,
+    // Only surface the URL in dev — in production, the link is in the email only
+    verificationUrl: isProd ? null : verificationUrl,
     message: isProd
       ? "Account created. Check your email for a verification link."
       : "Account created. Click the verification link to verify your email.",
