@@ -1,0 +1,90 @@
+# GigSure AI — Docker Compose (app + postgres + caddy)
+#
+# Usage:
+#   cp .env.example .env  # fill in real secrets
+#   docker compose up -d
+#
+# - Postgres 16 with persistent volume
+# - App on port 3000 (internal), reverse-proxied by Caddy on 80/443
+# - Caddy auto-provisions and renews Let's Encrypt certificates
+#
+# Switch the app from SQLite to Postgres before bringing this up:
+#   cp prisma/schema.postgres.prisma prisma/schema.prisma
+#   # Update DATABASE_URL in .env to postgresql://...@postgres:5432/gigsure
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gigsure-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gigsure
+      POSTGRES_USER: gigsure
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?must be set}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"  # Expose for local psql access (lock down in production)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gigsure -d gigsure"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gigsure-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Use the postgres service (NOT localhost)
+      DATABASE_URL: postgresql://gigsure:${POSTGRES_PASSWORD}@postgres:5432/gigsure?schema=public
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?must be set}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?must be set}
+      MOCK_WEBHOOK_SECRET: ${MOCK_WEBHOOK_SECRET:?must be set}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    # Only expose internally — Caddy handles external traffic
+    expose:
+      - "3000"
+    # Healthcheck defined in Dockerfile
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: gigsure-caddy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      # The domain Caddy will serve — must be in Caddyfile too
+      GIGSURE_DOMAIN: ${GIGSURE_DOMAIN:-localhost}
+
+volumes:
+  postgres_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local

@@ -13,6 +13,8 @@ import ZAI from "z-ai-web-dev-sdk";
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
+import { headers } from "next/headers";
 import { AuthzError } from "@/lib/auth/authorization";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { z } from "zod";
@@ -187,6 +189,18 @@ async function assembleContext(
 
 export const POST = apiRoute(async (req) => {
   const userId = await requireUserId();
+
+  // Rate-limit AI calls (per-user + per-IP)
+  const ip = headers().get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const userLimit = await checkRateLimit(`ai:user:${userId}`, RATE_LIMITS.AI_ASSISTANT_PER_USER);
+  const ipLimit = await checkRateLimit(`ai:ip:${ip}`, RATE_LIMITS.AI_ASSISTANT_PER_IP);
+  if (!userLimit.ok || !ipLimit.ok) {
+    return fail(
+      "Rate limit exceeded. Please wait a moment and try again.",
+      429,
+      { retryAfter: Math.max(userLimit.resetAt, ipLimit.resetAt) - Date.now() },
+    );
+  }
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
   if (!parsed.success) return fail("Invalid request", 422, { issues: parsed.error.issues });

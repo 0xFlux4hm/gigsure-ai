@@ -22,6 +22,7 @@ import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/security/password";
 import { normalizeEmail, validateEmail } from "@/lib/security/validation";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 
 const hasGoogleCreds =
   !!process.env.GOOGLE_CLIENT_ID &&
@@ -69,12 +70,30 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         const email = normalizeEmail(credentials?.email ?? "");
         const password = credentials?.password ?? "";
         if (!validateEmail(email) || typeof password !== "string" || password.length === 0) {
           return null;
         }
+
+        // Rate-limit login attempts (per email + per IP).
+        // We can't read headers from the NextAuth authorize signature reliably, so we
+        // derive an IP fallback from the request body if available.
+        const ip = (req as { body?: { ipAddress?: string } } | undefined)?.body?.ipAddress
+          ?? "unknown";
+        const emailLimit = await checkRateLimit(`login:email:${email}`, RATE_LIMITS.LOGIN_PER_EMAIL);
+        const ipLimit = await checkRateLimit(`login:ip:${ip}`, RATE_LIMITS.LOGIN_PER_IP);
+        if (!emailLimit.ok || !ipLimit.ok) {
+          logSecurityEvent("warn", "auth.login_rate_limited", {
+            email,
+            ip,
+            emailRemaining: emailLimit.remaining,
+            ipRemaining: ipLimit.remaining,
+          });
+          return null;
+        }
+
         const user = await db.user.findUnique({
           where: { emailNormalized: email },
         });

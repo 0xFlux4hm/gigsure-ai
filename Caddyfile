@@ -1,23 +1,60 @@
-:81 {
-	@transform_port_query {
-		query XTransformPort=*
-	}
+# GigSure AI — Caddyfile (HTTPS reverse proxy)
+#
+# Caddy automatically provisions + renews Let's Encrypt certificates.
+#
+# Usage:
+#   1. Set GIGSURE_DOMAIN in .env (e.g. gigsure.yourdomain.com)
+#   2. Point your DNS A record at this server's IP
+#   3. docker compose up -d
+#
+# For local testing without a domain, use:
+#   GIGSURE_DOMAIN=localhost
+# Caddy will use a self-signed cert.
 
-	handle @transform_port_query {
-		reverse_proxy localhost:{query.XTransformPort} {
-			header_up Host {host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Real-IP {remote_host}
-		}
-	}
+{$GIGSURE_DOMAIN} {
+    # Reverse proxy to the app container
+    reverse_proxy app:3000 {
+        # Health check
+        health_uri /api/health
+        health_interval 30s
+        health_timeout 5s
+    }
 
-	handle {
-		reverse_proxy localhost:3000 {
-			header_up Host {host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Real-IP {remote_host}
-		}
-	}
+    # Security headers (defense in depth — app also sets these)
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Resource-Policy "same-origin"
+        # Remove server version banner
+        -Server
+    }
+
+    # Compression
+    encode gzip zstd
+
+    # Cache static assets aggressively
+    @static {
+        path /_next/static/* /images/* /favicon.ico /robots.txt
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
+    # No-cache for everything else
+    header /* Cache-Control "no-cache, no-store, must-revalidate"
+
+    # Access logs
+    log {
+        output stdout
+        format json
+    }
+
+    # Rate limit login endpoint (basic — Caddy enterprise has full rate-limiting)
+    @login path /api/auth/callback/credentials
+    handle @login {
+        # Caddy OSS doesn't have built-in rate limiting; app handles it
+        reverse_proxy app:3000
+    }
 }
