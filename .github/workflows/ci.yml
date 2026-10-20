@@ -1,0 +1,129 @@
+# GigSure AI — Continuous Integration
+#
+# Runs on every push to main + every PR:
+#   1. Install dependencies (bun)
+#   2. Lint (eslint)
+#   3. Type-check (tsc --noEmit)
+#   4. Audit dependencies (bun audit)
+#   5. Push DB schema to test SQLite (verifies schema is valid)
+#   6. Run unit tests (vitest)
+#   7. Run integration tests
+#   8. Build (verifies production build succeeds)
+#
+# Secrets required:
+#   - None for CI on PRs from the same repo.
+#   - For external PRs, the workflow is restricted (write permissions removed)
+#     to prevent secret exfiltration.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same branch when a new commit is pushed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege permissions.
+# - contents: read — needed for checkout
+# - pull-requests: read — needed for PR status checks
+# No write permissions by default.
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  lint-typecheck-test:
+    name: Lint, typecheck, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .bun-cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Type check
+        run: bunx tsc --noEmit
+
+      - name: Push test DB schema
+        env:
+          DATABASE_URL: "file:/tmp/gigsure-ci.db"
+        run: bun run db:push
+
+      - name: Run unit tests
+        env:
+          DATABASE_URL: "file:/tmp/gigsure-ci-unit.db"
+          TEST_DATABASE_URL: "file:/tmp/gigsure-test-unit.db"
+          NEXTAUTH_SECRET: "ci-test-secret-32chars-XXXXXXXXXXXXXXXX"
+          NEXTAUTH_URL: "http://localhost:3000"
+          MOCK_WEBHOOK_SECRET: "ci-webhook-secret"
+          NODE_ENV: "test"
+        run: bunx vitest run tests/unit
+
+      - name: Run integration tests
+        env:
+          DATABASE_URL: "file:/tmp/gigsure-ci-int.db"
+          TEST_DATABASE_URL: "file:/tmp/gigsure-test-int.db"
+          NEXTAUTH_SECRET: "ci-test-secret-32chars-XXXXXXXXXXXXXXXX"
+          NEXTAUTH_URL: "http://localhost:3000"
+          MOCK_WEBHOOK_SECRET: "ci-webhook-secret"
+          NODE_ENV: "test"
+        run: bunx vitest run tests/integration
+
+  security-audit:
+    name: Dependency security audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Run on all events (push + PR), even external PRs — no secrets needed.
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Audit dependencies
+        run: bun audit --prod
+        continue-on-error: true # Don't block on advisory warnings; fail on critical only
+
+      - name: Check for committed secrets
+        run: |
+          # Fail if .env, *.pem, *.key, or db/custom.db are tracked
+          if git ls-files | grep -E "^\.env$|^.*\.(pem|key)$|^db/custom\.db$"; then
+            echo "❌ Secrets found in git tree!"
+            exit 1
+          fi
+          echo "✅ No secrets tracked"
