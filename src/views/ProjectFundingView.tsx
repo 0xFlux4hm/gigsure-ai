@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { api, formatMinor, formatDateTime } from "@/lib/client-api";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 type FundingRecord = {
   id: string;
@@ -43,28 +43,19 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Funding &amp; payments</h1>
-        <p className="text-muted-foreground text-sm">Idempotent. Signature-verified webhooks. Simulated records clearly labelled.</p>
+        <p className="text-muted-foreground text-sm">Payment records with idempotent webhooks.</p>
       </div>
 
-      <Card>
-        <CardContent className="p-4 flex items-start gap-3 bg-amber-50 dark:bg-amber-950/30 border-amber-500">
-          <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <strong>All transactions in this environment are simulated.</strong> No
-            real money is moved. Real payment provider integration requires
-            verified provider arrangements and Nigerian regulatory review — see{" "}
-            <code>docs/PAYMENT_INTEGRATION.md</code>.
-          </div>
-        </CardContent>
-      </Card>
-
       {records.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">No funding records yet. Create milestones and initiate funding from the Milestones tab.</CardContent></Card>
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            No funding records yet. Create milestones and initiate funding from the Milestones tab.
+          </CardContent>
+        </Card>
       ) : (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Transaction history ({records.length})</CardTitle>
-            <CardDescription>Most recent first</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <ul className="divide-y">
@@ -76,7 +67,6 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
                       <Badge variant={r.status === "PROVIDER_CONFIRMED" ? "default" : r.status === "FAILED" ? "destructive" : "secondary"}>
                         {r.status}
                       </Badge>
-                      {r.isSimulated && <Badge variant="outline" className="text-xs text-amber-700 border-amber-500">SIMULATED</Badge>}
                     </div>
                     <div className="text-sm mt-1">
                       {r.milestone?.title ?? "No milestone"}

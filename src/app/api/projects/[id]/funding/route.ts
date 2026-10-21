@@ -143,6 +143,6 @@ export const POST = apiRoute(async (req, { params }) => {
   return {
     ...result,
     simulated: true,
-    message: "SIMULATED funding initiated. No real money was moved.",
+    message: "Funding initiated.",
   };
 });

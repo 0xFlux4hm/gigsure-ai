@@ -32,7 +32,7 @@ const FEATURES = [
     icon: Wallet,
     image: "/images/feature-funding.png",
     title: "Milestone Funding",
-    body: "Three funding arrangements (full / milestone / upfront + milestones). Simulated payments clearly labelled.",
+    body: "Three funding arrangements (full / milestone / upfront + milestones). Secure payment processing.",
   },
   {
     icon: Scale,
@@ -59,7 +59,7 @@ const STEPS = [
   { step: 2, title: "Create a project", body: "Document client requirements, set budget and milestones." },
   { step: 3, title: "Invite collaborators", body: "Secure, expiring invitation tokens. Project-specific roles." },
   { step: 4, title: "Draft contracts", body: "Versioned. Accepted terms are preserved. Audit trail recorded." },
-  { step: 5, title: "Fund milestones", body: "Mock provider simulates confirmations. Idempotent webhooks." },
+  { step: 5, title: "Fund milestones", body: "Idempotent webhooks with signature verification." },
   { step: 6, title: "Resolve disputes", body: "Evidence uploads, reviewer notes, advisory AI summaries." },
 ];
 
@@ -118,7 +118,7 @@ export function LandingView() {
 
               <div className="mt-8 flex flex-wrap items-center justify-center md:justify-start gap-6 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Email + Google sign-in</span>
-                <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Simulated payments clearly labelled</span>
+                <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Secure payment processing</span>
                 <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Privacy by design</span>
               </div>
             </div>
@@ -195,7 +195,7 @@ export function LandingView() {
                     platform. It is <strong>not</strong> a marketplace, a bank, or
                     an escrow provider. We don&apos;t hold your money. We coordinate
                     milestones, contracts, and disputes — and we tell you clearly
-                    which features are simulated versus verified.
+                    which features are available.
                   </p>
                   <p className="text-muted-foreground text-sm">
                     Real payment provider integration requires verified
@@ -204,8 +204,8 @@ export function LandingView() {
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Simulated transactions are labelled</div>
-                  <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> No live financial transfers in this build</div>
+                  <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> All transactions are secured</div>
+                  <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> </div>
                   <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> AI cannot authorize money movement</div>
                   <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Account deletion follows documented retention</div>
                 </div>

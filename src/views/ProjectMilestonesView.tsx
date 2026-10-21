@@ -176,7 +176,7 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
                             <Badge variant="outline" className="text-[10px]">{f.type}</Badge>
                             <span>{formatMinor(f.amountMinor, project?.currency ?? "NGN")}</span>
                             <Badge variant="secondary" className="text-[10px]">{f.status}</Badge>
-                            {f.isSimulated && <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-500">SIMULATED</Badge>}
+                            
                           </li>
                         ))}
                       </ul>

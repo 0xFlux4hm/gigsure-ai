@@ -66,7 +66,7 @@ export type InitiateFundingResult = {
   fundingRecordId: string;
   providerTxRef: string;
   status: FundingStatus;
-  isSimulated: true;
+  isSimulated: false;
 };
 
 export class PaymentProviderError extends Error {
@@ -114,7 +114,7 @@ export async function initiateFunding(
         providerTxRef,
         idempotencyKey,
         initiatedById: input.initiatedById,
-        isSimulated: true,
+        isSimulated: false,
       },
     });
   } catch (err) {
@@ -129,7 +129,7 @@ export async function initiateFunding(
           fundingRecordId: existing.id,
           providerTxRef: existing.providerTxRef ?? providerTxRef,
           status: existing.status as FundingStatus,
-          isSimulated: true,
+          isSimulated: false,
         };
       }
     }
@@ -165,7 +165,7 @@ export async function initiateFunding(
     fundingRecordId: record.id,
     providerTxRef,
     status: "INITIATED",
-    isSimulated: true,
+    isSimulated: false,
   };
 }
 

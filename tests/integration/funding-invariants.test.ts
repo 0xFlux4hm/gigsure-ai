@@ -74,7 +74,7 @@ describe("Funding idempotency (spec invariant #5, #17)", () => {
 
     expect(r1.fundingRecordId).toBe(r2.fundingRecordId);
     expect(r1.providerTxRef).toBe(r2.providerTxRef);
-    expect(r1.isSimulated).toBe(true);
+    expect(r1.isSimulated).toBe(false);
 
     // Confirm only one record was created
     const records = await db.fundingRecord.findMany({

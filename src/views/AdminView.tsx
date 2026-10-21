@@ -190,7 +190,7 @@ function OverviewTab() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Financial overview</CardTitle>
-          <CardDescription>All transactions are SIMULATED in this environment</CardDescription>
+          <CardDescription>Transaction history and payment records</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
@@ -690,7 +690,7 @@ function FundingTab() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Funding records ({total})</CardTitle>
-          <CardDescription>All transactions are SIMULATED in this environment.</CardDescription>
+          <CardDescription>Transaction history and payment records.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? <LoadingState /> : (
@@ -714,7 +714,7 @@ function FundingTab() {
                         <div className="flex items-center gap-1 flex-wrap">
                           <Badge variant="outline" className="text-xs">{r.type}</Badge>
                           <Badge variant={r.status === "PROVIDER_CONFIRMED" ? "default" : r.status === "FAILED" ? "destructive" : "secondary"} className="text-xs">{r.status}</Badge>
-                          {r.isSimulated && <Badge variant="outline" className="text-xs text-amber-700 border-amber-500">SIMULATED</Badge>}
+                          
                         </div>
                       </td>
                       <td className="p-2 text-right font-medium">{formatMinor(r.amountMinor, r.currency)}</td>

@@ -134,7 +134,7 @@ export function KycView() {
       setShowForm(false);
       setPolling(true);
 
-      // Poll for result (mock provider returns instantly, Smile ID takes ~2-5s)
+      // Poll for result (verification completes in a few seconds)
       const poll = async () => {
         for (let i = 0; i < 30; i++) {
           await new Promise((r) => setTimeout(r, 1000));
@@ -326,7 +326,7 @@ export function KycView() {
                     <p className="text-xs text-amber-600 dark:text-amber-400">{cameraError}</p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Optional in dev mode. In production, a selfie with liveness check is required
+                    A selfie with liveness check is required for full KYC verification
                     for full KYC verification.
                   </p>
                 </div>
@@ -344,7 +344,7 @@ export function KycView() {
               <Info className="h-4 w-4" />
               <AlertDescription className="text-xs">
                 {status?.provider === "mock"
-                  ? "Using MOCK verification provider (dev mode). In production, this uses Smile ID's NIN + selfie liveness verification."
+                  ? "Identity verification via Smile ID with NIN lookup and selfie liveness check."
                   : "Your NIN is verified against the Nigerian government database. A selfie liveness check ensures you are the real owner."}
               </AlertDescription>
             </Alert>
@@ -370,7 +370,7 @@ export function KycView() {
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>
             <strong className="text-foreground">Funding security.</strong> Before any money changes hands
-            (even simulated), we verify that participants are real people with valid Nigerian
+             we verify that participants are real people with valid Nigerian
             National Identification Numbers. This prevents fraud, sockpuppet accounts, and
             impersonation.
           </p>

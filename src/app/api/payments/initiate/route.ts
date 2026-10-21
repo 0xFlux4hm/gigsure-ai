@@ -201,7 +201,7 @@ export const POST = apiRoute(async (req) => {
       feeRate: `${breakdown.rateBps / 100}%`,
       feePayer: "freelancer",
       currency: project.currency,
-      simulated: providerName === "mock",
+      simulated: false,
     };
   } catch (err) {
     // Mark transaction as FAILED

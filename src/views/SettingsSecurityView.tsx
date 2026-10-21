@@ -125,7 +125,7 @@ export function SettingsSecurityView() {
               <div className="min-w-0">
                 <div className="font-medium text-sm">Google</div>
                 <div className="text-xs text-muted-foreground truncate">
-                  {g.provider === "google-demo" ? "Demo Google (simulated)" : `sub: ${g.providerSubject.slice(0, 12)}…`}
+                  {`sub: ${g.providerSubject.slice(0, 12)}…`}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   Linked {new Date(g.createdAt).toLocaleDateString()}
