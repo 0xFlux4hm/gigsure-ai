@@ -96,10 +96,21 @@ export default function Home() {
   useEffect(() => {
     const url = new URL(window.location.href);
     const view = url.searchParams.get("view");
+    const project = url.searchParams.get("project") ?? undefined;
+    const dispute = url.searchParams.get("dispute") ?? undefined;
+    const token = url.searchParams.get("token") ?? undefined;
     if (view && view !== "landing") {
-      useNav.getState().navigate({ view: view as ViewName });
+      useNav.getState().navigate({ view: view as ViewName, projectId: project, disputeId: dispute, token });
     }
-    const onPop = () => useNav.getState().navigate({});
+    const onPop = () => {
+      const u = new URL(window.location.href);
+      useNav.getState().navigate({
+        view: (u.searchParams.get("view") as ViewName | null) ?? "landing",
+        projectId: u.searchParams.get("project") ?? undefined,
+        disputeId: u.searchParams.get("dispute") ?? undefined,
+        token: u.searchParams.get("token") ?? undefined,
+      });
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);

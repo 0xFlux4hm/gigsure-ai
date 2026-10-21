@@ -111,6 +111,6 @@ export const useNav = create<NavState>((set, get) => ({
 if (typeof window !== "undefined") {
   window.addEventListener("popstate", () => {
     const parsed = parseHash();
-    useNav.setState({ ...parsed, history: [parsed] });
+    useNav.setState({ ...parsed });
   });
 }
