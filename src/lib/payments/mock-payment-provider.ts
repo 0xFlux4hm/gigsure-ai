@@ -35,6 +35,10 @@ export class MockPaymentProvider implements PaymentProvider {
   }
 
   async initiatePayment(input: InitiatePaymentInput): Promise<InitiatePaymentResult> {
+    // SECURITY: validate amount at provider boundary (defense-in-depth)
+    if (!Number.isFinite(input.amountMinor) || input.amountMinor <= 0) {
+      throw new Error("Invalid amountMinor: must be a positive finite number");
+    }
     const providerRef = generateProviderTxRef("MOCK");
 
     // Simulate async: in a real provider, we'd POST to their API
@@ -64,6 +68,10 @@ export class MockPaymentProvider implements PaymentProvider {
   }
 
   async requestRefund(input: RefundInput): Promise<RefundResult> {
+    // SECURITY: validate refund amount (defense-in-depth)
+    if (!Number.isFinite(input.amountMinor) || input.amountMinor <= 0) {
+      throw new Error("Invalid refund amount: must be a positive finite number");
+    }
     return {
       refundReference: `mock_refund_${Date.now()}`,
       status: "REFUND_PENDING",

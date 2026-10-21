@@ -12,7 +12,7 @@ const CreateSchema = z.object({
   description: z.string().min(10).max(8000),
   clientId: z.string().cuid().optional().nullable(),
   currency: z.string().max(8).default("NGN"),
-  budget: z.number().min(0).max(1_000_000_000).default(0),
+  budget: z.number().int().min(0).max(1_000_000_000).default(0),
   fundingArrangement: z.enum(["FULL", "MILESTONE", "UPFRONT_PLUS_MILESTONES"]).default("MILESTONE"),
   startDate: z.string().datetime().optional(),
   dueDate: z.string().datetime().optional(),

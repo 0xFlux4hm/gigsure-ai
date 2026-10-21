@@ -70,6 +70,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  // SECURITY (2026-10): reject negative amounts in webhook payloads
+  if (payload.amount_minor !== undefined && (!Number.isFinite(payload.amount_minor) || payload.amount_minor < 0)) {
+    logSecurityEvent("warn", "webhook.negative_amount", { provider: providerHeader });
+    return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+  }
+
   // SECURITY (2026-10): timestamp is now MANDATORY (previously optional, which
   // allowed an attacker with the secret to omit it and bypass the replay window).
   if (!payload.timestamp || !Number.isFinite(Date.parse(payload.timestamp))) {

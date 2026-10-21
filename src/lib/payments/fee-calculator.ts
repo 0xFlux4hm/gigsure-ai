@@ -13,6 +13,21 @@ import { createHash } from "crypto";
 
 export const PLATFORM_FEE_BPS_DEFAULT = 150; // 1.5% = 150 basis points
 
+// SECURITY (2026-10): validate PLATFORM_FEE_BPS at module load.
+// A negative value would flip the fee into a CREDIT to the freelancer
+// (e.g., bps=-150 → fee=-₦1,500 → freelancer gets ₦101,500 on ₦100,000).
+// A value >10000 (100%) would charge more than the payment amount.
+const parsedBps = parseInt(process.env.PLATFORM_FEE_BPS ?? String(PLATFORM_FEE_BPS_DEFAULT), 10);
+if (!Number.isFinite(parsedBps) || parsedBps < 0 || parsedBps > 10000) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      `PLATFORM_FEE_BPS must be an integer in [0, 10000]; got ${process.env.PLATFORM_FEE_BPS ?? "(unset)"}. ` +
+      `Generate with: echo 150`,
+    );
+  }
+  console.warn(`[security] PLATFORM_FEE_BPS invalid (${process.env.PLATFORM_FEE_BPS}), using default ${PLATFORM_FEE_BPS_DEFAULT}`);
+}
+
 export type FeePolicy = {
   bps: number; // basis points (150 = 1.5%)
   version: string; // policy version for audit trail
@@ -21,7 +36,9 @@ export type FeePolicy = {
 };
 
 export const CURRENT_FEE_POLICY: FeePolicy = {
-  bps: parseInt(process.env.PLATFORM_FEE_BPS ?? String(PLATFORM_FEE_BPS_DEFAULT), 10),
+  bps: Number.isFinite(parsedBps) && parsedBps >= 0 && parsedBps <= 10000
+    ? parsedBps
+    : PLATFORM_FEE_BPS_DEFAULT,
   version: "2026-10-v1",
   effectiveFrom: new Date("2026-10-21T00:00:00Z"),
   payer: "freelancer",

@@ -24,7 +24,7 @@ const AllocationSchema = z.object({
 });
 
 const Schema = z.object({
-  totalDistributable: z.number().min(0).max(1_000_000_000),
+  totalDistributable: z.number().int().min(0).max(1_000_000_000),
   currency: z.string().max(8).default("NGN"),
   allocations: z.array(AllocationSchema).min(1).max(50),
   enforceTotalMatch: z.boolean().default(true),
@@ -62,9 +62,20 @@ export const POST = apiRoute(async (req, { params }) => {
   if (!validateCurrency(data.currency)) return fail("Unsupported currency", 400);
   const totalMinor = amountToMinor(data.totalDistributable, data.currency);
   const sum = data.allocations.reduce((s, a) => s + a.amountMinor, 0);
-  if (data.enforceTotalMatch && sum !== totalMinor) {
+  // SECURITY (2026-10): always enforce total match — previously `enforceTotalMatch: false`
+  // allowed allocations sum != total, creating logically inconsistent agreements
+  // where collaborators were promised more than the project budget.
+  if (sum !== totalMinor) {
     return fail(
       `Allocations sum (${sum}) does not match total distributable (${totalMinor})`,
+      400,
+    );
+  }
+  // Also enforce percentageBps sum ≤ 10000 (100%)
+  const pctSum = data.allocations.reduce((s, a) => s + a.percentageBps, 0);
+  if (pctSum > 10000) {
+    return fail(
+      `Allocations percentage sum (${pctSum} bps) exceeds 10000 bps (100%)`,
       400,
     );
   }

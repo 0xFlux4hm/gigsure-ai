@@ -14,7 +14,7 @@ const UpdateSchema = z.object({
   startDate: z.string().datetime().nullable().optional(),
   dueDate: z.string().datetime().nullable().optional(),
   currency: z.string().max(8).optional(),
-  budget: z.number().min(0).max(1_000_000_000).optional(),
+  budget: z.number().int().min(0).max(1_000_000_000).optional(),
   fundingArrangement: z.enum(["FULL", "MILESTONE", "UPFRONT_PLUS_MILESTONES"]).optional(),
 });
 
