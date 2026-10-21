@@ -29,6 +29,7 @@ export type ViewName =
   | "project-ai"
   | "settings-profile"
   | "settings-security"
+  | "settings-payouts"
   | "settings-notifications"
   | "settings-privacy"
   | "settings-audit"

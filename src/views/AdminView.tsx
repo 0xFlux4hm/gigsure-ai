@@ -29,9 +29,11 @@ import {
   CheckCircle2,
   XCircle,
   TrendingUp,
+  Banknote,
+  RefreshCw,
 } from "lucide-react";
 
-type AdminTab = "overview" | "users" | "projects" | "payments" | "disputes" | "kyc" | "audit" | "ai" | "privacy" | "webhooks" | "gateway";
+type AdminTab = "overview" | "users" | "projects" | "payments" | "payouts" | "disputes" | "kyc" | "audit" | "ai" | "privacy" | "webhooks" | "gateway";
 
 export function AdminView() {
   const [tab, setTab] = useState<AdminTab>("overview");
@@ -83,6 +85,7 @@ export function AdminView() {
           <TabsTrigger value="users" className="data-[state=active]:bg-background"><Users className="h-3.5 w-3.5 mr-1" /> Users</TabsTrigger>
           <TabsTrigger value="projects" className="data-[state=active]:bg-background"><FolderKanban className="h-3.5 w-3.5 mr-1" /> Projects</TabsTrigger>
           <TabsTrigger value="payments" className="data-[state=active]:bg-background"><CreditCard className="h-3.5 w-3.5 mr-1" /> Payments</TabsTrigger>
+          <TabsTrigger value="payouts" className="data-[state=active]:bg-background"><Banknote className="h-3.5 w-3.5 mr-1" /> Payouts</TabsTrigger>
           <TabsTrigger value="disputes" className="data-[state=active]:bg-background"><Scale className="h-3.5 w-3.5 mr-1" /> Disputes</TabsTrigger>
           <TabsTrigger value="kyc" className="data-[state=active]:bg-background"><ShieldCheck className="h-3.5 w-3.5 mr-1" /> KYC</TabsTrigger>
           <TabsTrigger value="audit" className="data-[state=active]:bg-background"><ScrollText className="h-3.5 w-3.5 mr-1" /> Audit</TabsTrigger>
@@ -96,6 +99,7 @@ export function AdminView() {
         <TabsContent value="users" className="mt-4"><UsersTab /></TabsContent>
         <TabsContent value="projects" className="mt-4"><ProjectsTab /></TabsContent>
         <TabsContent value="payments" className="mt-4"><PaymentsTab /></TabsContent>
+        <TabsContent value="payouts" className="mt-4"><PayoutsTab /></TabsContent>
         <TabsContent value="disputes" className="mt-4"><DisputesTab /></TabsContent>
         <TabsContent value="kyc" className="mt-4"><KycTab /></TabsContent>
         <TabsContent value="audit" className="mt-4"><AuditTab /></TabsContent>
@@ -1497,6 +1501,213 @@ type AdminPayment = {
   project: { id: string; title: string } | null;
   milestone: { id: string; title: string } | null;
 };
+
+type AdminPayout = {
+  id: string;
+  payoutReference: string;
+  projectTitle: string;
+  milestoneTitle?: string;
+  payee: { id: string; displayName: string; email: string };
+  initiatedBy: { id: string; displayName: string };
+  provider: string;
+  providerReference: string | null;
+  amountMinor: number;
+  feeMinor: number;
+  netMinor: number;
+  currency: string;
+  payeeAccountName: string;
+  payeeAccountNumber: string;
+  payeeBankName: string;
+  status: string;
+  failureReason: string | null;
+  initiatedAt: string;
+  settledAt: string | null;
+  failedAt: string | null;
+};
+
+type AdminPayoutsResponse = {
+  payouts: AdminPayout[];
+  stats: Array<{ status: string; count: number; totalAmountMinor: number; totalNetMinor: number }>;
+  pagination: { page: number; limit: number; total: number; pages: number };
+};
+
+function PayoutsTab() {
+  const [data, setData] = useState<AdminPayoutsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("");
+
+  const load = () => {
+    setLoading(true);
+    const qs = statusFilter ? `?status=${statusFilter}` : "";
+    api.get<AdminPayoutsResponse>(`/api/admin/payouts${qs}`)
+      .then((d) => setData(d))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, [statusFilter]);
+
+  async function handleVerify(payoutId: string) {
+    try {
+      await api.post(`/api/payouts/${payoutId}/verify`, {});
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Verify failed");
+    }
+  }
+
+  if (loading) return <LoadingState />;
+  if (error || !data) return <ErrorState message={error ?? "Failed to load payouts"} onRetry={load} />;
+
+  const statsByStatus = new Map(data.stats.map((s) => [s.status, s]));
+  const pending = statsByStatus.get("PENDING");
+  const succeeded = statsByStatus.get("SUCCEEDED");
+  const failed = statsByStatus.get("FAILED");
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Pending payouts</CardDescription>
+            <CardTitle className="text-2xl">{pending?.count ?? 0}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xs text-muted-foreground">
+              {pending ? formatMinor(pending.totalNetMinor) : "₦0.00"}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Successful payouts</CardDescription>
+            <CardTitle className="text-2xl text-emerald-600">{succeeded?.count ?? 0}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xs text-muted-foreground">
+              {succeeded ? formatMinor(succeeded.totalNetMinor) : "₦0.00"}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Failed payouts</CardDescription>
+            <CardTitle className="text-2xl text-destructive">{failed?.count ?? 0}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xs text-muted-foreground">
+              {failed ? formatMinor(failed.totalNetMinor) : "₦0.00"}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center justify-between">
+            <span>All payouts</span>
+            <div className="flex items-center gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[160px] h-8">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All statuses</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="SUCCEEDED">Succeeded</SelectItem>
+                  <SelectItem value="FAILED">Failed</SelectItem>
+                  <SelectItem value="REVERSED">Reversed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" onClick={load}>
+                <RefreshCw className="h-3 w-3 mr-1" /> Refresh
+              </Button>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {data.payouts.length === 0 ? (
+            <div className="py-10 text-center text-muted-foreground">
+              <Banknote className="h-8 w-8 mx-auto mb-2" />
+              No payouts yet. When a project owner releases an approved milestone, payouts to workers will appear here.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b bg-muted/40">
+                  <tr>
+                    <th className="text-left p-3 font-medium">Payee</th>
+                    <th className="text-left p-3 font-medium">Project</th>
+                    <th className="text-right p-3 font-medium">Amount</th>
+                    <th className="text-left p-3 font-medium">Bank</th>
+                    <th className="text-left p-3 font-medium">Status</th>
+                    <th className="text-left p-3 font-medium">Initiated</th>
+                    <th className="text-right p-3 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {data.payouts.map((p) => (
+                    <tr key={p.id} className="hover:bg-muted/30">
+                      <td className="p-3">
+                        <div className="font-medium">{p.payee.displayName}</div>
+                        <div className="text-xs text-muted-foreground">{p.payee.email}</div>
+                      </td>
+                      <td className="p-3">
+                        <div className="text-sm">{p.projectTitle}</div>
+                        {p.milestoneTitle && (
+                          <div className="text-xs text-muted-foreground">{p.milestoneTitle}</div>
+                        )}
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="font-medium">{formatMinor(p.netMinor, p.currency)}</div>
+                        <div className="text-xs text-muted-foreground">{p.provider}</div>
+                      </td>
+                      <td className="p-3">
+                        <div className="text-xs">{p.payeeBankName}</div>
+                        <div className="text-xs font-mono text-muted-foreground">{p.payeeAccountNumber}</div>
+                        <div className="text-xs text-muted-foreground">{p.payeeAccountName}</div>
+                      </td>
+                      <td className="p-3">
+                        <Badge
+                          variant={
+                            p.status === "SUCCEEDED"
+                              ? "default"
+                              : p.status === "FAILED"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                        >
+                          {p.status}
+                        </Badge>
+                        {p.failureReason && (
+                          <div className="text-xs text-destructive mt-1 max-w-[200px]">
+                            {p.failureReason}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3 text-xs text-muted-foreground">
+                        {formatDateTime(p.initiatedAt)}
+                        {p.settledAt && <div>settled {formatDateTime(p.settledAt)}</div>}
+                        {p.failedAt && <div>failed {formatDateTime(p.failedAt)}</div>}
+                      </td>
+                      <td className="p-3 text-right">
+                        {p.status === "PENDING" && (
+                          <Button size="sm" variant="outline" onClick={() => handleVerify(p.id)}>
+                            <RefreshCw className="h-3 w-3 mr-1" /> Verify
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 function PaymentsTab() {
   const [transactions, setTransactions] = useState<AdminPayment[]>([]);

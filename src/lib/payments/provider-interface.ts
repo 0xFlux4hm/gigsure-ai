@@ -104,14 +104,105 @@ export type ProviderHealth = {
   message: string;
 };
 
+// ---------------------------------------------------------------------------
+// PAYOUT (TRANSFER) TYPES — platform → worker bank account
+// ---------------------------------------------------------------------------
+
+export type TransferInput = {
+  payoutReference: string; // internal unique payout reference (e.g., GS_payout_xxx)
+  amountMinor: number; // amount to land in worker's account (net)
+  currency: string;
+  recipient: {
+    accountName: string;
+    accountNumber: string; // 10-digit NUBAN
+    bankCode: string;
+    bankName: string;
+  };
+  narration: string; // appears on the worker's bank statement
+  metadata?: Record<string, unknown>;
+};
+
+export type TransferResult = {
+  provider: PaymentProviderName;
+  providerReference: string; // provider's transfer reference (used for status polling)
+  status: PaymentState; // usually PENDING or SUCCEEDED
+  rawResponse?: Record<string, unknown>;
+};
+
+export type VerifyTransferResult = {
+  providerReference: string;
+  status: PaymentState;
+  amountMinor?: number; // amount actually transferred
+  settledAt?: Date;
+  failureReason?: string;
+  rawResponse?: Record<string, unknown>;
+};
+
+export type BankInfo = {
+  code: string;
+  name: string;
+  shortName?: string;
+};
+
+export type NameEnquiryResult = {
+  valid: boolean;
+  accountName?: string; // name as returned by the bank
+  bankCode: string;
+  accountNumber: string;
+  enquiryReference?: string; // provider's enquiry reference (Monnify requires this for transfer)
+  rawResponse?: Record<string, unknown>;
+};
+
+// ---------------------------------------------------------------------------
+// VIRTUAL ACCOUNT (RESERVED ACCOUNT) TYPES — for client funding
+// ---------------------------------------------------------------------------
+
+export type ReservedAccountInput = {
+  // Per-project or per-milestone reserved bank account that the client
+  // transfers money into via simple bank transfer.
+  reference: string; // unique reference for this reservation (e.g., project slug)
+  accountName: string; // how the account name appears (e.g., "GigSure/ProjectName")
+  expectedAmountMinor?: number; // optional amount cap
+  currency: string;
+  redirectUrl?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type ReservedAccountResult = {
+  provider: PaymentProviderName;
+  providerAccountRef: string; // provider's reserved account reference
+  accountNumber: string; // 10-digit NUBAN the client transfers to
+  accountName: string;
+  bankName: string;
+  bankCode: string;
+  status: "ACTIVE" | "EXPIRED" | "DEALLOCATED";
+  expiresAt?: Date;
+  rawResponse?: Record<string, unknown>;
+};
+
 export interface PaymentProvider {
   readonly name: PaymentProviderName;
   isConfigured(): boolean;
   isEnabled(): boolean;
 
+  // Inbound: client → platform
   initiatePayment(input: InitiatePaymentInput): Promise<InitiatePaymentResult>;
   verifyPayment(providerReference: string): Promise<VerifyPaymentResult>;
   requestRefund(input: RefundInput): Promise<RefundResult>;
+
+  // Outbound: platform → worker (payouts)
+  // Default: not implemented (throws) — providers override if they support payouts.
+  initiateTransfer?(input: TransferInput): Promise<TransferResult>;
+  verifyTransfer?(providerReference: string): Promise<VerifyTransferResult>;
+  listBanks?(): Promise<BankInfo[]>;
+  resolveAccountName?(input: {
+    accountNumber: string;
+    bankCode: string;
+  }): Promise<NameEnquiryResult>;
+
+  // Virtual account: per-project reserved account for client funding via bank transfer
+  createReservedAccount?(input: ReservedAccountInput): Promise<ReservedAccountResult>;
+  deallocateReservedAccount?(providerAccountRef: string): Promise<void>;
 
   verifyWebhook(
     rawBody: string,

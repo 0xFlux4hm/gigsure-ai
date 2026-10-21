@@ -58,6 +58,7 @@ const PRIMARY_NAV: NavItem[] = [
 const SETTINGS_NAV: NavItem[] = [
   { view: "settings-profile", label: "Profile", icon: User },
   { view: "settings-security", label: "Security", icon: ShieldCheck },
+  { view: "settings-payouts", label: "Payouts", icon: Wallet },
   { view: "settings-notifications", label: "Notifications", icon: Bell },
   { view: "settings-privacy", label: "Privacy", icon: Lock },
   { view: "settings-audit", label: "Audit log", icon: ScrollText },

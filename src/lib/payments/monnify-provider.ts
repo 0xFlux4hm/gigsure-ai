@@ -27,6 +27,13 @@ import type {
   WebhookVerificationResult,
   ProviderHealth,
   PaymentState,
+  TransferInput,
+  TransferResult,
+  VerifyTransferResult,
+  BankInfo,
+  NameEnquiryResult,
+  ReservedAccountInput,
+  ReservedAccountResult,
 } from "./provider-interface";
 
 const MONNIFY_SANDBOX_URL = "https://sandbox.monnify.com";
@@ -34,6 +41,9 @@ const MONNIFY_PRODUCTION_URL = "https://api.monnify.com";
 
 // Token cache (access tokens last 1 hour)
 let cachedToken: { token: string; expiresAt: number } | null = null;
+
+// Bank list cache (24h) — listBanks() is rate-limited and rarely changes
+let MONNIFY_BANKS_CACHE: { banks: BankInfo[]; expiresAt: number } | null = null;
 
 export class MonnifyProvider implements PaymentProvider {
   readonly name: PaymentProviderName = "monnify";
@@ -295,6 +305,325 @@ export class MonnifyProvider implements PaymentProvider {
       providerReference,
       rawPayload: rawBody,
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // PAYOUT (DISBURSEMENT TRANSFER) — platform → worker bank account
+  // Flow: 1) name enquiry → 2) transfer init → 3) transfer verify
+  // Docs: https://developers.monnify.com/api/disbursements/
+  // -------------------------------------------------------------------------
+
+  /**
+   * Resolve bank account holder name. Required before initiating a transfer.
+   * POST /api/v1/disbursements/account/validate
+   */
+  async resolveAccountName(input: {
+    accountNumber: string;
+    bankCode: string;
+  }): Promise<NameEnquiryResult> {
+    if (!/^\d{10}$/.test(input.accountNumber)) {
+      throw new Error("Monnify name enquiry: accountNumber must be 10 digits");
+    }
+    if (!input.bankCode) {
+      throw new Error("Monnify name enquiry: bankCode required");
+    }
+
+    const token = await this.getAccessToken();
+    const res = await fetch(`${this.baseUrl}/api/v1/disbursements/account/validate`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        accountNumber: input.accountNumber,
+        bankCode: input.bankCode,
+      }),
+    });
+
+    const data = await res.json() as {
+      requestSuccessful?: boolean;
+      responseMessage?: string;
+      responseBody?: {
+        accountName?: string;
+        accountNumber?: string;
+        bankCode?: string;
+        responseCode?: string;
+      };
+    };
+
+    if (!data.requestSuccessful) {
+      return {
+        valid: false,
+        bankCode: input.bankCode,
+        accountNumber: input.accountNumber,
+        rawResponse: data as unknown as Record<string, unknown>,
+      };
+    }
+
+    return {
+      valid: !!data.responseBody?.accountName,
+      accountName: data.responseBody?.accountName,
+      bankCode: input.bankCode,
+      accountNumber: input.accountNumber,
+      enquiryReference: undefined, // Monnify returns accountName directly, no separate ref needed
+      rawResponse: data as unknown as Record<string, unknown>,
+    };
+  }
+
+  /**
+   * List banks supported for transfers. Cached for 24h to reduce API calls.
+   * GET /api/v1/banks
+   */
+  async listBanks(): Promise<BankInfo[]> {
+    // Check in-memory cache first
+    if (MONNIFY_BANKS_CACHE && Date.now() < MONNIFY_BANKS_CACHE.expiresAt) {
+      return MONNIFY_BANKS_CACHE.banks;
+    }
+
+    const token = await this.getAccessToken();
+    const res = await fetch(`${this.baseUrl}/api/v1/banks`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await res.json() as {
+      requestSuccessful?: boolean;
+      responseBody?: Array<{
+        code?: string;
+        name?: string;
+        shortName?: string;
+      }>;
+    };
+
+    if (!data.requestSuccessful || !Array.isArray(data.responseBody)) {
+      throw new Error("Monnify listBanks: invalid response");
+    }
+
+    const banks: BankInfo[] = data.responseBody.map((b) => ({
+      code: b.code ?? "",
+      name: b.name ?? "",
+      shortName: b.shortName,
+    })).filter((b) => b.code && b.name);
+
+    MONNIFY_BANKS_CACHE = {
+      banks,
+      expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24h
+    };
+
+    return banks;
+  }
+
+  /**
+   * Initiate a single-transfer disbursement to a worker's bank account.
+   * POST /api/v2/disbursements/transfer
+   * Body: amount, reference, narration, destinationBankCode, destinationAccountNumber,
+   *       sourceAccountNumber (Monnify wallet), currency.
+   */
+  async initiateTransfer(input: TransferInput): Promise<TransferResult> {
+    if (!Number.isFinite(input.amountMinor) || input.amountMinor <= 0) {
+      throw new Error("Monnify transfer: amountMinor must be positive");
+    }
+    if (!/^\d{10}$/.test(input.recipient.accountNumber)) {
+      throw new Error("Monnify transfer: recipient accountNumber must be 10 digits");
+    }
+    if (!input.recipient.bankCode) {
+      throw new Error("Monnify transfer: recipient bankCode required");
+    }
+
+    const token = await this.getAccessToken();
+    const sourceAccount = process.env.MONNIFY_DISBURSEMENT_WALLET ?? "";
+    if (!sourceAccount) {
+      throw new Error(
+        "Monnify transfer: MONNIFY_DISBURSEMENT_WALLET env var not set (the wallet account number funds are debited from)",
+      );
+    }
+
+    const amount = input.amountMinor / 100; // Monnify expects major units
+    const res = await fetch(`${this.baseUrl}/api/v2/disbursements/transfer`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount,
+        reference: input.payoutReference,
+        narration: input.narration,
+        destinationBankCode: input.recipient.bankCode,
+        destinationAccountNumber: input.recipient.accountNumber,
+        destinationAccountName: input.recipient.accountName,
+        sourceAccountNumber: sourceAccount,
+        currency: input.currency,
+        metadata: input.metadata ?? {},
+      }),
+    });
+
+    const data = await res.json() as {
+      requestSuccessful?: boolean;
+      responseMessage?: string;
+      responseBody?: {
+        reference?: string;
+        status?: string;
+        amount?: number;
+        transferReference?: string;
+      };
+    };
+
+    if (!data.requestSuccessful) {
+      throw new Error(`Monnify transfer failed: ${data.responseMessage ?? "Unknown error"}`);
+    }
+
+    const status = this.mapMonnifyStatus(data.responseBody?.status);
+    return {
+      provider: "monnify",
+      providerReference: data.responseBody?.transferReference ?? input.payoutReference,
+      status,
+      rawResponse: data as unknown as Record<string, unknown>,
+    };
+  }
+
+  /**
+   * Verify status of a transfer.
+   * GET /api/v2/disbursements/transfer/verify?reference=<payoutReference>
+   */
+  async verifyTransfer(providerReference: string): Promise<VerifyTransferResult> {
+    const token = await this.getAccessToken();
+    const res = await fetch(
+      `${this.baseUrl}/api/v2/disbursements/transfer/verify?reference=${encodeURIComponent(providerReference)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    const data = await res.json() as {
+      requestSuccessful?: boolean;
+      responseMessage?: string;
+      responseBody?: {
+        reference?: string;
+        status?: string;
+        amount?: number;
+        transferStatus?: string;
+        errorMessage?: string;
+        completedOn?: string;
+      };
+    };
+
+    if (!data.requestSuccessful) {
+      throw new Error(`Monnify verify transfer failed: ${data.responseMessage ?? "Unknown"}`);
+    }
+
+    const rawStatus = data.responseBody?.status ?? data.responseBody?.transferStatus ?? "PENDING";
+    const status = this.mapMonnifyStatus(rawStatus);
+
+    return {
+      providerReference,
+      status,
+      amountMinor: data.responseBody?.amount
+        ? Math.round(data.responseBody.amount * 100)
+        : undefined,
+      settledAt: data.responseBody?.completedOn ? new Date(data.responseBody.completedOn) : undefined,
+      failureReason: status === "FAILED" ? (data.responseBody?.errorMessage ?? "Transfer failed") : undefined,
+      rawResponse: data as unknown as Record<string, unknown>,
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // RESERVED ACCOUNTS — per-project virtual account for client funding
+  // POST /api/v1/bank-transfer/reserved-accounts
+  // Docs: https://developers.monnify.com/api/reserved-accounts/
+  // -------------------------------------------------------------------------
+
+  async createReservedAccount(input: ReservedAccountInput): Promise<ReservedAccountResult> {
+    if (!input.reference) {
+      throw new Error("Monnify reserved account: reference is required");
+    }
+    if (!input.accountName) {
+      throw new Error("Monnify reserved account: accountName is required");
+    }
+    if (!this.contractCode) {
+      throw new Error("Monnify reserved account: MONNIFY_CONTRACT_CODE not configured");
+    }
+
+    const token = await this.getAccessToken();
+    const res = await fetch(`${this.baseUrl}/api/v1/bank-transfer/reserved-accounts`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        accountReference: input.reference,
+        accountName: input.accountName,
+        currencyCode: input.currency,
+        contractCode: this.contractCode,
+        customerEmail: process.env.MONNIFY_RESERVED_ACCOUNT_EMAIL ?? "funds@gigsure.ai",
+        customerName: input.accountName,
+        getAllAvailableBanks: false,
+        preferredBanks: [process.env.MONNIFY_RESERVED_BANK_CODE ?? "044"], // default Access Bank
+        ...(input.expectedAmountMinor
+          ? { restrictPaymentSource: false, maxAmountPerTransaction: input.expectedAmountMinor / 100 }
+          : {}),
+        ...(input.redirectUrl ? { redirectUrl: input.redirectUrl } : {}),
+        metadata: input.metadata ?? {},
+      }),
+    });
+
+    const data = await res.json() as {
+      requestSuccessful?: boolean;
+      responseMessage?: string;
+      responseBody?: {
+        accountReference?: string;
+        accountName?: string;
+        accounts?: Array<{
+          accountNumber?: string;
+          accountName?: string;
+          bankName?: string;
+          bankCode?: string;
+        }>;
+        contractCode?: string;
+      };
+    };
+
+    if (!data.requestSuccessful || !data.responseBody?.accounts?.length) {
+      throw new Error(`Monnify reserved account failed: ${data.responseMessage ?? "No account returned"}`);
+    }
+
+    const account = data.responseBody.accounts[0];
+    return {
+      provider: "monnify",
+      providerAccountRef: data.responseBody.accountReference ?? input.reference,
+      accountNumber: account.accountNumber ?? "",
+      accountName: account.accountName ?? input.accountName,
+      bankName: account.bankName ?? "",
+      bankCode: account.bankCode ?? "",
+      status: "ACTIVE",
+      rawResponse: data as unknown as Record<string, unknown>,
+    };
+  }
+
+  async deallocateReservedAccount(providerAccountRef: string): Promise<void> {
+    const token = await this.getAccessToken();
+    const res = await fetch(
+      `${this.baseUrl}/api/v1/bank-transfer/reserved-accounts/${encodeURIComponent(providerAccountRef)}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+    if (!res.ok && res.status !== 404) {
+      const body = await res.text();
+      throw new Error(`Monnify deallocate reserved account failed (${res.status}): ${body.slice(0, 200)}`);
+    }
   }
 
   health(): ProviderHealth {

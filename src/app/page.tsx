@@ -20,6 +20,7 @@ import { ProjectDisputeDetailView } from "@/views/ProjectDisputeDetailView";
 import { ProjectAiView } from "@/views/ProjectAiView";
 import { SettingsProfileView } from "@/views/SettingsProfileView";
 import { SettingsSecurityView } from "@/views/SettingsSecurityView";
+import { SettingsPayoutsView } from "@/views/SettingsPayoutsView";
 import { SettingsNotificationsView } from "@/views/SettingsNotificationsView";
 import { SettingsPrivacyView } from "@/views/SettingsPrivacyView";
 import { SettingsAuditView } from "@/views/SettingsAuditView";
@@ -80,6 +81,7 @@ function Router() {
       {view === "project-ai" && projectId && <ProjectAiView projectId={projectId} />}
       {view === "settings-profile" && <SettingsProfileView />}
       {view === "settings-security" && <SettingsSecurityView />}
+      {view === "settings-payouts" && <SettingsPayoutsView />}
       {view === "settings-notifications" && <SettingsNotificationsView />}
       {view === "settings-privacy" && <SettingsPrivacyView />}
       {view === "settings-audit" && <SettingsAuditView />}

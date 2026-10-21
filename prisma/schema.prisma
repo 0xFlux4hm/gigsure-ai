@@ -65,6 +65,9 @@ model User {
   revokedSessions   RevokedSession[]
   kycVerifications  KycVerification[]
   paymentTransactions PaymentTransaction[]
+  bankDetails      BankDetail[]
+  payoutsReceived  Payout[]            @relation("PayoutPayee")
+  payoutsInitiated Payout[]            @relation("PayoutInitiator")
 }
 
 model UserIdentity {
@@ -208,6 +211,8 @@ model Project {
   notifications    Notification[]
   aiActivities     AiActivity[]
   paymentTransactions PaymentTransaction[]
+  payouts          Payout[]
+  virtualAccounts  VirtualAccount[]
 
   @@index([ownerId])
   @@index([clientId])
@@ -406,6 +411,8 @@ model Milestone {
   fundingRecords FundingRecord[]
   disputes       Dispute[]
   paymentTransactions PaymentTransaction[]
+  payouts        Payout[]
+  virtualAccounts VirtualAccount[]
 
   @@index([projectId])
 }
@@ -537,6 +544,7 @@ model AuditEvent {
   actorId    String?
   projectId  String?
   fundingRecordId String?
+  payoutId        String?
   action     String
   targetType String?
   targetId   String?
@@ -554,6 +562,7 @@ model AuditEvent {
   actor        User?          @relation("AuditActor", fields: [actorId], references: [id])
   project      Project?       @relation(fields: [projectId], references: [id])
   fundingRecord FundingRecord? @relation(fields: [fundingRecordId], references: [id])
+  payout       Payout?        @relation(fields: [payoutId], references: [id])
 
   @@index([actorId])
   @@index([projectId])
@@ -570,9 +579,13 @@ model WebhookEvent {
   createdAt       DateTime @default(now())
   fundingRecordId String?
   paymentTransactionId String?
+  payoutId        String?
+  virtualAccountId String?
 
   fundingRecord FundingRecord? @relation(fields: [fundingRecordId], references: [id])
   paymentTransaction PaymentTransaction? @relation(fields: [paymentTransactionId], references: [id])
+  payout        Payout?        @relation(fields: [payoutId], references: [id])
+  virtualAccount VirtualAccount? @relation(fields: [virtualAccountId], references: [id])
 
   @@index([providerEventId])
 }
@@ -767,3 +780,142 @@ model PaymentSettings {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
+
+// ---------------------------------------------------------------------------
+// BANKS, BANK DETAILS, PAYOUTS, VIRTUAL ACCOUNTS
+// ---------------------------------------------------------------------------
+
+model Bank {
+  // List of supported banks (fetched from Monnify / OPay and cached).
+  // Used to populate the worker bank-detail form's bank dropdown.
+  id           String   @id @default(cuid())
+  code         String   @unique // provider-specific bank code (e.g., "044" for Access Bank)
+  name         String   // "Access Bank Nigeria"
+  shortName    String?  // "Access"
+  provider     String   // "monnify" | "opay" | "universal"
+  isActive     Boolean  @default(true)
+  fetchedAt    DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bankDetails  BankDetail[]
+
+  @@index([provider])
+}
+
+model BankDetail {
+  // Worker's payout bank account. Required before any payout can be initiated.
+  // One user can have multiple bank accounts but only one "isDefault" payout
+  // destination per currency. Account name must match KYC name to reduce
+  // payout fraud risk.
+  id              String   @id @default(cuid())
+  userId          String
+  accountName     String   // must match KYC name (validated server-side)
+  accountNumber   String   // 10-digit NUBAN
+  bankCode        String   // links to Bank.code
+  bankName        String   // denormalized for display without JOIN
+  currency        String   @default("NGN")
+  isDefault       Boolean  @default(false)
+  isVerified      Boolean  @default(false) // resolved via name enquiry
+  verifiedAt      DateTime?
+  verificationRef String?  // provider's name-enquiry reference
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bank            Bank?    @relation(fields: [bankCode], references: [code])
+  payouts         Payout[]
+
+  @@unique([userId, accountNumber, bankCode]) // no duplicate accounts
+  @@index([userId])
+}
+
+model Payout {
+  // Disbursement record: platform → worker's bank account.
+  // Created when a milestone is RELEASED (or a manual admin payout).
+  // State mirrors PaymentState but with payout-specific labels.
+  id                String   @id @default(cuid())
+  payoutReference   String   @unique // internal unique reference (e.g., GS_payout_xxx)
+  projectId         String
+  milestoneId       String?
+  payeeId           String   // worker who receives the money
+  initiatedById     String   // who triggered the release (owner or admin)
+
+  provider          String   @default("mock") // "mock" | "monnify" | "opay"
+  providerReference String?  @unique // provider's transfer reference
+
+  // Amounts (stored in integer minor units, consistent with FundingRecord)
+  amountMinor       Int      // gross amount being paid out (after fee deducted from project side)
+  feeMinor          Int      @default(0) // platform fee already taken at inbound
+  netMinor          Int      @default(0) // amount that lands in worker's account
+  currency          String   @default("NGN")
+
+  // Payout bank destination (snapshot at time of initiation — immutable)
+  bankDetailId      String?
+  payeeAccountName  String
+  payeeAccountNumber String
+  payeeBankCode     String
+  payeeBankName     String
+
+  // State machine: PENDING → SUCCEEDED | FAILED | REVERSED
+  status            String   @default("PENDING") // PENDING | SUCCEEDED | FAILED | REVERSED
+  failureReason     String?
+  idempotencyKey    String?  @unique
+
+  initiatedAt       DateTime @default(now())
+  settledAt         DateTime?
+  failedAt          DateTime?
+  reversedAt        DateTime?
+  updatedAt         DateTime @updatedAt
+
+  project           Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestone         Milestone?       @relation(fields: [milestoneId], references: [id])
+  payee             User             @relation("PayoutPayee", fields: [payeeId], references: [id])
+  initiatedBy       User             @relation("PayoutInitiator", fields: [initiatedById], references: [id])
+  bankDetail        BankDetail?      @relation(fields: [bankDetailId], references: [id])
+  webhookEvents     WebhookEvent[]
+  auditEvents       AuditEvent[]
+
+  @@index([projectId])
+  @@index([milestoneId])
+  @@index([payeeId])
+  @@index([status])
+}
+
+model VirtualAccount {
+  // Per-project (or per-milestone) reserved bank account generated by Monnify.
+  // The client transfers money into this account number to fund the project.
+  // Funds settle into the platform's Monnify wallet and are credited to the
+  // project's FundingRecord when the webhook confirms receipt.
+  id                String   @id @default(cuid())
+  projectId         String
+  milestoneId       String?
+
+  provider          String   @default("monnify") // "mock" | "monnify"
+  providerAccountRef String? @unique // Monnify reserved account reference
+  accountNumber     String   // 10-digit NUBAN the client transfers to
+  accountName       String   // "GigSure/Gigsure-<projectSlug>" (Monnify format)
+  bankName          String
+  bankCode          String
+
+  // Lifecycle: ACTIVE → the client can still send money; DEALLOCATED → no longer usable.
+  status            String   @default("ACTIVE") // ACTIVE | DEALLOCATED | EXPIRED
+  expiresAt         DateTime? // Monnify reserved accounts can be set to expire
+
+  // Track how much has been received into this account so far
+  totalReceivedMinor Int     @default(0)
+  expectedAmountMinor Int?   // if bound to a single milestone amount
+
+  createdAt         DateTime @default(now())
+  deallocatedAt     DateTime?
+  updatedAt         DateTime @updatedAt
+
+  project           Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestone         Milestone?       @relation(fields: [milestoneId], references: [id])
+  webhookEvents     WebhookEvent[]
+
+  @@index([projectId])
+  @@index([milestoneId])
+  @@index([accountNumber])
+}
+

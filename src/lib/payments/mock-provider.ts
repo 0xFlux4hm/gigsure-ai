@@ -22,6 +22,7 @@ import {
   signWebhookPayload,
 } from "@/lib/security/tokens";
 import { recordAuditEvent } from "@/lib/auth/audit";
+import { initiatePayoutsForRelease } from "@/lib/payments/payout-service";
 
 export const MOCK_PROVIDER_NAME = "mock";
 
@@ -284,6 +285,52 @@ export async function processWebhookEvent(input: {
       await db.milestone.update({
         where: { id: milestone.id },
         data: { status: "FUNDED" },
+      });
+    }
+  }
+
+  // If milestone release confirmed, trigger the actual payout(s) to the worker(s).
+  // This is where the real money movement is initiated — the platform pays out
+  // from its escrow balance to the worker's bank account via the provider.
+  if (
+    input.status === "PROVIDER_CONFIRMED" &&
+    record.type === "RELEASE"
+  ) {
+    try {
+      const payoutResult = await initiatePayoutsForRelease({
+        projectId: record.projectId,
+        milestoneId: record.milestoneId,
+        fundingRecordId: record.id,
+        initiatedById: record.initiatedById,
+        totalAmountMinor: record.amountMinor,
+        currency: record.currency,
+      });
+
+      await recordAuditEvent({
+        actorId: record.initiatedById,
+        projectId: record.projectId,
+        fundingRecordId: record.id,
+        action: "payout.batch_initiated",
+        targetType: "FundingRecord",
+        targetId: record.id,
+        metadata: {
+          payoutCount: payoutResult.payouts.length,
+          totalDisbursedMinor: payoutResult.totalDisbursedMinor,
+        },
+      });
+    } catch (err) {
+      // Log the failure but don't roll back the funding record —
+      // the release is confirmed by the provider, and the payout
+      // failure will be visible in the Payouts dashboard for admin resolution.
+      console.error("[mock-provider] payout initiation failed", err);
+      await recordAuditEvent({
+        actorId: record.initiatedById,
+        projectId: record.projectId,
+        fundingRecordId: record.id,
+        action: "payout.batch_initiation_failed",
+        targetType: "FundingRecord",
+        targetId: record.id,
+        metadata: { error: (err as Error)?.message },
       });
     }
   }
