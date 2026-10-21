@@ -64,6 +64,7 @@ model User {
   linkedAccounts    LinkedAccount[]
   revokedSessions   RevokedSession[]
   kycVerifications  KycVerification[]
+  paymentTransactions PaymentTransaction[]
 }
 
 model UserIdentity {
@@ -206,6 +207,7 @@ model Project {
   auditEvents      AuditEvent[]
   notifications    Notification[]
   aiActivities     AiActivity[]
+  paymentTransactions PaymentTransaction[]
 
   @@index([ownerId])
   @@index([clientId])
@@ -403,6 +405,7 @@ model Milestone {
   tasks          Task[]
   fundingRecords FundingRecord[]
   disputes       Dispute[]
+  paymentTransactions PaymentTransaction[]
 
   @@index([projectId])
 }
@@ -566,8 +569,10 @@ model WebhookEvent {
   processedAt     DateTime?
   createdAt       DateTime @default(now())
   fundingRecordId String?
+  paymentTransactionId String?
 
   fundingRecord FundingRecord? @relation(fields: [fundingRecordId], references: [id])
+  paymentTransaction PaymentTransaction? @relation(fields: [paymentTransactionId], references: [id])
 
   @@index([providerEventId])
 }
@@ -668,4 +673,72 @@ model KycVerification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// PAYMENT LEDGER (2026-10)
+// ---------------------------------------------------------------------------
+// Append-only financial ledger for all payment-related events.
+// Every payment, fee, refund, and settlement has an immutable entry here.
+// Corrections use linked reversal entries, not edits to historical records.
+// ---------------------------------------------------------------------------
+
+model PaymentTransaction {
+  id              String   @id @default(cuid())
+  projectId       String
+  milestoneId     String?
+  userId          String  // who initiated
+  paymentReference String  @unique  // internal unique reference (e.g., GS_pay_xxx)
+  provider        String   // "mock" | "monnify" | "opay"
+  providerReference String? // provider's transaction reference
+  amountMinor     Int      // total payment amount
+  currency        String   @default("NGN")
+  status          String   @default("CREATED") // PaymentState enum
+  feeMinor        Int      @default(0)  // platform fee
+  netMinor        Int      @default(0)  // net amount after fee
+  feePolicyVersion String?  // policy version used for fee calc
+  feeRateBps     Int      @default(150) // fee rate in basis points
+  paymentMethod  String?  // "card" | "transfer" | "ussd"
+  checkoutUrl    String?  // hosted checkout URL
+  redirectUrl    String?  // post-payment redirect
+  customerEmail  String?
+  customerName   String?
+  description    String?
+  metadata       String   @default("{}") // JSON-encoded
+  
+  // Timing
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  expiresAt      DateTime?
+  paidAt         DateTime?
+  cancelledAt    DateTime?
+  
+  // Relations
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestone      Milestone? @relation(fields: [milestoneId], references: [id])
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledgerEntries  LedgerEntry[]
+  webhookEvents  WebhookEvent[]
+  
+  @@index([projectId])
+  @@index([userId])
+  @@index([providerReference])
+}
+
+model LedgerEntry {
+  id              String   @id @default(cuid())
+  transactionId   String
+  entryType       String   // PAYMENT | FEE | REFUND | FEE_REVERSAL | SETTLEMENT | ADJUSTMENT
+  amountMinor     Int      // positive = credit, negative = debit
+  currency        String   @default("NGN")
+  description     String?
+  accountType     String   // "PROVIDER_CLEARING" | "PROJECT_LIABILITY" | "PLATFORM_FEE_REVENUE" | "REFUND" | "PAYOUT"
+  reversalOfId    String?  // if this is a reversal, link to original entry
+  
+  createdAt       DateTime @default(now())
+  
+  transaction     PaymentTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  
+  @@index([transactionId])
+  @@index([accountType])
 }
