@@ -16,6 +16,7 @@ import { initiateFunding } from "@/lib/payments/mock-provider";
 import { recordAuditEvent } from "@/lib/auth/audit";
 import { z } from "zod";
 
+import { logSecurityEvent } from "@/lib/auth/audit";
 const Schema = z.object({
   type: z.enum(["FUNDING", "RELEASE", "REFUND"]),
   milestoneId: z.string().cuid().optional(),
@@ -49,7 +50,7 @@ export const POST = apiRoute(async (req, { params }) => {
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) return fail("Invalid funding request", 422, { issues: parsed.error.issues });
+  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid funding request", 422); }
 
   const project = await db.project.findUnique({
     where: { id: params.id },

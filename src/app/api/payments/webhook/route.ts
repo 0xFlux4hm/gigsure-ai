@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     amount_minor: number;
     currency: string;
     type: string;
-    timestamp?: string;
+    timestamp: string; // SECURITY: now mandatory
   };
   try {
     payload = JSON.parse(raw);
@@ -70,21 +70,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // SECURITY: replay window — reject payloads older than 5 minutes.
-  // The mock provider includes a `timestamp` field in every payload.
-  if (payload.timestamp) {
-    const payloadTime = Date.parse(payload.timestamp);
-    if (!Number.isFinite(payloadTime)) {
-      return NextResponse.json({ error: "Invalid timestamp" }, { status: 400 });
-    }
-    const ageMs = Math.abs(Date.now() - payloadTime);
-    if (ageMs > REPLAY_WINDOW_MS) {
-      logSecurityEvent("warn", "webhook.replay_rejected", {
-        provider: providerHeader,
-        ageMs,
-      });
-      return NextResponse.json({ error: "Payload expired" }, { status: 401 });
-    }
+  // SECURITY (2026-10): timestamp is now MANDATORY (previously optional, which
+  // allowed an attacker with the secret to omit it and bypass the replay window).
+  if (!payload.timestamp || !Number.isFinite(Date.parse(payload.timestamp))) {
+    logSecurityEvent("warn", "webhook.missing_or_invalid_timestamp", { provider: providerHeader });
+    return NextResponse.json({ error: "Missing or invalid timestamp" }, { status: 400 });
+  }
+  const ageMs = Math.abs(Date.now() - Date.parse(payload.timestamp));
+  if (ageMs > REPLAY_WINDOW_MS) {
+    logSecurityEvent("warn", "webhook.replay_rejected", {
+      provider: providerHeader,
+      ageMs,
+    });
+    return NextResponse.json({ error: "Payload expired" }, { status: 401 });
   }
 
   const status =

@@ -8,6 +8,7 @@
  * defense-in-depth — even if a future caller forgets to sanitise.
  */
 import { db } from "@/lib/db";
+import { createHash } from "crypto";
 
 export type AuditContext = {
   actorId?: string | null;
@@ -77,21 +78,65 @@ export function redactSensitive<T>(input: T): T {
   return out as T;
 }
 
+/**
+ * SECURITY (2026-10): compute a hash chain entry for tamper-evidence.
+ * eventHash = sha256(previousHash + canonicalJson(eventData))
+ * An attacker who modifies any event breaks the chain — detectable by
+ * recomputing hashes from the genesis forward.
+ */
+function computeEventHash(
+  previousHash: string,
+  eventData: {
+    actorId: string | null;
+    projectId: string | null;
+    fundingRecordId: string | null;
+    action: string;
+    targetType: string | null;
+    targetId: string | null;
+    metadata: string;
+    ipAddress: string | null;
+    createdAt: Date;
+  },
+): string {
+  const canonical = JSON.stringify(eventData, Object.keys(eventData).sort());
+  return createHash("sha256").update(previousHash + canonical).digest("hex");
+}
+
 export async function recordAuditEvent(ctx: AuditContext): Promise<void> {
   try {
     // SECURITY: redact before persistence — defense-in-depth so a future
     // caller that forgets to sanitise doesn't leak secrets to the audit log.
     const safeMetadata = ctx.metadata ? redactSensitive(ctx.metadata) : undefined;
+    const metadataStr = JSON.stringify(safeMetadata ?? {});
+    const createdAt = new Date();
+
+    // SECURITY (2026-10): fetch the previous event's hash to build the chain.
+    // We use findFirst ordered by createdAt desc — this is O(log n) via the
+    // index on createdAt (added by Prisma's default).
+    const previousEvent = await db.auditEvent.findFirst({
+      orderBy: { createdAt: "desc" },
+      select: { eventHash: true },
+    });
+    const previousHash = previousEvent?.eventHash ?? "genesis";
+
+    const eventData = {
+      actorId: ctx.actorId ?? null,
+      projectId: ctx.projectId ?? null,
+      fundingRecordId: ctx.fundingRecordId ?? null,
+      action: ctx.action,
+      targetType: ctx.targetType ?? null,
+      targetId: ctx.targetId ?? null,
+      metadata: metadataStr,
+      ipAddress: ctx.ipAddress ?? null,
+      createdAt,
+    };
+    const eventHash = computeEventHash(previousHash, eventData);
+
     await db.auditEvent.create({
       data: {
-        actorId: ctx.actorId ?? null,
-        projectId: ctx.projectId ?? null,
-        fundingRecordId: ctx.fundingRecordId ?? null,
-        action: ctx.action,
-        targetType: ctx.targetType ?? null,
-        targetId: ctx.targetId ?? null,
-        metadata: JSON.stringify(safeMetadata ?? {}),
-        ipAddress: ctx.ipAddress ?? null,
+        ...eventData,
+        previousHash,
+        eventHash,
       },
     });
   } catch (err) {

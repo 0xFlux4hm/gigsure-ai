@@ -24,12 +24,24 @@ if [ -z "$NEXTAUTH_URL" ]; then
     exit 1
 fi
 
-# Run database migrations (idempotent — safe to run on every restart)
+# Run database migrations.
+# SECURITY (2026-10): use `prisma migrate deploy` (applies migration files,
+# never drops data without an explicit migration) instead of `db push`
+# (dev-only, can silently drop columns/tables on schema drift).
 echo "[entrypoint] Running database migrations…"
-bunx prisma db push --accept-data-loss || {
-    echo "[entrypoint] ❌ Database migration failed"
-    exit 1
-}
+if [ -d "prisma/migrations" ]; then
+    bunx prisma migrate deploy || {
+        echo "[entrypoint] ❌ Database migration failed"
+        exit 1
+    }
+else
+    echo "[entrypoint] No migration files found — falling back to db push"
+    echo "[entrypoint] ⚠️  WARNING: db push can silently drop data. Use prisma migrate dev to create migration files."
+    bunx prisma db push --accept-data-loss || {
+        echo "[entrypoint] ❌ Database schema push failed"
+        exit 1
+    }
+fi
 
 # Start the Next.js server (standalone build)
 echo "[entrypoint] Starting Next.js server on port ${PORT:-3000}…"

@@ -537,6 +537,13 @@ model AuditEvent {
   targetId   String?
   metadata   String   // JSON-encoded
   ipAddress  String?
+  // SECURITY (2026-10): hash chain for tamper-evidence.
+  // previousHash = eventHash of the immediately preceding AuditEvent (or
+  // "genesis" for the first event). eventHash = sha256(previousHash + canonicalJson(eventData)).
+  // An attacker who modifies any event breaks the chain — detectable by
+  // recomputing hashes from the genesis forward.
+  previousHash String?
+  eventHash    String?  @unique
   createdAt  DateTime @default(now())
 
   actor        User?          @relation("AuditActor", fields: [actorId], references: [id])

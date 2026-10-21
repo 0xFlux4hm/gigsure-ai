@@ -6,6 +6,7 @@ import { assertPermission, AuthzError } from "@/lib/auth/authorization";
 import { recordAuditEvent } from "@/lib/auth/audit";
 import { z } from "zod";
 
+import { logSecurityEvent } from "@/lib/auth/audit";
 const Schema = z.object({
   title: z.string().min(3).max(200),
   description: z.string().min(10).max(8000),
@@ -51,7 +52,7 @@ export const POST = apiRoute(async (req, { params }) => {
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) return fail("Invalid dispute", 422, { issues: parsed.error.issues });
+  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid dispute", 422); }
 
   // SECURITY (2026-10): if milestoneId is supplied, verify it belongs to this
   // project. Otherwise an attacker could open a dispute on project A that

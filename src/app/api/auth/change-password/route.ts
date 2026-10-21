@@ -11,6 +11,7 @@ import { apiRoute, parseJsonBody, fail, ok } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
 import { verifyPassword, hashPassword, validatePasswordPolicy } from "@/lib/security/password";
 import { recordAuditEvent } from "@/lib/auth/audit";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import { z } from "zod";
 
 const Schema = z.object({
@@ -20,6 +21,12 @@ const Schema = z.object({
 
 export const POST = apiRoute(async (req) => {
   const userId = await requireUserId();
+  // SECURITY (2026-10): rate-limit password change attempts to prevent
+  // brute-forcing the currentPassword via this endpoint (5 attempts/hour).
+  const rl = await checkRateLimit(`changepw:user:${userId}`, { limit: 5, windowMs: 60 * 60 * 1000 });
+  if (!rl.ok) {
+    return fail("Too many password change attempts. Please try again later.", 429);
+  }
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
   if (!parsed.success) return fail("Invalid input", 422);

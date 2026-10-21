@@ -6,6 +6,7 @@ import { assertPermission, AuthzError } from "@/lib/auth/authorization";
 import { recordAuditEvent } from "@/lib/auth/audit";
 import { z } from "zod";
 
+import { logSecurityEvent } from "@/lib/auth/audit";
 const Schema = z.object({
   title: z.string().min(2).max(200),
   description: z.string().max(4000).optional(),
@@ -42,7 +43,7 @@ export const POST = apiRoute(async (req, { params }) => {
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) return fail("Invalid milestone", 422, { issues: parsed.error.issues });
+  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid milestone", 422); }
 
   const milestone = await db.milestone.create({
     data: {

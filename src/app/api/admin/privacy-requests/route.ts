@@ -6,12 +6,13 @@
  */
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail, getQueryInt, getQueryParam } from "@/lib/api";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminRateLimited } from "@/lib/auth/session";
 import { recordAuditEvent } from "@/lib/auth/audit";
 import { z } from "zod";
 
+import { logSecurityEvent } from "@/lib/auth/audit";
 export const GET = apiRoute(async (req) => {
-  await requireAdmin();
+  await requireAdminRateLimited();
 
   const limit = Math.min(getQueryInt(req, "limit", 50), 200);
   const offset = getQueryInt(req, "offset", 0);
@@ -50,11 +51,11 @@ export const PATCH = apiRoute(async (req, { params }) => {
   // Next.js passes the rest of the path after /api/admin/privacy-requests as `params`.
   // For this route we expect a top-level PATCH with a body containing `requestId`.
   // Since we are at the collection root, accept requestId in the body.
-  const admin = await requireAdmin();
+  const admin = await requireAdminRateLimited();
 
   const body = await parseJsonBody<{ requestId?: string } & z.infer<typeof UpdateSchema>>(req);
   const parsed = UpdateSchema.safeParse(body);
-  if (!parsed.success) return fail("Invalid update", 422, { issues: parsed.error.issues });
+  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid update", 422); }
   if (!body.requestId) return fail("requestId required", 422);
 
   const existing = await db.privacyRequest.findUnique({

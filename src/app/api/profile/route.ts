@@ -9,6 +9,7 @@ import { sanitizeDisplayName } from "@/lib/security/validation";
 import { recordAuditEvent } from "@/lib/auth/audit";
 import { z } from "zod";
 
+import { logSecurityEvent } from "@/lib/auth/audit";
 const SkillsArray = z.array(z.string().min(1).max(80)).max(50);
 const LinksArray = z.array(z.string().url().max(2048)).max(20);
 const CatsArray = z.array(z.string().min(2).max(80)).max(20);
@@ -40,7 +41,7 @@ export const PUT = apiRoute(async (req) => {
   const userId = await requireUserId();
   const body = await parseJsonBody<unknown>(req);
   const parsed = ProfileSchema.safeParse(body);
-  if (!parsed.success) return fail("Invalid profile data", 422, { issues: parsed.error.issues });
+  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid profile data", 422); }
 
   const data = parsed.data;
   const displayName = data.displayName ? sanitizeDisplayName(data.displayName) : undefined;
