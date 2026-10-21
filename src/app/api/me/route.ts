@@ -1,7 +1,8 @@
-/** Current authenticated user info. */
+/** Current authenticated user info (includes KYC status). */
 import { db } from "@/lib/db";
 import { apiRoute, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
+import { getUserKycStatus } from "@/lib/kyc/provider";
 
 export const GET = apiRoute(async () => {
   const userId = await requireUserId();
@@ -28,5 +29,15 @@ export const GET = apiRoute(async () => {
     },
   });
   if (!user) return fail("User not found", 404);
-  return user;
+
+  // Include KYC verification status
+  const kyc = await getUserKycStatus(userId);
+
+  return {
+    ...user,
+    kyc: {
+      verified: kyc.verified,
+      status: kyc.status,
+    },
+  };
 });

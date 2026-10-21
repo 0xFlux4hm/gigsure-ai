@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 
 type ProjectNavContext = {
   projectId?: string;
@@ -81,6 +82,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [unread, setUnread] = useState(0);
   const [projectCtx, setProjectCtx] = useState<ProjectNavContext>({});
   const [isAdmin, setIsAdmin] = useState(false);
+  const [kycVerified, setKycVerified] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -91,6 +93,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setProjectCtx({});
     }
   }, [projectId]);
+
+  useEffect(() => {
+    api.get<{ kyc?: { verified?: boolean } }>("/api/me")
+      .then((u) => setKycVerified(u.kyc?.verified ?? false))
+      .catch(() => {});
+  }, [session?.user?.id]);
 
   useEffect(() => {
     const loadUnread = () => api.get<{ unreadCount: number }>("/api/notifications?limit=1").then((r) => setUnread(r.unreadCount ?? 0)).catch(() => {});
@@ -161,8 +169,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-primary/10 text-primary text-xs">{initials}</AvatarFallback>
                   </Avatar>
-                  <span className="hidden md:block text-sm max-w-[120px] truncate">
+                  <span className="hidden md:block text-sm max-w-[120px] truncate flex items-center gap-1">
                     {session?.user?.name ?? "User"}
+                    {kycVerified && <VerifiedBadge size="sm" showLabel={false} />}
                   </span>
                 </button>
               </DropdownMenuTrigger>
@@ -179,6 +188,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <n.icon className="mr-2 h-4 w-4" /> {n.label}
                   </DropdownMenuItem>
                 ))}
+                {!kycVerified && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate({ view: "kyc", projectId: undefined })}>
+                      <ShieldCheck className="mr-2 h-4 w-4 text-amber-600" /> Complete KYC Verification
+                    </DropdownMenuItem>
+                  </>
+                )}
                 {isAdmin && (
                   <>
                     <DropdownMenuSeparator />

@@ -25,10 +25,11 @@ import {
   ArrowRight,
   Search,
   CheckCircle2,
+  XCircle,
   TrendingUp,
 } from "lucide-react";
 
-type AdminTab = "overview" | "users" | "projects" | "funding" | "disputes" | "audit" | "ai" | "privacy" | "webhooks";
+type AdminTab = "overview" | "users" | "projects" | "funding" | "disputes" | "audit" | "ai" | "privacy" | "webhooks" | "kyc";
 
 export function AdminView() {
   const [tab, setTab] = useState<AdminTab>("overview");
@@ -85,6 +86,7 @@ export function AdminView() {
           <TabsTrigger value="ai" className="data-[state=active]:bg-background"><Bot className="h-3.5 w-3.5 mr-1" /> AI</TabsTrigger>
           <TabsTrigger value="privacy" className="data-[state=active]:bg-background"><Lock className="h-3.5 w-3.5 mr-1" /> Privacy</TabsTrigger>
           <TabsTrigger value="webhooks" className="data-[state=active]:bg-background"><Webhook className="h-3.5 w-3.5 mr-1" /> Webhooks</TabsTrigger>
+          <TabsTrigger value="kyc" className="data-[state=active]:bg-background"><ShieldCheck className="h-3.5 w-3.5 mr-1" /> KYC</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4"><OverviewTab /></TabsContent>
@@ -96,6 +98,7 @@ export function AdminView() {
         <TabsContent value="ai" className="mt-4"><AiTab /></TabsContent>
         <TabsContent value="privacy" className="mt-4"><PrivacyTab /></TabsContent>
         <TabsContent value="webhooks" className="mt-4"><WebhooksTab /></TabsContent>
+        <TabsContent value="kyc" className="mt-4"><KycTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -1348,5 +1351,141 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
         <Button onClick={onRetry} variant="outline"><ArrowRight className="h-4 w-4 mr-2" /> Retry</Button>
       </CardContent>
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// KYC tab
+// ---------------------------------------------------------------------------
+
+type AdminKyc = {
+  id: string;
+  status: string;
+  provider: string;
+  ninNumberLast4: string;
+  fullName: string;
+  selfieMatch: boolean | null;
+  livenessPassed: boolean | null;
+  confidenceScore: number | null;
+  failureReason: string | null;
+  createdAt: string;
+  verifiedAt: string | null;
+  expiresAt: string | null;
+  user: { id: string; displayName: string; email: string };
+};
+
+function KycTab() {
+  const [verifications, setVerifications] = useState<AdminKyc[]>([]);
+  const [total, setTotal] = useState(0);
+  const [aggregates, setAggregates] = useState<{ byStatus: Array<{ status: string; count: number }> } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const load = () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (statusFilter) params.set("status", statusFilter);
+    api.get<{ verifications: AdminKyc[]; total: number; aggregates: typeof aggregates }>(`/api/admin/kyc?${params.toString()}`)
+      .then((r) => { setVerifications(r.verifications); setTotal(r.total); setAggregates(r.aggregates); })
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, [statusFilter]);
+
+  return (
+    <div className="space-y-4">
+      {aggregates && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {aggregates.byStatus.map((s) => (
+            <Card key={s.status}>
+              <CardContent className="p-3">
+                <div className="text-xs text-muted-foreground">{s.status}</div>
+                <div className="font-semibold mt-0.5">{s.count}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Card>
+        <CardContent className="p-3 flex gap-2 items-end">
+          <div className="space-y-1">
+            <Label className="text-xs">Status filter</Label>
+            <Select value={statusFilter || "ALL"} onValueChange={(v) => setStatusFilter(v === "ALL" ? "" : v)}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="IN_PROGRESS">In progress</SelectItem>
+                <SelectItem value="VERIFIED">Verified</SelectItem>
+                <SelectItem value="REJECTED">Rejected</SelectItem>
+                <SelectItem value="EXPIRED">Expired</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">KYC Verifications ({total})</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? <LoadingState /> : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/30 text-xs text-muted-foreground">
+                  <tr>
+                    <th className="text-left p-2">User</th>
+                    <th className="text-left p-2">Status</th>
+                    <th className="text-left p-2">Provider</th>
+                    <th className="text-left p-2">NIN</th>
+                    <th className="text-left p-2">Name</th>
+                    <th className="text-center p-2">Selfie</th>
+                    <th className="text-center p-2">Liveness</th>
+                    <th className="text-right p-2">Score</th>
+                    <th className="text-left p-2">Verified</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {verifications.length === 0 && (
+                    <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">No KYC verifications yet.</td></tr>
+                  )}
+                  {verifications.map((v) => (
+                    <tr key={v.id} className="border-t hover:bg-muted/30 align-top">
+                      <td className="p-2">
+                        <div className="font-medium">{v.user.displayName}</div>
+                        <div className="text-xs text-muted-foreground">{v.user.email}</div>
+                      </td>
+                      <td className="p-2">
+                        <Badge variant={v.status === "VERIFIED" ? "default" : v.status === "REJECTED" ? "destructive" : "secondary"} className="text-xs">
+                          {v.status}
+                        </Badge>
+                      </td>
+                      <td className="p-2 text-xs">{v.provider}</td>
+                      <td className="p-2 text-xs font-mono">****{v.ninNumberLast4}</td>
+                      <td className="p-2 text-xs">{v.fullName}</td>
+                      <td className="p-2 text-center">
+                        {v.selfieMatch === true ? <CheckCircle2 className="h-4 w-4 text-primary inline" /> :
+                         v.selfieMatch === false ? <XCircle className="h-4 w-4 text-destructive inline" /> : "—"}
+                      </td>
+                      <td className="p-2 text-center">
+                        {v.livenessPassed === true ? <CheckCircle2 className="h-4 w-4 text-primary inline" /> :
+                         v.livenessPassed === false ? <XCircle className="h-4 w-4 text-destructive inline" /> : "—"}
+                      </td>
+                      <td className="p-2 text-right text-xs">
+                        {v.confidenceScore ? `${v.confidenceScore.toFixed(1)}%` : "—"}
+                      </td>
+                      <td className="p-2 text-xs text-muted-foreground">
+                        {v.verifiedAt ? formatDateTime(v.verifiedAt) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

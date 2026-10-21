@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api, formatDateTime } from "@/lib/client-api";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import {
   ShieldCheck,
   Loader2,
@@ -17,6 +18,7 @@ import {
   Fingerprint,
   AlertTriangle,
   Info,
+  RefreshCw,
 } from "lucide-react";
 
 type KycStatus = {
@@ -38,6 +40,12 @@ export function KycView() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
+  const [selfieBase64, setSelfieBase64] = useState<string | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -47,6 +55,69 @@ export function KycView() {
       .finally(() => setLoading(false));
   };
   useEffect(load, []);
+
+  // Camera cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    setCameraError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+      setCameraActive(true);
+    } catch (err) {
+      setCameraError(
+        err instanceof DOMException && err.name === "NotAllowedError"
+          ? "Camera access denied. Please allow camera permissions in your browser."
+          : err instanceof DOMException && err.name === "NotFoundError"
+          ? "No camera found. Please connect a camera or skip the selfie step."
+          : "Failed to start camera. You can still verify with NIN only."
+      );
+    }
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  }, []);
+
+  const captureSelfie = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    // Mirror the selfie horizontally (since video is mirrored)
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // reset
+
+    // Convert to base64 JPEG (compressed for API upload)
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+    // Strip the "data:image/jpeg;base64," prefix
+    const base64 = dataUrl.split(",")[1];
+    setSelfieBase64(base64);
+    stopCamera();
+  }, [stopCamera]);
 
   const submit = async () => {
     if (ninNumber.length !== 11 || !/^\d{11}$/.test(ninNumber)) {
@@ -58,6 +129,7 @@ export function KycView() {
     try {
       const result = await api.post<{ verificationId: string; provider: string; status: string }>("/api/kyc/initiate", {
         ninNumber,
+        ...(selfieBase64 ? { selfieBase64 } : {}),
       });
       setShowForm(false);
       setPolling(true);
@@ -199,6 +271,67 @@ export function KycView() {
               <p className="text-xs text-muted-foreground">
                 Your NIN is hashed with SHA-256 before storage. We never store the raw number.
               </p>
+            </div>
+
+            {/* Selfie capture for liveness verification */}
+            <div className="space-y-3">
+              <Label>Selfie verification (liveness check)</Label>
+              {selfieBase64 ? (
+                <div className="flex items-center gap-3">
+                  <img
+                    src={`data:image/jpeg;base64,${selfieBase64}`}
+                    alt="Captured selfie"
+                    className="h-20 w-20 rounded-lg border object-cover"
+                  />
+                  <div>
+                    <p className="text-sm font-medium flex items-center gap-1">
+                      <CheckCircle2 className="h-4 w-4 text-primary" /> Selfie captured
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="mt-1"
+                      onClick={() => { setSelfieBase64(null); }}
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" /> Retake
+                    </Button>
+                  </div>
+                </div>
+              ) : cameraActive ? (
+                <div className="space-y-2">
+                  <div className="relative rounded-lg overflow-hidden border bg-black max-w-xs">
+                    <video
+                      ref={videoRef}
+                      className="w-full h-auto"
+                      style={{ transform: "scaleX(-1)" }}
+                      playsInline
+                      muted
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={captureSelfie}>
+                      <Camera className="h-4 w-4 mr-1" /> Capture Selfie
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={stopCamera}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Button size="sm" variant="outline" onClick={startCamera}>
+                    <Camera className="h-4 w-4 mr-2" /> Start Camera
+                  </Button>
+                  {cameraError && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">{cameraError}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Optional in dev mode. In production, a selfie with liveness check is required
+                    for full KYC verification.
+                  </p>
+                </div>
+              )}
+              <canvas ref={canvasRef} className="hidden" />
             </div>
 
             {error && (

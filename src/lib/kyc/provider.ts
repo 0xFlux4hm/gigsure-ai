@@ -13,7 +13,7 @@
  *   5. Backend records result in KycVerification table
  *
  * To get free Smile ID sandbox credentials:
- *   1. Sign up at https://smileportal.smileidentity.com/
+ *   1. Sign up at https://portal.usesmileid.com/
  *   2. Get your Partner ID + API Key from the dashboard
  *   3. Set in .env:
  *      SMILE_ID_PARTNER_ID=your-partner-id
