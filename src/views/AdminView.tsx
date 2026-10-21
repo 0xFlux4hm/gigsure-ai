@@ -29,7 +29,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-type AdminTab = "overview" | "users" | "projects" | "funding" | "disputes" | "audit" | "ai" | "privacy" | "webhooks" | "kyc";
+type AdminTab = "overview" | "users" | "projects" | "funding" | "disputes" | "audit" | "ai" | "privacy" | "webhooks" | "kyc" | "payments";
 
 export function AdminView() {
   const [tab, setTab] = useState<AdminTab>("overview");
@@ -87,6 +87,7 @@ export function AdminView() {
           <TabsTrigger value="privacy" className="data-[state=active]:bg-background"><Lock className="h-3.5 w-3.5 mr-1" /> Privacy</TabsTrigger>
           <TabsTrigger value="webhooks" className="data-[state=active]:bg-background"><Webhook className="h-3.5 w-3.5 mr-1" /> Webhooks</TabsTrigger>
           <TabsTrigger value="kyc" className="data-[state=active]:bg-background"><ShieldCheck className="h-3.5 w-3.5 mr-1" /> KYC</TabsTrigger>
+          <TabsTrigger value="payments" className="data-[state=active]:bg-background"><Wallet className="h-3.5 w-3.5 mr-1" /> Payments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4"><OverviewTab /></TabsContent>
@@ -99,6 +100,7 @@ export function AdminView() {
         <TabsContent value="privacy" className="mt-4"><PrivacyTab /></TabsContent>
         <TabsContent value="webhooks" className="mt-4"><WebhooksTab /></TabsContent>
         <TabsContent value="kyc" className="mt-4"><KycTab /></TabsContent>
+        <TabsContent value="payments" className="mt-4"><PaymentsTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -1478,6 +1480,195 @@ function KycTab() {
                       <td className="p-2 text-xs text-muted-foreground">
                         {v.verifiedAt ? formatDateTime(v.verifiedAt) : "—"}
                       </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Payments tab
+// ---------------------------------------------------------------------------
+
+type AdminPayment = {
+  id: string;
+  paymentReference: string;
+  provider: string;
+  providerReference: string | null;
+  amountMinor: number;
+  currency: string;
+  status: string;
+  feeMinor: number;
+  netMinor: number;
+  feeRateBps: number;
+  paymentMethod: string | null;
+  createdAt: string;
+  paidAt: string | null;
+  user: { id: string; displayName: string; email: string };
+  project: { id: string; title: string } | null;
+  milestone: { id: string; title: string } | null;
+};
+
+function PaymentsTab() {
+  const [transactions, setTransactions] = useState<AdminPayment[]>([]);
+  const [total, setTotal] = useState(0);
+  const [aggregates, setAggregates] = useState<{
+    byStatus: Array<{ status: string; count: number }>;
+    byProvider: Array<{ provider: string; count: number }>;
+    totalAmountMinor: number;
+    totalFeeMinor: number;
+    totalNetMinor: number;
+    totalCount: number;
+  } | null>(null);
+  const [providers, setProviders] = useState<Array<{ name: string; enabled: boolean; configured: boolean; environment: string; message: string }>>([]);
+  const [livePayments, setLivePayments] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const load = () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (statusFilter) params.set("status", statusFilter);
+    api.get<{
+      transactions: AdminPayment[];
+      total: number;
+      aggregates: typeof aggregates;
+      providers: typeof providers;
+      livePaymentsEnabled: boolean;
+    }>(`/api/admin/payments?${params.toString()}`)
+      .then((r) => {
+        setTransactions(r.transactions);
+        setTotal(r.total);
+        setAggregates(r.aggregates);
+        setProviders(r.providers);
+        setLivePayments(r.livePaymentsEnabled);
+      })
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, [statusFilter]);
+
+  return (
+    <div className="space-y-4">
+      {/* Provider status */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Payment Providers</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {providers.map((p) => (
+              <div key={p.name} className="border rounded p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-medium capitalize">{p.name}</span>
+                  <Badge variant={p.enabled ? "default" : "secondary"} className="text-xs">
+                    {p.enabled ? "Enabled" : "Disabled"}
+                  </Badge>
+                </div>
+                <div className="text-xs text-muted-foreground">{p.message}</div>
+                <div className="text-xs text-muted-foreground mt-1">Env: {p.environment}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-2 text-sm">
+            <Badge variant={livePayments ? "default" : "outline"}>
+              {livePayments ? "Live payments ON" : "Live payments OFF"}
+            </Badge>
+            <span className="text-muted-foreground">Fee rate: {process.env.PLATFORM_FEE_BPS ?? "150"} bps (1.5%)</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Aggregates */}
+      {aggregates && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card><CardContent className="p-3">
+            <div className="text-xs text-muted-foreground">Total Volume</div>
+            <div className="font-semibold mt-0.5">{formatMinor(aggregates.totalAmountMinor, "NGN")}</div>
+          </CardContent></Card>
+          <Card><CardContent className="p-3">
+            <div className="text-xs text-muted-foreground">Platform Fees</div>
+            <div className="font-semibold mt-0.5 text-primary">{formatMinor(aggregates.totalFeeMinor, "NGN")}</div>
+          </CardContent></Card>
+          <Card><CardContent className="p-3">
+            <div className="text-xs text-muted-foreground">Net to Freelancers</div>
+            <div className="font-semibold mt-0.5">{formatMinor(aggregates.totalNetMinor, "NGN")}</div>
+          </CardContent></Card>
+          <Card><CardContent className="p-3">
+            <div className="text-xs text-muted-foreground">Transactions</div>
+            <div className="font-semibold mt-0.5">{aggregates.totalCount}</div>
+          </CardContent></Card>
+        </div>
+      )}
+
+      {/* Status filter */}
+      <Card>
+        <CardContent className="p-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Status filter</Label>
+            <Select value={statusFilter || "ALL"} onValueChange={(v) => setStatusFilter(v === "ALL" ? "" : v)}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All</SelectItem>
+                <SelectItem value="CREATED">Created</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="SUCCEEDED">Succeeded</SelectItem>
+                <SelectItem value="FAILED">Failed</SelectItem>
+                <SelectItem value="REFUNDED">Refunded</SelectItem>
+                <SelectItem value="CANCELED">Canceled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Transactions table */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Payment Transactions ({total})</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? <LoadingState /> : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/30 text-xs text-muted-foreground">
+                  <tr>
+                    <th className="text-left p-2">User</th>
+                    <th className="text-left p-2">Status</th>
+                    <th className="text-left p-2">Provider</th>
+                    <th className="text-left p-2">Project</th>
+                    <th className="text-right p-2">Amount</th>
+                    <th className="text-right p-2">Fee (1.5%)</th>
+                    <th className="text-right p-2">Net</th>
+                    <th className="text-left p-2">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.length === 0 && (
+                    <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">No payment transactions yet.</td></tr>
+                  )}
+                  {transactions.map((t) => (
+                    <tr key={t.id} className="border-t hover:bg-muted/30">
+                      <td className="p-2">
+                        <div className="font-medium">{t.user.displayName}</div>
+                        <div className="text-xs text-muted-foreground">{t.user.email}</div>
+                      </td>
+                      <td className="p-2">
+                        <Badge variant={t.status === "SUCCEEDED" ? "default" : t.status === "FAILED" ? "destructive" : "secondary"} className="text-xs">
+                          {t.status}
+                        </Badge>
+                      </td>
+                      <td className="p-2 text-xs capitalize">{t.provider}</td>
+                      <td className="p-2 text-xs">{t.project?.title ?? "—"}</td>
+                      <td className="p-2 text-right font-medium">{formatMinor(t.amountMinor, t.currency)}</td>
+                      <td className="p-2 text-right text-primary">{formatMinor(t.feeMinor, t.currency)}</td>
+                      <td className="p-2 text-right">{formatMinor(t.netMinor, t.currency)}</td>
+                      <td className="p-2 text-xs text-muted-foreground">{formatDateTime(t.createdAt)}</td>
                     </tr>
                   ))}
                 </tbody>
