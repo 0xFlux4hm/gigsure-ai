@@ -223,30 +223,6 @@ function OverviewTab() {
         <MiniStat label="Pending privacy requests" value={String(c.privacy.pendingRequests)} accent={c.privacy.pendingRequests > 0 ? "warning" : "default"} />
       </div>
 
-      {/* Recent audit events */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><ScrollText className="h-4 w-4" /> Recent activity</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <ul className="divide-y max-h-[400px] overflow-y-auto">
-            {stats.recentAuditEvents.length === 0 && (
-              <li className="p-3 text-sm text-muted-foreground">No recent activity.</li>
-            )}
-            {stats.recentAuditEvents.map((e) => (
-              <li key={e.id} className="p-3 text-sm">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="outline" className="text-xs">{e.action}</Badge>
-                  {e.targetType && <Badge variant="secondary" className="text-xs">{e.targetType}</Badge>}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {e.actor?.displayName ?? "system"} · {timeAgo(e.createdAt)}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -899,19 +875,6 @@ function AuditTab() {
 
   return (
     <div className="space-y-4">
-      {topActions.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">Top actions</CardTitle></CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {topActions.map((a) => (
-              <Badge key={a.action} variant="secondary" className="text-xs">
-                {a.action}: {a._count.action}
-              </Badge>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
         <CardContent className="p-3 flex gap-2 items-end">
           <div className="flex-1 space-y-1">
