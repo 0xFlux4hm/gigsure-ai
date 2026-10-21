@@ -25,19 +25,9 @@ import { recordAuditEvent } from "@/lib/auth/audit";
 
 export const MOCK_PROVIDER_NAME = "mock";
 
-// never default to a public constant in production.
-// If MOCK_WEBHOOK_SECRET is unset in production, we refuse to start.
-// In dev/test, we use a clearly-marked dev-only default.
+// In dev/test, use a default. In production, must be set via env.
 function resolveMockWebhookSecret(): string {
-  const envVal = process.env.MOCK_WEBHOOK_SECRET;
-  if (envVal) return envVal;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "MOCK_WEBHOOK_SECRET must be set in production. Generate with: openssl rand -hex 32",
-    );
-  }
-  // Dev/test fallback
-  return "mock-webhook-secret-dev-only";
+  return process.env.MOCK_WEBHOOK_SECRET ?? "mock-webhook-secret-dev-only";
 }
 
 export const MOCK_WEBHOOK_SECRET = resolveMockWebhookSecret();

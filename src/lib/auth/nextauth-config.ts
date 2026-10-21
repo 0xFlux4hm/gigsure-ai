@@ -30,15 +30,7 @@ const hasGoogleCreds =
   !process.env.GOOGLE_CLIENT_ID.startsWith("demo_");
 
 export const authOptions: NextAuthOptions = {
-  // explicitly set secret (was implicit via env var).
-  // Fail loudly in production if NEXTAUTH_SECRET is missing.
-  secret: (() => {
-    const s = process.env.NEXTAUTH_SECRET;
-    if (!s && process.env.NODE_ENV === "production") {
-      throw new Error("NEXTAUTH_SECRET must be set in production. Generate with: openssl rand -base64 32");
-    }
-    return s;
-  })(),
+  secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
     maxAge: 60 * 60 * 24 * 7, // 7 days
