@@ -145,8 +145,8 @@ export async function requireRecentAuth(maxAgeMinutes = 15): Promise<string> {
   return session.user.id;
 }
 
-export function getClientIp(): string | null {
-  const h = headers();
+export async function getClientIp(): Promise<string | null> {
+  const h = await headers();
   return (
     h.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     h.get("x-real-ip") ??

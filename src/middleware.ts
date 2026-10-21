@@ -28,6 +28,8 @@ export function middleware(req: NextRequest) {
   // both allowed, any HTML injection became executable JS.
   // In development, Next.js Turbopack HMR requires 'unsafe-eval' — we add
   // it back only in dev.
+  // SECURITY (2026-10): added report-uri + report-to for CSP violation
+  // monitoring. Browsers POST violation reports to /api/csp-report.
   const scriptSrc = isProduction
     ? `script-src 'self' 'nonce-${nonce}'`
     : `script-src 'self' 'nonce-${nonce}' 'unsafe-eval'`;
@@ -43,6 +45,9 @@ export function middleware(req: NextRequest) {
     `base-uri 'self'`,
     `object-src 'none'`,
     `upgrade-insecure-requests`,
+    // SECURITY (2026-10): CSP violation reporting
+    `report-uri /api/csp-report`,
+    `report-to gigsure-csp`,
   ].join("; ");
 
   res.headers.set("Content-Security-Policy", csp);
@@ -68,6 +73,16 @@ export function middleware(req: NextRequest) {
   // SECURITY (2026-10): COEP require-corp — defense in depth against
   // Spectre-class attacks that read cross-origin responses.
   res.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+  // SECURITY (2026-10): Report-To header for CSP violation reporting.
+  // Browsers use this to know where to send violation reports.
+  res.headers.set(
+    "Report-To",
+    JSON.stringify({
+      group: "gigsure-csp",
+      max_age: 86400,
+      endpoints: [{ url: "/api/csp-report" }],
+    }),
+  );
 
   if (isProduction) {
     // HSTS: 1 year, include subdomains, ready for preload list
@@ -78,6 +93,7 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Apply to all routes except Next.js internals + static assets
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|images/).*)"],
+  // Apply to all routes except Next.js internals, static assets, and the
+  // CSP report endpoint (which must return 204 without extra headers).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|images/|api/csp-report).*)"],
 };

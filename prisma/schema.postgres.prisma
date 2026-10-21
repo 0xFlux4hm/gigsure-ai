@@ -64,6 +64,7 @@ model User {
   aiActivities      AiActivity[]
   fundingInitiated  FundingRecord[]     @relation("FundingInitiator")
   linkedAccounts    LinkedAccount[]
+  revokedSessions   RevokedSession[]
 }
 
 model UserIdentity {
@@ -564,6 +565,20 @@ model PrivacyRequest {
   result      String?
   createdAt   DateTime @default(now())
   completedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RevokedSession {
+  id        String   @id @default(cuid())
+  jti       String   @unique
+  userId    String
+  reason    String?
+  userAgent String?
+  ipAddress String?
+  revokedAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

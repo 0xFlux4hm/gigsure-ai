@@ -192,15 +192,24 @@ export const authOptions: NextAuthOptions = {
     async signIn(_user, _account, _profile) {
       return true;
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
       if (user?.id) {
         token.userId = user.id;
         // SECURITY (2026-10): record issuedAt so we can invalidate the
         // session after a password change/reset (see jwt callback below).
         token.issuedAt = Date.now();
+        // SECURITY (2026-10): generate a unique JTI per JWT so individual
+        // sessions can be revoked without logging out all sessions.
+        token.jti = crypto.randomUUID();
       }
       if (account?.provider) {
         token.provider = account.provider;
+      }
+      // SECURITY (2026-10): handle session update trigger from /api/auth/reauth.
+      // When the frontend calls `await update({ sudo: true })` after reauth,
+      // we refresh issuedAt so requireRecentAuth() passes for 15 minutes.
+      if (trigger === "update" && session?.sudo === true) {
+        token.issuedAt = Date.now();
       }
       // SECURITY (2026-10): if the user has changed their password since
       // this JWT was issued, force re-authentication by returning an empty
@@ -218,6 +227,18 @@ export const authOptions: NextAuthOptions = {
           // Password changed after this JWT was issued — invalidate
           return { ...token, userId: undefined } as typeof token;
         }
+        // SECURITY (2026-10): check if this specific session (JTI) has been
+        // revoked. This enables per-session revocation (e.g., "sign out my
+        // lost phone") without the all-or-nothing passwordChangedAt approach.
+        if (token.jti) {
+          const revoked = await db.revokedSession.findUnique({
+            where: { jti: token.jti as string },
+            select: { id: true },
+          });
+          if (revoked) {
+            return { ...token, userId: undefined } as typeof token;
+          }
+        }
       }
       return token;
     },
@@ -225,6 +246,12 @@ export const authOptions: NextAuthOptions = {
       if (session.user && token.userId) {
         (session.user as { id?: string }).id = token.userId as string;
         (session.user as { provider?: string }).provider = token.provider as string;
+        // SECURITY (2026-10): expose JTI + issuedAt so the frontend can:
+        //   - Display the current session's JTI for "this device" labeling
+        //   - Check requireRecentAuth status locally before calling sensitive endpoints
+        //   - Call /api/auth/sessions/[jti] DELETE to revoke this session
+        (session.user as { jti?: string }).jti = token.jti as string;
+        (session.user as { issuedAt?: number }).issuedAt = token.issuedAt as number;
       }
       return session;
     },
@@ -266,6 +293,8 @@ declare module "next-auth" {
       email: string;
       name?: string | null;
       provider?: string;
+      jti?: string;
+      issuedAt?: number;
     };
   }
 }
@@ -275,5 +304,6 @@ declare module "next-auth/jwt" {
     userId?: string;
     provider?: string;
     issuedAt?: number;
+    jti?: string;
   }
 }

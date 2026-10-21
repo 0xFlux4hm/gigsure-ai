@@ -62,6 +62,7 @@ model User {
   aiActivities      AiActivity[]
   fundingInitiated  FundingRecord[]     @relation("FundingInitiator")
   linkedAccounts    LinkedAccount[]
+  revokedSessions   RevokedSession[]
 }
 
 model UserIdentity {
@@ -597,6 +598,31 @@ model PrivacyRequest {
   result      String?
   createdAt   DateTime @default(now())
   completedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// SESSION REVOCATION (2026-10)
+// ---------------------------------------------------------------------------
+// When a user revokes a specific session (e.g., "I lost my phone, sign that out"),
+// the session's jti is recorded here. The NextAuth jwt callback checks this
+// table on every request and invalidates any JWT whose jti appears.
+//
+// This enables per-session revocation without the all-or-nothing approach of
+// passwordChangedAt (which logs out ALL sessions).
+// ---------------------------------------------------------------------------
+
+model RevokedSession {
+  id        String   @id @default(cuid())
+  jti       String   @unique  // JWT ID — unique per session
+  userId    String
+  reason    String?  // "user_revoked" | "admin_revoked" | "password_change"
+  userAgent String?
+  ipAddress String?
+  revokedAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
