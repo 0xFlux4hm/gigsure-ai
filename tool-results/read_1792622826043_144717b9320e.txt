@@ -1,0 +1,770 @@
+     1→// GigSure AI — Prisma schema
+     2→// Work with confidence. Get paid with trust.
+     3→//
+     4→// Design notes:
+     5→// - Database: SQLite (local MVP). Production should swap to PostgreSQL — see DEPLOYMENT_GUIDE.md.
+     6→// - Financial values are stored as Integer minor units (e.g., NGN kobo) to avoid binary
+     7→//   floating-point rounding errors. Currency codes are stored as ISO 4217 strings.
+     8→// - Enums are stored as String with server-side validation (SQLite has no native ENUM).
+     9→// - All timestamps are UTC (DateTime).
+    10→// - Soft-delete columns (`deletedAt`) are used where data must be retained for legal/audit reasons.
+    11→
+    12→generator client {
+    13→  provider = "prisma-client-js"
+    14→}
+    15→
+    16→datasource db {
+    17→  provider = "postgresql"
+    18→  url      = env("DATABASE_URL")
+    19→}
+    20→
+    21→// ---------------------------------------------------------------------------
+    22→// AUTHENTICATION & IDENTITY
+    23→// ---------------------------------------------------------------------------
+    24→
+    25→model User {
+    26→  id              String   @id @default(cuid())
+    27→  email           String   @unique
+    28→  emailNormalized String   @unique
+    29→  displayName     String
+    30→  passwordHash    String?
+    31→  emailVerifiedAt DateTime?
+    32→  accountStatus   String   @default("ACTIVE") // ACTIVE | SUSPENDED | PENDING_DELETION | DELETED
+    33→  platformRole    String   @default("USER") // USER | ADMIN
+    34→  lastLoginAt     DateTime?
+    35→  // SECURITY: when set, any JWT with issuedAt < passwordChangedAt is rejected
+    36→  // (forces re-auth after password change/reset)
+    37→  passwordChangedAt DateTime?
+    38→  createdAt       DateTime @default(now())
+    39→  updatedAt       DateTime @updatedAt
+    40→  deletedAt       DateTime?
+    41→
+    42→  identities        UserIdentity[]
+    43→  sessions          Session[]
+    44→  emailVerifications EmailVerificationToken[]
+    45→  passwordResets    PasswordResetToken[]
+    46→  profile           UserProfile?
+    47→  preferences       UserPreferences?
+    48→  auditEvents       AuditEvent[]       @relation("AuditActor")
+    49→  projectsOwned     Project[]           @relation("ProjectOwner")
+    50→  projectsClient    Project[]           @relation("ProjectClient")
+    51→  memberships       ProjectMembership[]
+    52→  invitationsSent   Invitation[]       @relation("InvitationInviter")
+    53→  invitationsReceived Invitation[]      @relation("InvitationInvitee")
+    54→  tasksAssigned     Task[]              @relation("TaskAssignee")
+    55→  deliverables      Deliverable[]
+    56→  contractAcceptances ContractAcceptance[]
+    57→  compensationAcceptances CompensationAcceptance[]
+    58→  disputesOpened    Dispute[]           @relation("DisputeOpener")
+    59→  disputeReviews    DisputeReview[]
+    60→  notifications     Notification[]
+    61→  privacyRequests   PrivacyRequest[]
+    62→  aiActivities      AiActivity[]
+    63→  fundingInitiated  FundingRecord[]     @relation("FundingInitiator")
+    64→  linkedAccounts    LinkedAccount[]
+    65→  revokedSessions   RevokedSession[]
+    66→  kycVerifications  KycVerification[]
+    67→  paymentTransactions PaymentTransaction[]
+    68→}
+    69→
+    70→model UserIdentity {
+    71→  // External identity mapping (Google OIDC "sub", future providers).
+    72→  // One User can have many UserIdentities; each (provider, providerSubject)
+    73→  // pair is unique — this is what enables "one account, multiple auth methods".
+    74→  id                 String   @id @default(cuid())
+    75→  userId             String
+    76→  provider           String   // "google" | "password" | "github" | "microsoft" | "apple"
+    77→  providerSubject    String   // OIDC "sub" for OAuth providers; email for password
+    78→  createdAt          DateTime @default(now())
+    79→  lastAuthenticatedAt DateTime?
+    80→
+    81→  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    82→
+    83→  @@unique([provider, providerSubject])
+    84→  @@index([userId])
+    85→}
+    86→
+    87→model LinkedAccount {
+    88→  // OAuth tokens for providers (used for account linking workflow).
+    89→  // NOTE: refresh tokens are NOT stored unless a documented feature requires them.
+    90→  id             String   @id @default(cuid())
+    91→  userId         String
+    92→  provider       String
+    93→  providerSubject String
+    94→  linkedAt       DateTime @default(now())
+    95→  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    96→
+    97→  @@unique([provider, providerSubject])
+    98→}
+    99→
+   100→model Session {
+   101→  id           String   @id @default(cuid())
+   102→  userId       String
+   103→  sessionToken String   @unique
+   104→  csrfToken    String
+   105→  userAgent    String?
+   106→  ipAddress    String?
+   107→  expiresAt    DateTime
+   108→  revokedAt    DateTime?
+   109→  createdAt    DateTime @default(now())
+   110→  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   111→
+   112→  @@index([userId])
+   113→}
+   114→
+   115→model EmailVerificationToken {
+   116→  id        String   @id @default(cuid())
+   117→  userId    String
+   118→  tokenHash String   @unique // store SHA-256 hash, never the raw token
+   119→  expiresAt DateTime
+   120→  consumedAt DateTime?
+   121→  createdAt DateTime @default(now())
+   122→  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   123→
+   124→  @@index([userId])
+   125→}
+   126→
+   127→model PasswordResetToken {
+   128→  id        String   @id @default(cuid())
+   129→  userId    String
+   130→  tokenHash String   @unique
+   131→  expiresAt DateTime
+   132→  consumedAt DateTime?
+   133→  createdAt DateTime @default(now())
+   134→  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   135→
+   136→  @@index([userId])
+   137→}
+   138→
+   139→// ---------------------------------------------------------------------------
+   140→// PROFILES & PREFERENCES
+   141→// ---------------------------------------------------------------------------
+   142→
+   143→model UserProfile {
+   144→  userId              String   @id
+   145→  headline            String?
+   146→  bio                 String?
+   147→  country             String?
+   148→  region              String?
+   149→  preferredLanguage   String   @default("en")
+   150→  timezone            String   @default("Africa/Lagos")
+   151→  professionalRole    String?
+   152→  skills              String   // JSON-encoded array
+   153→  specialization      String?
+   154→  portfolioLinks      String   // JSON-encoded array
+   155→  availability        String   @default("OPEN") // OPEN | BUSY | UNAVAILABLE
+   156→  preferredCategories String   // JSON-encoded array
+   157→  profileImageMime    String?
+   158→  profileImageBytes   Int      @default(0)
+   159→  profileVisibility   String   @default("PRIVATE") // PRIVATE | TEAM | PUBLIC
+   160→  createdAt           DateTime @default(now())
+   161→  updatedAt           DateTime @updatedAt
+   162→  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   163→}
+   164→
+   165→model UserPreferences {
+   166→  userId               String   @id
+   167→  preferredCurrency    String   @default("NGN")
+   168→  emailNotifications   Boolean  @default(true)
+   169→  pushNotifications    Boolean  @default(true)
+   170→  marketingEmails      Boolean  @default(false)
+   171→  aiFeatureDisclosure Boolean  @default(true)
+   172→  createdAt            DateTime @default(now())
+   173→  updatedAt           DateTime @updatedAt
+   174→  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   175→}
+   176→
+   177→// ---------------------------------------------------------------------------
+   178→// PROJECTS & CONTRACTS
+   179→// ---------------------------------------------------------------------------
+   180→
+   181→model Project {
+   182→  id                String   @id @default(cuid())
+   183→  ownerId           String
+   184→  clientId          String?  // can be self or another user
+   185→  title             String
+   186→  slug              String   @unique
+   187→  description       String
+   188→  status            String   @default("DRAFT") // DRAFT | ACTIVE | PAUSED | COMPLETED | CANCELLED
+   189→  startDate         DateTime?
+   190→  dueDate           DateTime?
+   191→  currency          String   @default("NGN")
+   192→  budgetMinor       Int      @default(0) // budget in minor units
+   193→  fundingArrangement String  @default("MILESTONE") // FULL | MILESTONE | UPFRONT_PLUS_MILESTONES
+   194→  currentContractVersionId String?
+   195→  createdAt         DateTime @default(now())
+   196→  updatedAt         DateTime @updatedAt
+   197→
+   198→  owner            User               @relation("ProjectOwner", fields: [ownerId], references: [id])
+   199→  client           User?              @relation("ProjectClient", fields: [clientId], references: [id])
+   200→  memberships      ProjectMembership[]
+   201→  invitations      Invitation[]
+   202→  contracts        ContractVersion[]
+   203→  tasks            Task[]
+   204→  milestones       Milestone[]
+   205→  fundingRecords   FundingRecord[]
+   206→  disputes         Dispute[]
+   207→  auditEvents      AuditEvent[]
+   208→  notifications    Notification[]
+   209→  aiActivities     AiActivity[]
+   210→  paymentTransactions PaymentTransaction[]
+   211→
+   212→  @@index([ownerId])
+   213→  @@index([clientId])
+   214→}
+   215→
+   216→model ProjectMembership {
+   217→  id        String   @id @default(cuid())
+   218→  projectId String
+   219→  userId    String
+   220→  role      String   // OWNER | CLIENT | COLLABORATOR | TEAM_LEAD | REVIEWER
+   221→  joinedAt  DateTime @default(now())
+   222→  revokedAt DateTime?
+   223→
+   224→  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+   225→  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+   226→
+   227→  @@unique([projectId, userId])
+   228→  @@index([userId])
+   229→}
+   230→
+   231→model Invitation {
+   232→  id          String   @id @default(cuid())
+   233→  projectId   String
+   234→  inviteeId   String?  // optional: bound to a specific user
+   235→  inviteeEmail String?
+   236→  inviterId   String
+   237→  role        String   // COLLABORATOR | TEAM_LEAD | REVIEWER
+   238→  tokenHash   String   @unique // cryptographically random, hashed
+   239→  status      String   @default("PENDING") // PENDING | ACCEPTED | REJECTED | REVOKED | EXPIRED
+   240→  expiresAt   DateTime
+   241→  consumedAt   DateTime?
+   242→  createdAt   DateTime @default(now())
+   243→
+   244→  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+   245→  invitee  User?   @relation("InvitationInvitee", fields: [inviteeId], references: [id])
+   246→  inviter  User    @relation("InvitationInviter", fields: [inviterId], references: [id])
+   247→
+   248→  @@index([projectId])
+   249→  @@index([inviteeId])
+   250→}
+   251→
+   252→model ContractVersion {
+   253→  id              String   @id @default(cuid())
+   254→  projectId       String
+   255→  versionNumber   Int
+   256→  scopeOfWork     String
+   257→  deliverables    String   // JSON-encoded array
+   258→  deadlines       String
+   259→  paymentSchedule String
+   260→  milestoneConditions String
+   261→  revisionRules   String
+   262→  cancellationTerms String
+   263→  disputeProcedures String
+   264→  status          String   @default("DRAFT") // DRAFT | PROPOSED | ACCEPTED | SUPERSEDED | CANCELLED
+   265→  createdById     String
+   266→  createdAt       DateTime @default(now())
+   267→  supersededAt    DateTime?
+   268→
+   269→  project     Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+   270→  acceptances ContractAcceptance[]
+   271→
+   272→  @@unique([projectId, versionNumber])
+   273→  @@index([projectId])
+   274→}
+   275→
+   276→model ContractAcceptance {
+   277→  id              String   @id @default(cuid())
+   278→  contractVersionId String
+   279→  userId          String
+   280→  acceptedAt      DateTime @default(now())
+   281→  acceptanceIp    String?
+   282→
+   283→  contractVersion ContractVersion @relation(fields: [contractVersionId], references: [id], onDelete: Cascade)
+   284→  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+   285→
+   286→  @@unique([contractVersionId, userId])
+   287→}
+   288→
+   289→// ---------------------------------------------------------------------------
+   290→// TASKS & DELIVERABLES
+   291→// ---------------------------------------------------------------------------
+   292→
+   293→model Task {
+   294→  id          String   @id @default(cuid())
+   295→  projectId   String
+   296→  milestoneId String?
+   297→  assigneeId  String?
+   298→  title       String
+   299→  description String?
+   300→  status      String   @default("TODO") // TODO | IN_PROGRESS | SUBMITTED | CHANGES_REQUESTED | APPROVED | CANCELLED
+   301→  priority    String   @default("MEDIUM") // LOW | MEDIUM | HIGH
+   302→  dueDate     DateTime?
+   303→  dependsOn   String   // JSON-encoded array of task IDs
+   304→  createdAt   DateTime @default(now())
+   305→  updatedAt   DateTime @updatedAt
+   306→
+   307→  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+   308→  assignee     User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+   309→  milestone    Milestone?   @relation(fields: [milestoneId], references: [id])
+   310→  deliverables Deliverable[]
+   311→
+   312→  @@index([projectId])
+   313→  @@index([assigneeId])
+   314→}
+   315→
+   316→model Deliverable {
+   317→  id          String   @id @default(cuid())
+   318→  taskId      String
+   319→  submitterId String
+   320→  filename    String
+   321→  contentType String
+   322→  sizeBytes   Int
+   323→  storageKey  String   // private storage key, never publicly accessible
+   324→  status      String   @default("SUBMITTED") // SUBMITTED | UNDER_REVIEW | APPROVED | CHANGES_REQUESTED | REJECTED
+   325→  reviewerId  String?
+   326→  reviewNote  String?
+   327→  submittedAt DateTime @default(now())
+   328→  reviewedAt  DateTime?
+   329→
+   330→  task      Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+   331→  submitter User @relation(fields: [submitterId], references: [id])
+   332→
+   333→  @@index([taskId])
+   334→}
+   335→
+   336→// ---------------------------------------------------------------------------
+   337→// COMPENSATION AGREEMENTS
+   338→// ---------------------------------------------------------------------------
+   339→
+   340→model CompensationAgreement {
+   341→  id          String   @id @default(cuid())
+   342→  projectId   String
+   343→  versionNumber Int
+   344→  totalDistributableMinor Int // total amount to distribute
+   345→  currency    String
+   346→  status      String   @default("DRAFT") // DRAFT | PROPOSED | ACCEPTED | SUPERSEDED
+   347→  notes       String?
+   348→  createdById String
+   349→  createdAt   DateTime @default(now())
+   350→  supersededAt DateTime?
+   351→
+   352→  // NOTE: stored separately — projectId is implicit through allocations in current schema,
+   353→  // but we keep projectId here for direct queries.
+   354→  allocations CompensationAllocation[]
+   355→  acceptances CompensationAcceptance[]
+   356→
+   357→  @@unique([projectId, versionNumber])
+   358→  @@index([projectId])
+   359→}
+   360→
+   361→model CompensationAllocation {
+   362→  id                       String @id @default(cuid())
+   363→  compensationAgreementId  String
+   364→  userId                   String
+   365→  role                     String
+   366→  amountMinor              Int
+   367→  percentageBps            Int // basis points (1% = 100 bps)
+   368→  notes                    String?
+   369→
+   370→  agreement CompensationAgreement @relation(fields: [compensationAgreementId], references: [id], onDelete: Cascade)
+   371→
+   372→  @@index([compensationAgreementId])
+   373→  @@index([userId])
+   374→}
+   375→
+   376→model CompensationAcceptance {
+   377→  id                      String   @id @default(cuid())
+   378→  compensationAgreementId String
+   379→  userId                  String
+   380→  acceptedAt              DateTime @default(now())
+   381→
+   382→  agreement CompensationAgreement @relation(fields: [compensationAgreementId], references: [id], onDelete: Cascade)
+   383→  user      User                   @relation(fields: [userId], references: [id])
+   384→
+   385→  @@unique([compensationAgreementId, userId])
+   386→}
+   387→
+   388→// ---------------------------------------------------------------------------
+   389→// MILESTONES & FUNDING
+   390→// ---------------------------------------------------------------------------
+   391→
+   392→model Milestone {
+   393→  id           String   @id @default(cuid())
+   394→  projectId    String
+   395→  title        String
+   396→  description  String?
+   397→  amountMinor  Int
+   398→  dueDate      DateTime?
+   399→  status       String   @default("DRAFT") // DRAFT | AWAITING_FUNDING | FUNDED | SUBMITTED | APPROVED | RELEASE_INITIATED | RELEASED | DISPUTED | REFUNDED | FAILED | CANCELLED
+   400→  orderIndex   Int      @default(0)
+   401→  createdAt    DateTime @default(now())
+   402→  updatedAt    DateTime @updatedAt
+   403→
+   404→  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+   405→  tasks          Task[]
+   406→  fundingRecords FundingRecord[]
+   407→  disputes       Dispute[]
+   408→  paymentTransactions PaymentTransaction[]
+   409→
+   410→  @@index([projectId])
+   411→}
+   412→
+   413→model FundingRecord {
+   414→  id                String   @id @default(cuid())
+   415→  projectId        String
+   416→  milestoneId      String?
+   417→  type              String   // FUNDING | RELEASE | REFUND
+   418→  amountMinor       Int
+   419→  currency          String
+   420→  status            String   // DRAFT | INITIATED | PROVIDER_CONFIRMED | PARTIALLY_CONFIRMED | FAILED | CANCELLED | DISPUTED
+   421→  provider          String   @default("mock")
+   422→  providerTxRef      String?  @unique // unique provider reference for idempotency
+   423→  idempotencyKey    String?  @unique
+   424→  initiatedById     String
+   425→  initiatedAt       DateTime @default(now())
+   426→  confirmedAt       DateTime?
+   427→  failureReason     String?
+   428→  isSimulated       Boolean  @default(true)
+   429→
+   430→  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+   431→  milestone     Milestone?      @relation(fields: [milestoneId], references: [id])
+   432→  initiatedBy   User            @relation("FundingInitiator", fields: [initiatedById], references: [id])
+   433→  webhookEvents WebhookEvent[]
+   434→  auditEvents   AuditEvent[]
+   435→
+   436→  @@index([projectId])
+   437→  @@index([milestoneId])
+   438→}
+   439→
+   440→// ---------------------------------------------------------------------------
+   441→// DISPUTES & EVIDENCE
+   442→// ---------------------------------------------------------------------------
+   443→
+   444→model Dispute {
+   445→  id          String   @id @default(cuid())
+   446→  projectId   String
+   447→  openedById  String
+   448→  milestoneId String?
+   449→  category    String   // QUALITY | DEADLINE | PAYMENT | SCOPE | CONDUCT | OTHER
+   450→  title       String
+   451→  description String
+   452→  status      String   @default("OPEN") // OPEN | UNDER_REVIEW | RESOLVED | ESCALATED | CLOSED
+   453→  resolution  String?
+   454→  createdAt   DateTime @default(now())
+   455→  updatedAt   DateTime @updatedAt
+   456→  closedAt    DateTime?
+   457→
+   458→  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+   459→  opener    User             @relation("DisputeOpener", fields: [openedById], references: [id])
+   460→  milestone Milestone?       @relation(fields: [milestoneId], references: [id])
+   461→  evidence  DisputeEvidence[]
+   462→  messages  DisputeMessage[]
+   463→  reviews   DisputeReview[]
+   464→
+   465→  @@index([projectId])
+   466→}
+   467→
+   468→model DisputeEvidence {
+   469→  id          String   @id @default(cuid())
+   470→  disputeId   String
+   471→  uploadedById String
+   472→  filename    String
+   473→  contentType String
+   474→  sizeBytes   Int
+   475→  storageKey  String
+   476→  description String?
+   477→  uploadedAt  DateTime @default(now())
+   478→
+   479→  dispute Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+   480→
+   481→  @@index([disputeId])
+   482→}
+   483→
+   484→model DisputeMessage {
+   485→  id        String   @id @default(cuid())
+   486→  disputeId String
+   487→  authorId  String
+   488→  body      String
+   489→  createdAt DateTime @default(now())
+   490→
+   491→  dispute Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+   492→
+   493→  @@index([disputeId])
+   494→}
+   495→
+   496→model DisputeReview {
+   497→  id          String   @id @default(cuid())
+   498→  disputeId   String
+   499→  reviewerId  String
+   500→  note        String?
+   501→  proposedResolution String?
+   502→  outcome     String?  // UPHOLD_CLAIM | REJECT_CLAIM | PARTIAL | ESCALATE
+   503→  decidedAt   DateTime?
+   504→  createdAt   DateTime @default(now())
+   505→
+   506→  dispute  Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+   507→  reviewer User    @relation(fields: [reviewerId], references: [id])
+   508→
+   509→  // SECURITY: prevent duplicate reviews by same reviewer on same dispute
+   510→  // Required by /api/projects/[id]/disputes/[disputeId]/reviews POST (upsert)
+   511→  @@unique([disputeId, reviewerId])
+   512→  @@index([disputeId])
+   513→}
+   514→
+   515→// ---------------------------------------------------------------------------
+   516→// NOTIFICATIONS, AUDIT, WEBHOOKS, AI, PRIVACY
+   517→// ---------------------------------------------------------------------------
+   518→
+   519→model Notification {
+   520→  id        String   @id @default(cuid())
+   521→  userId    String
+   522→  projectId String?
+   523→  type      String
+   524→  title     String
+   525→  body      String
+   526→  readAt    DateTime?
+   527→  createdAt DateTime @default(now())
+   528→
+   529→  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   530→  project Project? @relation(fields: [projectId], references: [id])
+   531→
+   532→  @@index([userId])
+   533→}
+   534→
+   535→model AuditEvent {
+   536→  id         String   @id @default(cuid())
+   537→  actorId    String?
+   538→  projectId  String?
+   539→  fundingRecordId String?
+   540→  action     String
+   541→  targetType String?
+   542→  targetId   String?
+   543→  metadata   String   // JSON-encoded
+   544→  ipAddress  String?
+   545→  // SECURITY (2026-10): hash chain for tamper-evidence.
+   546→  // previousHash = eventHash of the immediately preceding AuditEvent (or
+   547→  // "genesis" for the first event). eventHash = sha256(previousHash + canonicalJson(eventData)).
+   548→  // An attacker who modifies any event breaks the chain — detectable by
+   549→  // recomputing hashes from the genesis forward.
+   550→  previousHash String?
+   551→  eventHash    String?  @unique
+   552→  createdAt  DateTime @default(now())
+   553→
+   554→  actor        User?          @relation("AuditActor", fields: [actorId], references: [id])
+   555→  project      Project?       @relation(fields: [projectId], references: [id])
+   556→  fundingRecord FundingRecord? @relation(fields: [fundingRecordId], references: [id])
+   557→
+   558→  @@index([actorId])
+   559→  @@index([projectId])
+   560→}
+   561→
+   562→model WebhookEvent {
+   563→  id              String   @id @default(cuid())
+   564→  provider        String   @default("mock")
+   565→  eventType       String
+   566→  providerEventId String?  @unique // for replay protection
+   567→  signatureValid  Boolean  @default(false)
+   568→  payload         String   // JSON
+   569→  processedAt     DateTime?
+   570→  createdAt       DateTime @default(now())
+   571→  fundingRecordId String?
+   572→  paymentTransactionId String?
+   573→
+   574→  fundingRecord FundingRecord? @relation(fields: [fundingRecordId], references: [id])
+   575→  paymentTransaction PaymentTransaction? @relation(fields: [paymentTransactionId], references: [id])
+   576→
+   577→  @@index([providerEventId])
+   578→}
+   579→
+   580→model AiActivity {
+   581→  id            String   @id @default(cuid())
+   582→  userId        String
+   583→  projectId     String?
+   584→  assistantType String   // TEAM_PLANNER | TASK_PLANNER | CONTRACT | FUNDING | RISK | EVIDENCE | PROGRESS
+   585→  prompt        String
+   586→  response      String
+   587→  modelId       String?
+   588→  tokensUsed    Int      @default(0)
+   589→  fallbackUsed  Boolean  @default(false)
+   590→  createdAt     DateTime @default(now())
+   591→
+   592→  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   593→  project Project? @relation(fields: [projectId], references: [id])
+   594→
+   595→  @@index([userId])
+   596→  @@index([projectId])
+   597→}
+   598→
+   599→model PrivacyRequest {
+   600→  id          String   @id @default(cuid())
+   601→  userId      String
+   602→  type        String   // EXPORT | DELETE
+   603→  status      String   @default("PENDING") // PENDING | PROCESSING | READY | COMPLETED | DENIED
+   604→  result      String?
+   605→  createdAt   DateTime @default(now())
+   606→  completedAt DateTime?
+   607→
+   608→  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+   609→
+   610→  @@index([userId])
+   611→}
+   612→
+   613→// ---------------------------------------------------------------------------
+   614→// SESSION REVOCATION (2026-10)
+   615→// ---------------------------------------------------------------------------
+   616→// When a user revokes a specific session (e.g., "I lost my phone, sign that out"),
+   617→// the session's jti is recorded here. The NextAuth jwt callback checks this
+   618→// table on every request and invalidates any JWT whose jti appears.
+   619→//
+   620→// This enables per-session revocation without the all-or-nothing approach of
+   621→// passwordChangedAt (which logs out ALL sessions).
+   622→// ---------------------------------------------------------------------------
+   623→
+   624→model RevokedSession {
+   625→  id        String   @id @default(cuid())
+   626→  jti       String   @unique  // JWT ID — unique per session
+   627→  userId    String
+   628→  reason    String?  // "user_revoked" | "admin_revoked" | "password_change"
+   629→  userAgent String?
+   630→  ipAddress String?
+   631→  revokedAt DateTime @default(now())
+   632→
+   633→  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+   634→
+   635→  @@index([userId])
+   636→}
+   637→
+   638→// ---------------------------------------------------------------------------
+   639→// KYC VERIFICATION (2026-10)
+   640→// ---------------------------------------------------------------------------
+   641→// Stores NIN + selfie liveness verification results from Smile ID (or mock).
+   642→// Users must complete KYC before participating in funding transactions.
+   643→// ---------------------------------------------------------------------------
+   644→
+   645→model KycVerification {
+   646→  id              String   @id @default(cuid())
+   647→  userId          String
+   648→  status          String   @default("PENDING") // PENDING | IN_PROGRESS | VERIFIED | REJECTED | EXPIRED
+   649→  provider        String   @default("mock") // "smile_id" | "mock"
+   650→  providerJobId   String?  @unique // Smile ID job ID for polling
+   651→  ninNumber       String   // National Identification Number (hashed for storage)
+   652→  ninNumberLast4  String   // last 4 digits for display (e.g., "****1234")
+   653→  fullName        String   // full name as returned by NIN lookup
+   654→  verificationType String  @default("NIN_WITH_LIVENESS") // "NIN_LOOKUP" | "NIN_WITH_LIVENESS"
+   655→  
+   656→  // Verification results
+   657→  selfieMatch     Boolean?  // did selfie match NIN photo?
+   658→  livenessPassed  Boolean?  // did liveness check pass?
+   659→  confidenceScore Float?   // 0-100, smile ID confidence
+   660→  
+   661→  // Failure details
+   662→  failureReason   String?
+   663→  
+   664→  // Metadata
+   665→  ipAddress       String?
+   666→  userAgent       String?
+   667→  
+   668→  createdAt       DateTime @default(now())
+   669→  updatedAt       DateTime @updatedAt
+   670→  verifiedAt      DateTime?
+   671→  expiresAt       DateTime? // KYC expires after 1 year
+   672→  
+   673→  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+   674→
+   675→  @@index([userId])
+   676→}
+   677→
+   678→// ---------------------------------------------------------------------------
+   679→// PAYMENT LEDGER (2026-10)
+   680→// ---------------------------------------------------------------------------
+   681→// Append-only financial ledger for all payment-related events.
+   682→// Every payment, fee, refund, and settlement has an immutable entry here.
+   683→// Corrections use linked reversal entries, not edits to historical records.
+   684→// ---------------------------------------------------------------------------
+   685→
+   686→model PaymentTransaction {
+   687→  id              String   @id @default(cuid())
+   688→  projectId       String
+   689→  milestoneId     String?
+   690→  userId          String  // who initiated
+   691→  paymentReference String  @unique  // internal unique reference (e.g., GS_pay_xxx)
+   692→  provider        String   // "mock" | "monnify" | "opay"
+   693→  providerReference String? // provider's transaction reference
+   694→  amountMinor     Int      // total payment amount
+   695→  currency        String   @default("NGN")
+   696→  status          String   @default("CREATED") // PaymentState enum
+   697→  feeMinor        Int      @default(0)  // platform fee
+   698→  netMinor        Int      @default(0)  // net amount after fee
+   699→  feePolicyVersion String?  // policy version used for fee calc
+   700→  feeRateBps     Int      @default(150) // fee rate in basis points
+   701→  paymentMethod  String?  // "card" | "transfer" | "ussd"
+   702→  checkoutUrl    String?  // hosted checkout URL
+   703→  redirectUrl    String?  // post-payment redirect
+   704→  customerEmail  String?
+   705→  customerName   String?
+   706→  description    String?
+   707→  metadata       String   @default("{}") // JSON-encoded
+   708→  
+   709→  // Timing
+   710→  createdAt      DateTime @default(now())
+   711→  updatedAt      DateTime @updatedAt
+   712→  expiresAt      DateTime?
+   713→  paidAt         DateTime?
+   714→  cancelledAt    DateTime?
+   715→  
+   716→  // Relations
+   717→  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+   718→  milestone      Milestone? @relation(fields: [milestoneId], references: [id])
+   719→  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+   720→  ledgerEntries  LedgerEntry[]
+   721→  webhookEvents  WebhookEvent[]
+   722→  
+   723→  @@index([projectId])
+   724→  @@index([userId])
+   725→  @@index([providerReference])
+   726→}
+   727→
+   728→model LedgerEntry {
+   729→  id              String   @id @default(cuid())
+   730→  transactionId   String
+   731→  entryType       String   // PAYMENT | FEE | REFUND | FEE_REVERSAL | SETTLEMENT | ADJUSTMENT
+   732→  amountMinor     Int      // positive = credit, negative = debit
+   733→  currency        String   @default("NGN")
+   734→  description     String?
+   735→  accountType     String   // "PROVIDER_CLEARING" | "PROJECT_LIABILITY" | "PLATFORM_FEE_REVENUE" | "REFUND" | "PAYOUT"
+   736→  reversalOfId    String?  // if this is a reversal, link to original entry
+   737→  
+   738→  createdAt       DateTime @default(now())
+   739→  
+   740→  transaction     PaymentTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+   741→  
+   742→  @@index([transactionId])
+   743→  @@index([accountType])
+   744→}
+   745→
+   746→model PaymentSettings {
+   747→  id                  String   @id @default("singleton")
+   748→  feeRateBps          Int      @default(150)
+   749→  livePaymentsEnabled Boolean  @default(false)
+   750→  livePayoutsEnabled  Boolean  @default(false)
+   751→  defaultProvider     String   @default("monnify")
+   752→  
+   753→  // Monnify
+   754→  monnifyEnabled      Boolean  @default(false)
+   755→  monnifyEnvironment  String   @default("sandbox")
+   756→  monnifyApiKey       String   @default("")
+   757→  monnifySecretKey    String   @default("")
+   758→  monnifyContractCode  String   @default("")
+   759→  
+   760→  // OPay
+   761→  opayEnabled         Boolean  @default(false)
+   762→  opayEnvironment     String   @default("sandbox")
+   763→  opayMerchantId      String   @default("")
+   764→  opayPublicKey       String   @default("")
+   765→  opayPrivateKey      String   @default("")
+   766→  
+   767→  createdAt           DateTime @default(now())
+   768→  updatedAt           DateTime @updatedAt
+   769→}
+   770→
