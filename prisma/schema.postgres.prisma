@@ -742,3 +742,23 @@ model LedgerEntry {
   @@index([transactionId])
   @@index([accountType])
 }
+
+model PaymentSettings {
+  id                  String   @id @default("singleton")
+  feeRateBps          Int      @default(150)
+  livePaymentsEnabled Boolean  @default(false)
+  livePayoutsEnabled  Boolean  @default(false)
+  defaultProvider     String   @default("monnify")
+  monnifyEnabled      Boolean  @default(false)
+  monnifyEnvironment  String   @default("sandbox")
+  monnifyApiKey       String   @default("")
+  monnifySecretKey    String   @default("")
+  monnifyContractCode  String   @default("")
+  opayEnabled         Boolean  @default(false)
+  opayEnvironment     String   @default("sandbox")
+  opayMerchantId      String   @default("")
+  opayPublicKey       String   @default("")
+  opayPrivateKey      String   @default("")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}

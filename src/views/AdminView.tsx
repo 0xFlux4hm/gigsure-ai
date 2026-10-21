@@ -21,6 +21,7 @@ import {
   Bot,
   Lock,
   Webhook,
+  Settings,
   Loader2,
   AlertTriangle,
   ArrowRight,
@@ -30,7 +31,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-type AdminTab = "overview" | "users" | "projects" | "payments" | "disputes" | "kyc" | "audit" | "ai" | "privacy" | "webhooks";
+type AdminTab = "overview" | "users" | "projects" | "payments" | "disputes" | "kyc" | "audit" | "ai" | "privacy" | "webhooks" | "gateway";
 
 export function AdminView() {
   const [tab, setTab] = useState<AdminTab>("overview");
@@ -88,6 +89,7 @@ export function AdminView() {
           <TabsTrigger value="ai" className="data-[state=active]:bg-background"><Bot className="h-3.5 w-3.5 mr-1" /> AI</TabsTrigger>
           <TabsTrigger value="privacy" className="data-[state=active]:bg-background"><Lock className="h-3.5 w-3.5 mr-1" /> Privacy</TabsTrigger>
           <TabsTrigger value="webhooks" className="data-[state=active]:bg-background"><Webhook className="h-3.5 w-3.5 mr-1" /> Webhooks</TabsTrigger>
+          <TabsTrigger value="gateway" className="data-[state=active]:bg-background"><Settings className="h-3.5 w-3.5 mr-1" /> Gateway</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4"><OverviewTab /></TabsContent>
@@ -100,6 +102,7 @@ export function AdminView() {
         <TabsContent value="ai" className="mt-4"><AiTab /></TabsContent>
         <TabsContent value="privacy" className="mt-4"><PrivacyTab /></TabsContent>
         <TabsContent value="webhooks" className="mt-4"><WebhooksTab /></TabsContent>
+        <TabsContent value="gateway" className="mt-4"><GatewayTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -1663,6 +1666,263 @@ function PaymentsTab() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Gateway tab — payment gateway configuration
+// ---------------------------------------------------------------------------
+
+type PaymentSettings = {
+  feeRateBps: number;
+  livePaymentsEnabled: boolean;
+  livePayoutsEnabled: boolean;
+  defaultProvider: string;
+  monnify: {
+    enabled: boolean;
+    environment: string;
+    hasApiKey: boolean;
+    hasSecretKey: boolean;
+    hasContractCode: boolean;
+    contractCode: string;
+  };
+  opay: {
+    enabled: boolean;
+    environment: string;
+    hasMerchantId: boolean;
+    hasPublicKey: boolean;
+    hasPrivateKey: boolean;
+    merchantId: string;
+  };
+};
+
+function GatewayTab() {
+  const [settings, setSettings] = useState<PaymentSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Form state
+  const [feeRate, setFeeRate] = useState("150");
+  const [livePayments, setLivePayments] = useState(false);
+  const [defaultProvider, setDefaultProvider] = useState("monnify");
+  const [monnifyEnabled, setMonnifyEnabled] = useState(false);
+  const [monnifyEnv, setMonnifyEnv] = useState("sandbox");
+  const [monnifyApiKey, setMonnifyApiKey] = useState("");
+  const [monnifySecretKey, setMonnifySecretKey] = useState("");
+  const [monnifyContractCode, setMonnifyContractCode] = useState("");
+  const [opayEnabled, setOpayEnabled] = useState(false);
+  const [opayEnv, setOpayEnv] = useState("sandbox");
+  const [opayMerchantId, setOpayMerchantId] = useState("");
+  const [opayPublicKey, setOpayPublicKey] = useState("");
+  const [opayPrivateKey, setOpayPrivateKey] = useState("");
+
+  const load = () => {
+    setLoading(true);
+    api.get<PaymentSettings>("/api/admin/payment-settings")
+      .then((s) => {
+        setSettings(s);
+        setFeeRate(String(s.feeRateBps));
+        setLivePayments(s.livePaymentsEnabled);
+        setDefaultProvider(s.defaultProvider);
+        setMonnifyEnabled(s.monnify.enabled);
+        setMonnifyEnv(s.monnify.environment);
+        setMonnifyContractCode(s.monnify.contractCode);
+        setOpayEnabled(s.opay.enabled);
+        setOpayEnv(s.opay.environment);
+        setOpayMerchantId(s.opay.merchantId);
+      })
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const save = async () => {
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      const update: Record<string, unknown> = {
+        feeRateBps: parseInt(feeRate, 10),
+        livePaymentsEnabled: livePayments,
+        defaultProvider,
+        monnifyEnabled,
+        monnifyEnvironment: monnifyEnv,
+        opayEnabled,
+        opayEnvironment: opayEnv,
+      };
+      if (monnifyApiKey) update.monnifyApiKey = monnifyApiKey;
+      if (monnifySecretKey) update.monnifySecretKey = monnifySecretKey;
+      if (monnifyContractCode) update.monnifyContractCode = monnifyContractCode;
+      if (opayMerchantId) update.opayMerchantId = opayMerchantId;
+      if (opayPublicKey) update.opayPublicKey = opayPublicKey;
+      if (opayPrivateKey) update.opayPrivateKey = opayPrivateKey;
+
+      await api.put("/api/admin/payment-settings", update);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      load(); // reload
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <LoadingState />;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold">Payment Gateway Configuration</h2>
+        <p className="text-sm text-muted-foreground">Configure payment providers, fee rates, and live mode.</p>
+      </div>
+
+      {/* Fee Configuration */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Platform Fee</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Fee Rate (basis points)</Label>
+              <Input value={feeRate} onChange={(e) => setFeeRate(e.target.value.replace(/\D/g, ""))} placeholder="150" />
+              <p className="text-xs text-muted-foreground">150 bps = 1.5% | 200 bps = 2%</p>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Default Provider</Label>
+              <Select value={defaultProvider} onValueChange={setDefaultProvider}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monnify">Monnify</SelectItem>
+                  <SelectItem value="opay">OPay</SelectItem>
+                  <SelectItem value="mock">Mock (testing)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 pt-2">
+            <input type="checkbox" id="livePayments" checked={livePayments} onChange={(e) => setLivePayments(e.target.checked)} className="h-4 w-4" />
+            <label htmlFor="livePayments" className="text-sm">
+              Enable live payments
+              {!livePayments && <span className="ml-2 text-xs text-amber-600">(currently in test mode)</span>}
+              {livePayments && <span className="ml-2 text-xs text-green-600">(LIVE — real money will be processed)</span>}
+            </label>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Monnify Configuration */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Monnify</CardTitle>
+            <Badge variant={monnifyEnabled ? "default" : "secondary"}>{monnifyEnabled ? "Enabled" : "Disabled"}</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="monnifyEnabled" checked={monnifyEnabled} onChange={(e) => setMonnifyEnabled(e.target.checked)} className="h-4 w-4" />
+            <label htmlFor="monnifyEnabled" className="text-sm">Enable Monnify</label>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Environment</Label>
+              <Select value={monnifyEnv} onValueChange={setMonnifyEnv}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sandbox">Sandbox (test)</SelectItem>
+                  <SelectItem value="production">Production (live)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Contract Code</Label>
+              <Input value={monnifyContractCode} onChange={(e) => setMonnifyContractCode(e.target.value)} placeholder="5867418298" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">API Key {settings?.monnify.hasApiKey && !monnifyApiKey ? "(already set — leave blank to keep)" : ""}</Label>
+            <Input value={monnifyApiKey} onChange={(e) => setMonnifyApiKey(e.target.value)} placeholder="MK_TEST_xxxxxxxx" type="password" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Secret Key {settings?.monnify.hasSecretKey && !monnifySecretKey ? "(already set — leave blank to keep)" : ""}</Label>
+            <Input value={monnifySecretKey} onChange={(e) => setMonnifySecretKey(e.target.value)} placeholder="xxxxxxxxxxxx" type="password" />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Get credentials at <a href="https://developers.monnify.com" target="_blank" rel="noopener" className="text-primary hover:underline">developers.monnify.com</a> → Settings → API Keys & Webhooks
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* OPay Configuration */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">OPay</CardTitle>
+            <Badge variant={opayEnabled ? "default" : "secondary"}>{opayEnabled ? "Enabled" : "Disabled"}</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="opayEnabled" checked={opayEnabled} onChange={(e) => setOpayEnabled(e.target.checked)} className="h-4 w-4" />
+            <label htmlFor="opayEnabled" className="text-sm">Enable OPay</label>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Environment</Label>
+              <Select value={opayEnv} onValueChange={setOpayEnv}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sandbox">Sandbox (test)</SelectItem>
+                  <SelectItem value="production">Production (live)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Merchant ID</Label>
+              <Input value={opayMerchantId} onChange={(e) => setOpayMerchantId(e.target.value)} placeholder="256622040884147" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Public Key {settings?.opay.hasPublicKey && !opayPublicKey ? "(already set)" : ""}</Label>
+            <Input value={opayPublicKey} onChange={(e) => setOpayPublicKey(e.target.value)} placeholder="OPAYPUBxxxxxxxxxxxx" type="password" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Private Key {settings?.opay.hasPrivateKey && !opayPrivateKey ? "(already set)" : ""}</Label>
+            <Input value={opayPrivateKey} onChange={(e) => setOpayPrivateKey(e.target.value)} placeholder="OPAYPRVxxxxxxxxxxxx" type="password" />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Get credentials at <a href="https://documentation.opaycheckout.com" target="_blank" rel="noopener" className="text-primary hover:underline">documentation.opaycheckout.com</a> → Developer Tools
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Webhook URLs */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Webhook URLs</CardTitle></CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <p className="text-muted-foreground">Configure these URLs in your provider dashboards:</p>
+          <div className="bg-muted/50 rounded p-2 font-mono text-xs">
+            <div className="text-muted-foreground mb-1">Monnify Webhook:</div>
+            <div>https://yourdomain.com/api/payments/webhook/monnify</div>
+          </div>
+          <div className="bg-muted/50 rounded p-2 font-mono text-xs">
+            <div className="text-muted-foreground mb-1">OPay Webhook:</div>
+            <div>https://yourdomain.com/api/payments/webhook/opay</div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Save button */}
+      <div className="flex items-center gap-3">
+        <Button onClick={save} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+          Save Settings
+        </Button>
+        {saved && <span className="text-sm text-primary">✓ Settings saved</span>}
+        {error && <span className="text-sm text-destructive">{error}</span>}
+      </div>
     </div>
   );
 }
