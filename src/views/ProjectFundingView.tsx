@@ -22,7 +22,6 @@ type FundingRecord = {
   status: string;
   provider: string;
   providerTxRef: string | null;
-  isSimulated: boolean;
   initiatedAt: string;
   confirmedAt: string | null;
   failureReason: string | null;
@@ -198,7 +197,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
               {virtualAccount.expectedAmountMinor && (
                 <div className="flex items-center gap-2 text-sm">
                   <Info className="h-4 w-4 text-muted-foreground" />
-                  <span>Expected amount: <strong>{formatMinor(virtualAccount.expectedAmountMinor)}</strong></span>
+                  <span>Expected amount: <strong>{formatMinor(virtualAccount.expectedAmountMinor ?? 0, "NGN")}</strong></span>
                 </div>
               )}
 

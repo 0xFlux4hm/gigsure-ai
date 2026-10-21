@@ -1,0 +1,241 @@
+/home/z/my-project/tests/integration/funding-invariants.test.ts:5: * mock-payment-provider module. They verify the critical business
+/home/z/my-project/tests/integration/funding-invariants.test.ts:9: * This test file uses the same DATABASE_URL that the mock-provider module
+/home/z/my-project/tests/integration/funding-invariants.test.ts:14:import { initiateFunding, processWebhookEvent, MOCK_WEBHOOK_SECRET, MOCK_PROVIDER_NAME } from "@/lib/payments/mock-provider";
+/home/z/my-project/tests/integration/funding-invariants.test.ts:110:    // Manually deliver the webhook payload (simulating what the mock provider does)
+/home/z/my-project/tests/integration/funding-invariants.test.ts:120:      provider: MOCK_PROVIDER_NAME,
+/home/z/my-project/tests/integration/funding-invariants.test.ts:132:      provider: MOCK_PROVIDER_NAME,
+/home/z/my-project/tests/integration/funding-invariants.test.ts:176:      provider: MOCK_PROVIDER_NAME,
+/home/z/my-project/tests/integration/funding-invariants.test.ts:190:      provider: MOCK_PROVIDER_NAME,
+/home/z/my-project/tests/integration/funding-invariants.test.ts:210:    // (the mock provider itself doesn't flip status — that's the API's job).
+/home/z/my-project/tests/integration/funding-invariants.test.ts:221:      provider: MOCK_PROVIDER_NAME,
+/home/z/my-project/tests/integration/funding-invariants.test.ts:247:        title: "Mockup quality",
+/home/z/my-project/tests/integration/funding-invariants.test.ts:248:        description: "Mockups don't meet spec.",
+/home/z/my-project/tests/integration/funding-invariants.test.ts:284:      provider: MOCK_PROVIDER_NAME,
+/home/z/my-project/tests/security/negative-value-attacks.test.ts:13:import { MockPaymentProvider } from "@/lib/payments/mock-payment-provider";
+/home/z/my-project/tests/security/negative-value-attacks.test.ts:17:    const provider = new MockPaymentProvider();
+/home/z/my-project/tests/security/webhook-forgery.test.ts:5: *   C1: MOCK_WEBHOOK_SECRET must not default to public constant in production
+/home/z/my-project/tests/security/webhook-forgery.test.ts:15:const MOCK_WEBHOOK_SECRET = process.env.MOCK_WEBHOOK_SECRET ?? "test-webhook-secret";
+/home/z/my-project/tests/security/webhook-forgery.test.ts:19:    // Ensure MOCK_WEBHOOK_SECRET is set for the tests
+/home/z/my-project/tests/security/webhook-forgery.test.ts:20:    process.env.MOCK_WEBHOOK_SECRET = "test-webhook-secret";
+/home/z/my-project/tests/security/webhook-forgery.test.ts:26:    const sig = signWebhookPayload(payload, MOCK_WEBHOOK_SECRET);
+/home/z/my-project/tests/security/webhook-forgery.test.ts:34:    const sig1 = signWebhookPayload(payload1, MOCK_WEBHOOK_SECRET);
+/home/z/my-project/tests/security/webhook-forgery.test.ts:35:    const sig2 = signWebhookPayload(payload2, MOCK_WEBHOOK_SECRET);
+/home/z/my-project/tests/security/webhook-forgery.test.ts:41:    const sig1 = signWebhookPayload(payload, MOCK_WEBHOOK_SECRET);
+/home/z/my-project/tests/security/webhook-forgery.test.ts:47:    // The mock provider's deliverMockWebhook includes a timestamp in every payload
+/home/z/my-project/scripts/deploy.sh:59:REQUIRED_VARS=(DATABASE_URL NEXTAUTH_SECRET NEXTAUTH_URL MOCK_WEBHOOK_SECRET)
+/home/z/my-project/scripts/setup-free-tier.sh:64:MOCK_WEBHOOK_SECRET=$(openssl rand -hex 32)
+/home/z/my-project/scripts/setup-free-tier.sh:69:echo "    MOCK_WEBHOOK_SECRET=$MOCK_WEBHOOK_SECRET"
+/home/z/my-project/scripts/setup-free-tier.sh:87:update_env_var "MOCK_WEBHOOK_SECRET" "$MOCK_WEBHOOK_SECRET"
+/home/z/my-project/tests/setup.ts:19:process.env.MOCK_WEBHOOK_SECRET = "test-webhook-secret";
+/home/z/my-project/tool-results/read_1792622826043_144717b9320e.txt:421:   421→  provider          String   @default("mock")
+/home/z/my-project/tool-results/read_1792622826043_144717b9320e.txt:564:   564→  provider        String   @default("mock")
+/home/z/my-project/tool-results/read_1792622826043_144717b9320e.txt:641:   641→// Stores NIN + selfie liveness verification results from Smile ID (or mock).
+/home/z/my-project/tool-results/read_1792622826043_144717b9320e.txt:649:   649→  provider        String   @default("mock") // "smile_id" | "mock"
+/home/z/my-project/tool-results/read_1792622826043_144717b9320e.txt:692:   692→  provider        String   // "mock" | "monnify" | "opay"
+/home/z/my-project/tool-results/read_1792623037057_144717b9320e.txt:421:   421→  provider          String   @default("mock")
+/home/z/my-project/tool-results/read_1792623037057_144717b9320e.txt:564:   564→  provider        String   @default("mock")
+/home/z/my-project/tool-results/read_1792623037057_144717b9320e.txt:641:   641→// Stores NIN + selfie liveness verification results from Smile ID (or mock).
+/home/z/my-project/tool-results/read_1792623037057_144717b9320e.txt:649:   649→  provider        String   @default("mock") // "smile_id" | "mock"
+/home/z/my-project/tool-results/read_1792623037057_144717b9320e.txt:692:   692→  provider        String   // "mock" | "monnify" | "opay"
+/home/z/my-project/docs/SSADM_DFD.md:180:                                └──>> schedule async mock webhook delivery (400ms)
+/home/z/my-project/docs/SSADM_DFD.md:182:[Mock Provider] ──webhook──► (8.2) Process Webhook
+/home/z/my-project/docs/THREAT_MODEL.md:26:5. **Mock provider → Webhook endpoint**: HMAC signature + replay protection via `providerEventId`.
+/home/z/my-project/docs/API_SPECIFICATION.md:184:Headers: `x-gigsure-signature: <HMAC-SHA256>`, `x-gigsure-provider: mock`, `x-gigsure-simulated: true`
+/home/z/my-project/docs/PAYMENT_INTEGRATION.md:3:> Status: **Mock provider only**. Real payment integration is DISABLED until all prerequisites below are met.
+/home/z/my-project/docs/PAYMENT_INTEGRATION.md:7:- `src/lib/payments/mock-provider.ts` implements a simulated payment provider
+/home/z/my-project/docs/PAYMENT_INTEGRATION.md:9:- The mock provider:
+/home/z/my-project/docs/PAYMENT_INTEGRATION.md:21:## Why mock only
+/home/z/my-project/docs/PAYMENT_INTEGRATION.md:72:| Mock | `x-gigsure-signature` | HMAC-SHA256(payload, MOCK_WEBHOOK_SECRET) |
+/home/z/my-project/docs/PAYMENT_INTEGRATION.md:83:- `FundingRecord.isSimulated` flag distinguishes mock from real
+/home/z/my-project/docs/PAYMENT_INTEGRATION.md:86:- Mock provider remains for local dev (set `provider = "mock"` in tests)
+/home/z/my-project/docs/PAYMENT_INTEGRATION.md:123:Real payments are disabled by default. The `MOCK_WEBHOOK_SECRET` env var is the only payment-related credential in this build. To enable real payments:
+/home/z/my-project/docs/DEPLOYMENT_GUIDE.md:104:# - Initiate mock funding
+/home/z/my-project/docs/TESTING_STRATEGY.md:9:- **Integration tests** (medium) — API routes with mocked Prisma + mocked external providers
+/home/z/my-project/docs/TESTING_STRATEGY.md:18:- **Mocking**: `msw` for HTTP mocking, `vitest-mock-extended` for Prisma mocks
+/home/z/my-project/docs/TESTING_STRATEGY.md:51:- Mock provider "failure" amount triggers FAILED status
+/home/z/my-project/docs/SECURITY_AUDIT_2026-10.md:26:### C1. `MOCK_WEBHOOK_SECRET` defaults to a public constant
+/home/z/my-project/docs/SECURITY_AUDIT_2026-10.md:27:**File:** `src/lib/payments/mock-provider.ts:27-28`
+/home/z/my-project/docs/SECURITY_AUDIT_2026-10.md:28:**Bug:** `MOCK_WEBHOOK_SECRET = process.env.MOCK_WEBHOOK_SECRET ?? "mock-webhook-secret-dev-only"`. If the env var is unset in production, the secret is a known constant. Anyone with repo access can compute valid HMAC signatures and forge payment webhooks (marking funding records as PROVIDER_CONFIRMED, advancing milestones to FUNDED).
+/home/z/my-project/docs/SECURITY_AUDIT_2026-10.md:127:**Bug:** `provider` value written to `WebhookEvent.provider` comes from request header. Signature is verified against `MOCK_WEBHOOK_SECRET` regardless of provider. If a real provider (Paystack) is added later with its own secret, an attacker can submit mock-secret-signed events with `x-gigsure-provider: paystack` and the audit log will mislabel them.
+/home/z/my-project/docs/SECURITY_AUDIT_2026-10.md:139:### M1. Idempotency check + create non-transactional in mock provider
+/home/z/my-project/docs/SECURITY_AUDIT_2026-10.md:140:**File:** `src/lib/payments/mock-provider.ts:84-114`
+/home/z/my-project/docs/SECURITY_AUDIT_2026-10.md:289:- `tests/security/webhook-forgery.test.ts` — MOCK_WEBHOOK_SECRET rejection in prod
+/home/z/my-project/src/lib/payments/payout-service.ts:138:  // Choose provider — live payouts if enabled, else mock.
+/home/z/my-project/src/lib/payments/payout-service.ts:141:    : getProvider("mock");
+/home/z/my-project/src/lib/payments/payout-service.ts:301:          simulated: provider.name === "mock",
+/home/z/my-project/docs/IMPLEMENTATION_STATUS.md:49:| Simulated funding | ✅ | Mock provider with idempotency + HMAC webhooks + replay protection |
+/home/z/my-project/docs/IMPLEMENTATION_STATUS.md:50:| Payment-provider abstraction | ✅ | `PaymentProvider` interface; mock implementation |
+/home/z/my-project/docs/IMPLEMENTATION_STATUS.md:120:3. **No real payment provider.** Mock provider only. Paystack/Flutterwave integration requires CBN/NDPC review + legal sign-off.
+/home/z/my-project/docs/DEPLOYMENT_FREE_TIER.md:48:│  • Mock payment provider — disabled in production           │
+/home/z/my-project/docs/DEPLOYMENT_FREE_TIER.md:135:   | `MOCK_WEBHOOK_SECRET` | Generate with: `openssl rand -hex 32` | Production, Preview |
+/home/z/my-project/docs/DEPLOYMENT_FREE_TIER.md:212:- ✅ Mock payment provider (clearly labelled SIMULATED)
+/home/z/my-project/docs/DEPLOYMENT_FREE_TIER.md:220:5. **No real payments**: Mock provider only. Users can see the funding flow but no real money moves.
+/home/z/my-project/docs/SYSTEM_ARCHITECTURE.md:26:│  │  /api/payments/webhook → mock provider receiver     │ │
+/home/z/my-project/docs/SYSTEM_ARCHITECTURE.md:34:│  │    payments/ → mock provider + webhook processing   │ │
+/home/z/my-project/docs/SYSTEM_ARCHITECTURE.md:49:- Mock payment provider (in-process simulated webhook delivery)
+/home/z/my-project/docs/SYSTEM_ARCHITECTURE.md:79:4. API calls initiateFunding() in lib/payments/mock-provider.ts
+/home/z/my-project/docs/SYSTEM_ARCHITECTURE.md:83:   - Schedules async mock webhook delivery (400ms)
+/home/z/my-project/docs/SYSTEM_ARCHITECTURE.md:84:5. Mock provider POSTs to /api/payments/webhook with HMAC signature
+/home/z/my-project/docs/DATABASE_DESIGN.md:83:The mock provider simulates async webhook delivery (400ms after `initiateFunding`). The webhook handler verifies HMAC signature + replay (via `providerEventId`) and updates the record transactionally.
+/home/z/my-project/src/lib/payments/mock-provider.ts:2: * Mock payment provider — for local development and tests ONLY.
+/home/z/my-project/src/lib/payments/mock-provider.ts:12: * The mock simulates an asynchronous provider:
+/home/z/my-project/src/lib/payments/mock-provider.ts:27:export const MOCK_PROVIDER_NAME = "mock";
+/home/z/my-project/src/lib/payments/mock-provider.ts:30:function resolveMockWebhookSecret(): string {
+/home/z/my-project/src/lib/payments/mock-provider.ts:31:  return process.env.MOCK_WEBHOOK_SECRET ?? "mock-webhook-secret-dev-only";
+/home/z/my-project/src/lib/payments/mock-provider.ts:34:export const MOCK_WEBHOOK_SECRET = resolveMockWebhookSecret();
+/home/z/my-project/src/lib/payments/mock-provider.ts:104:        provider: MOCK_PROVIDER_NAME,
+/home/z/my-project/src/lib/payments/mock-provider.ts:152:    void deliverMockWebhook(record.id, willFail ? "FAILED" : "CONFIRMED");
+/home/z/my-project/src/lib/payments/mock-provider.ts:164: * Deliver the mock webhook (in-process). In a real provider, this would be an
+/home/z/my-project/src/lib/payments/mock-provider.ts:167:async function deliverMockWebhook(
+/home/z/my-project/src/lib/payments/mock-provider.ts:179:    provider: MOCK_PROVIDER_NAME,
+/home/z/my-project/src/lib/payments/mock-provider.ts:189:  const signature = signWebhookPayload(payload, MOCK_WEBHOOK_SECRET);
+/home/z/my-project/src/lib/payments/mock-provider.ts:198:        "x-gigsure-provider": MOCK_PROVIDER_NAME,
+/home/z/my-project/src/lib/payments/mock-provider.ts:205:    console.error("[mock-provider] webhook delivery failed", err);
+/home/z/my-project/src/lib/payments/mock-provider.ts:325:      console.error("[mock-provider] payout initiation failed", err);
+/home/z/my-project/SECURITY.md:50:- Payment provider integration (mock provider only — real provider integration is out of scope until released)
+/home/z/my-project/SECURITY.md:82:- Real payment provider integration is DISABLED — only the mock provider runs
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:2: * Enhanced Mock payment provider.
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:31:// Cached mock bank list — populated lazily on first call.
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:32:let MOCK_BANKS_CACHE: BankInfo[] | null = null;
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:34:const MOCK_BANKS: BankInfo[] = [
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:52:  { code: "999", name: "GigSure Test Bank (Mock)", shortName: "GigsureMock" },
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:56:const MOCK_TRANSFER_STATE = new Map<string, { status: PaymentState; amountMinor: number; createdAt: number }>();
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:58:export const MOCK_WEBHOOK_SECRET = process.env.MOCK_WEBHOOK_SECRET ?? "mock-webhook-secret-dev-only";
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:60:export class MockPaymentProvider implements PaymentProvider {
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:61:  readonly name: PaymentProviderName = "mock";
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:68:    return true; // mock is always enabled
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:76:    const providerRef = generateProviderTxRef("MOCK");
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:79:    // and get a checkout URL back. For mock, we generate a fake URL.
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:81:      provider: "mock",
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:83:      checkoutUrl: `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/?view=mock-checkout&ref=${providerRef}`,
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:89:    // Mock: always returns SUCCEEDED (for successful flow testing)
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:100:      paymentMethod: "mock_transfer",
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:110:      refundReference: `mock_refund_${Date.now()}`,
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:121:    const valid = signature === signWebhookPayload(rawBody, MOCK_WEBHOOK_SECRET);
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:139:      provider: "mock",
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:155:      throw new Error("Mock transfer: recipient account number must be 10 digits");
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:158:      throw new Error("Mock transfer: bank code required");
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:161:    const providerRef = generateProviderTxRef("MOCKPAYOUT");
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:166:    MOCK_TRANSFER_STATE.set(providerRef, {
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:173:      provider: "mock",
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:186:    const cached = MOCK_TRANSFER_STATE.get(providerReference);
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:191:        rawResponse: { simulated: true, note: "no cached mock transfer state" },
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:206:    if (!MOCK_BANKS_CACHE) {
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:207:      MOCK_BANKS_CACHE = MOCK_BANKS;
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:210:    return MOCK_BANKS_CACHE.map((b) => ({ ...b }));
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:217:    // Mock name enquiry: returns a deterministic fake name based on the account number.
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:227:    const accountName = `MOCK USER ${last4}`;
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:234:      enquiryReference: `mock_enquiry_${Date.now()}`,
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:245:      throw new Error("Mock reserved account: reference is required");
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:248:      throw new Error("Mock reserved account: accountName is required");
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:251:    // Generate a deterministic 10-digit mock NUBAN from the reference hash.
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:256:      provider: "mock",
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:257:      providerAccountRef: `mock_reserved_${input.reference}`,
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:260:      bankName: "GigSure Test Bank (Mock)",
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:269:    // Mock: no-op. Just log.
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:275:      name: "mock",
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:278:      environment: "mock",
+/home/z/my-project/src/lib/payments/mock-payment-provider.ts:279:      message: "Mock provider — always available for development",
+/home/z/my-project/src/lib/payments/opay-provider.ts:349:    // OPay uses Monnify's bank list format. We fall back to mock banks here
+/home/z/my-project/src/lib/payments/opay-provider.ts:370:      // Fallback to mock banks for sandbox — keeps dev workflow smooth.
+/home/z/my-project/src/lib/payments/opay-provider.ts:371:      const mockBanks: BankInfo[] = [
+/home/z/my-project/src/lib/payments/opay-provider.ts:379:      OPAY_BANKS_CACHE = { banks: mockBanks, expiresAt: Date.now() + 24 * 60 * 60 * 1000 };
+/home/z/my-project/src/lib/payments/opay-provider.ts:380:      return mockBanks;
+/home/z/my-project/src/lib/payments/registry.ts:5: *   - PAYMENTS_MODE=mock → only mock provider
+/home/z/my-project/src/lib/payments/registry.ts:14:import { MockPaymentProvider } from "./mock-payment-provider";
+/home/z/my-project/src/lib/payments/registry.ts:23:  // Mock provider is always available
+/home/z/my-project/src/lib/payments/registry.ts:24:  const mock = new MockPaymentProvider();
+/home/z/my-project/src/lib/payments/registry.ts:25:  map.set("mock", mock);
+/home/z/my-project/src/lib/payments/registry.ts:52:  const mode = process.env.PAYMENTS_MODE ?? "mock";
+/home/z/my-project/src/lib/payments/registry.ts:54:  if (mode === "mock" || process.env.LIVE_PAYMENTS_ENABLED !== "true") {
+/home/z/my-project/src/lib/payments/registry.ts:55:    return getProvider("mock");
+/home/z/my-project/src/lib/payments/registry.ts:66:  // Fallback to mock if no real provider is enabled
+/home/z/my-project/src/lib/payments/registry.ts:67:  return getProvider("mock");
+/home/z/my-project/package-lock.json:5899:    "node_modules/@vitest/mocker": {
+/home/z/my-project/package-lock.json:13831:        "@vitest/mocker": "3.2.7",
+/home/z/my-project/src/lib/payments/provider-interface.ts:4: * Every provider (Monnify, OPay, Mock) implements this interface.
+/home/z/my-project/src/lib/payments/provider-interface.ts:9:export type PaymentProviderName = "mock" | "monnify" | "opay";
+/home/z/my-project/src/lib/payments/provider-interface.ts:103:  environment: "sandbox" | "production" | "mock";
+/home/z/my-project/prisma/schema.prisma:428:  provider          String   @default("mock")
+/home/z/my-project/prisma/schema.prisma:573:  provider        String   @default("mock")
+/home/z/my-project/prisma/schema.prisma:654:// Stores NIN + selfie liveness verification results from Smile ID (or mock).
+/home/z/my-project/prisma/schema.prisma:662:  provider        String   @default("mock") // "smile_id" | "mock"
+/home/z/my-project/prisma/schema.prisma:705:  provider        String   // "mock" | "monnify" | "opay"
+/home/z/my-project/prisma/schema.prisma:844:  provider          String   @default("mock") // "mock" | "monnify" | "opay"
+/home/z/my-project/prisma/schema.prisma:894:  provider          String   @default("monnify") // "mock" | "monnify"
+/home/z/my-project/prisma/schema.postgres.prisma:421:  provider          String   @default("mock")
+/home/z/my-project/prisma/schema.postgres.prisma:564:  provider        String   @default("mock")
+/home/z/my-project/prisma/schema.postgres.prisma:641:// Stores NIN + selfie liveness verification results from Smile ID (or mock).
+/home/z/my-project/prisma/schema.postgres.prisma:649:  provider        String   @default("mock") // "smile_id" | "mock"
+/home/z/my-project/prisma/schema.postgres.prisma:692:  provider        String   // "mock" | "monnify" | "opay"
+/home/z/my-project/worklog.md:18:- Implemented mock payment provider with: idempotency keys (duplicate retries return same record), providerTxRef uniqueness, async webhook delivery, HMAC signature verification, providerEventId replay protection, transactional status updates, explicit isSimulated=true flag on every record.
+/home/z/my-project/worklog.md:25:- Browser-verified end-to-end with Agent Browser: registration → email verification → login → dashboard → project creation → AI assistant invocation (real LLM response received) → milestone creation → mock funding initiation → webhook delivery confirmed milestone status → FUNDED → dispute creation → confirmed dispute-blocks-release invariant (milestone auto-flipped to DISPUTED, release attempt blocked with proper 4xx).
+/home/z/my-project/worklog.md:32:- ✅ Mock payment provider with idempotency + signed webhooks + replay protection
+/home/z/my-project/worklog.md:51:- /home/z/my-project/src/lib/payments/mock-provider.ts
+/home/z/my-project/worklog.md:151:- .env.example: comprehensive documentation of all production vars (Postgres, NextAuth, Google OAuth, ADMIN_EMAILS, MOCK_WEBHOOK_SECRET, SMTP, payment providers, rate-limit backend, deploy config).
+/home/z/my-project/worklog.md:200:- C1: MOCK_WEBHOOK_SECRET no longer defaults to public constant in production.
+/home/z/my-project/worklog.md:201:      mock-provider.ts now throws on missing env var in NODE_ENV=production.
+/home/z/my-project/worklog.md:238:- M1: Idempotency in mock-provider wrapped in try/catch on P2002 — returns
+/home/z/my-project/worklog.md:290:- src/lib/payments/mock-provider.ts (P2002 handling, prod secret enforcement)
+/home/z/my-project/src/lib/security/tokens.ts:41: * Webhook signature verification. The mock payment provider uses HMAC-SHA256
+/home/z/my-project/src/lib/api.ts:17:import { PaymentProviderError } from "@/lib/payments/mock-provider";
+/home/z/my-project/src/lib/kyc/provider.ts:6: *   - Mock (for local development without Smile ID credentials)
+/home/z/my-project/src/lib/kyc/provider.ts:23: * If credentials are not set, falls back to mock provider (always verifies).
+/home/z/my-project/src/lib/kyc/provider.ts:30:export type KycProvider = "smile_id" | "mock";
+/home/z/my-project/src/lib/kyc/provider.ts:192:// Mock Provider (for local development without Smile ID credentials)
+/home/z/my-project/src/lib/kyc/provider.ts:195:class MockKycProvider {
+/home/z/my-project/src/lib/kyc/provider.ts:206:    // Mock: simulate async verification
+/home/z/my-project/src/lib/kyc/provider.ts:207:    const jobId = `mock_job_${Date.now()}`;
+/home/z/my-project/src/lib/kyc/provider.ts:212:    // Mock: always verify (with a small delay to simulate async)
+/home/z/my-project/src/lib/kyc/provider.ts:216:      fullName: "Verified User (Mock)",
+/home/z/my-project/src/lib/kyc/provider.ts:229:let _mockProvider: MockKycProvider | null = null;
+/home/z/my-project/src/lib/kyc/provider.ts:236:function getMockProvider(): MockKycProvider {
+/home/z/my-project/src/lib/kyc/provider.ts:237:  if (!_mockProvider) _mockProvider = new MockKycProvider();
+/home/z/my-project/src/lib/kyc/provider.ts:238:  return _mockProvider;
+/home/z/my-project/src/lib/kyc/provider.ts:241:export function getKycProvider(): { provider: SmileIdProvider | MockKycProvider; name: KycProvider } {
+/home/z/my-project/src/lib/kyc/provider.ts:246:  // Fallback to mock for local development only.
+/home/z/my-project/src/lib/kyc/provider.ts:253:  return { provider: getMockProvider(), name: "mock" };
+/home/z/my-project/src/lib/kyc/provider.ts:315:        name === "mock"
+/home/z/my-project/src/lib/kyc/provider.ts:316:          ? "KYC verification initiated (MOCK — will auto-verify)."
+/home/z/my-project/src/lib/kyc/provider.ts:346: * For Mock: auto-returns VERIFIED.
+/home/z/my-project/src/lib/email/provider.ts:6: *   - Mock (logs to console — for dev / testing)
+/home/z/my-project/src/lib/email/provider.ts:29: * Mock provider — logs to console. Used in dev / testing.
+/home/z/my-project/src/lib/email/provider.ts:31:class MockEmailProvider implements EmailProvider {
+/home/z/my-project/src/lib/email/provider.ts:33:    console.log(`\n📧 [mock-email]\nTo: ${message.to}\nFrom: ${message.from}\nSubject: ${message.subject}\nBody: ${message.text ?? message.html ?? "(no body)"}\n`);
+/home/z/my-project/src/lib/email/provider.ts:34:    return { ok: true, messageId: `mock_${Date.now()}` };
+/home/z/my-project/src/lib/email/provider.ts:109:    console.warn("[email] SMTP_URL not set — using mock email provider (logs to console)");
+/home/z/my-project/src/lib/email/provider.ts:110:    _provider = new MockEmailProvider();
+/home/z/my-project/src/views/AdminView.tsx:2010:                  <SelectItem value="mock">Mock (testing)</SelectItem>
+/home/z/my-project/src/views/ProjectMilestonesView.tsx:227:          <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Design mockups" />
+/home/z/my-project/src/views/KycView.tsx:346:                {status?.provider === "mock"
+/home/z/my-project/src/app/api/banks/route.ts:4: * Sources banks from the configured default provider (Monnify / OPay / Mock)
+/home/z/my-project/src/app/api/payments/initiate/route.ts:7: *   provider?: "monnify" | "opay" | "mock"  (defaults to system default)
+/home/z/my-project/src/app/api/payments/initiate/route.ts:32:  provider: z.enum(["monnify", "opay", "mock"]).optional(),
+/home/z/my-project/src/app/api/payments/initiate/route.ts:86:    if (providerName !== "mock" && !isLivePaymentsEnabled()) {
+/home/z/my-project/src/app/api/payments/initiate/route.ts:87:      return fail("Live payments are not enabled. Use mock provider for testing.", 403);
+/home/z/my-project/src/app/api/payments/status/[reference]/route.ts:29:      const provider = getProvider(transaction.provider as "mock" | "monnify" | "opay");
+/home/z/my-project/src/app/api/payments/status/[reference]/route.ts:65:    simulated: transaction.provider === "mock",
+/home/z/my-project/src/app/api/payments/providers/route.ts:11:    defaultProvider: process.env.PAYMENTS_DEFAULT_PROVIDER ?? "mock",
+/home/z/my-project/src/app/api/payments/providers/route.ts:12:    mode: process.env.PAYMENTS_MODE ?? "mock",
+/home/z/my-project/src/app/api/payments/webhook/[provider]/route.ts:5: *   - /api/payments/webhook/mock
+/home/z/my-project/src/app/api/payments/webhook/[provider]/route.ts:10: *   - Mock: HMAC-SHA256 with MOCK_WEBHOOK_SECRET
+/home/z/my-project/src/app/api/payments/webhook/[provider]/route.ts:34:  if (!["mock", "monnify", "opay"].includes(providerName)) {
+/home/z/my-project/src/app/api/payments/webhook/[provider]/route.ts:50:  const provider = getProvider(providerName as "mock" | "monnify" | "opay");
+/home/z/my-project/src/app/api/payments/webhook/route.ts:2: * Mock payment provider webhook receiver.
+/home/z/my-project/src/app/api/payments/webhook/route.ts:14:import { processWebhookEvent, MOCK_PROVIDER_NAME, MOCK_WEBHOOK_SECRET } from "@/lib/payments/mock-provider";
+/home/z/my-project/src/app/api/payments/webhook/route.ts:21:  [MOCK_PROVIDER_NAME]: MOCK_WEBHOOK_SECRET,
+/home/z/my-project/src/app/api/payments/webhook/route.ts:42:  const providerHeader = req.headers.get("x-gigsure-provider") ?? MOCK_PROVIDER_NAME;
+/home/z/my-project/src/app/api/projects/[id]/virtual-account/route.ts:169:        provider: process.env.PAYMENTS_DEFAULT_PROVIDER ?? "mock",
+/home/z/my-project/src/app/api/projects/[id]/virtual-account/route.ts:211:        provider: process.env.PAYMENTS_DEFAULT_PROVIDER ?? "mock",
+/home/z/my-project/src/app/api/projects/[id]/funding/route.ts:5: *   - FUNDING: client funds milestone (simulated mock provider).
+/home/z/my-project/src/app/api/projects/[id]/funding/route.ts:15:import { initiateFunding } from "@/lib/payments/mock-provider";
+/home/z/my-project/src/app/api/kyc/initiate/route.ts:7: * Smile ID (or mock provider in dev). If selfieBase64 is provided, a
+/home/z/my-project/src/app/api/admin/payment-settings/route.ts:61:  defaultProvider: z.enum(["monnify", "opay", "mock"]).optional(),
+/home/z/my-project/src/app/api/payouts/[id]/verify/route.ts:50:  const provider = getProvider(payout.provider as "mock" | "monnify" | "opay");
+/home/z/my-project/README.md:49:- Mock payment provider with idempotency + HMAC-signed webhooks + replay protection
+/home/z/my-project/README.md:58:- All payment transactions (mock provider, `isSimulated=true` on every record)
+/home/z/my-project/README.md:182:│   │   ├── payments/            # Mock payment provider
+/home/z/my-project/README.md:196:- **Real payment integration not enabled.** Mock provider only. Real provider requires CBN/NDPC review and legal sign-off.
+/home/z/my-project/docker-compose.yml:51:      MOCK_WEBHOOK_SECRET: ${MOCK_WEBHOOK_SECRET:?must be set}
+/home/z/my-project/bun.lock:846:    "@vitest/mocker": ["@vitest/mocker@3.2.7", "", { "dependencies": { "@vitest/spy": "3.2.7", "estree-walker": "^3.0.3", "magic-string": "^0.30.17" }, "peerDependencies": { "msw": "^2.4.9", "vite": "^5.0.0 || ^6.0.0 || ^7.0.0-0" }, "optionalPeers": ["msw", "vite"] }, "sha512-Trr0hYO9CM3Wj6ksWHRhK9IZpIY6wTMO5u/MqXurMxT57sWBaOPEtP3Oq60ihZuh5JsiagKfz95OcxdEP6dBrA=="],
+/home/z/my-project/bun.lock:1998:    "vitest": ["vitest@3.2.7", "", { "dependencies": { "@types/chai": "^5.2.2", "@vitest/expect": "3.2.7", "@vitest/mocker": "3.2.7", "@vitest/pretty-format": "^3.2.7", "@vitest/runner": "3.2.7", "@vitest/snapshot": "3.2.7", "@vitest/spy": "3.2.7", "@vitest/utils": "3.2.7", "chai": "^5.2.0", "debug": "^4.4.1", "expect-type": "^1.2.1", "magic-string": "^0.30.17", "pathe": "^2.0.3", "picomatch": "^4.0.2", "std-env": "^3.9.0", "tinybench": "^2.9.0", "tinyexec": "^0.3.2", "tinyglobby": "^0.2.14", "tinypool": "^1.1.1", "tinyrainbow": "^2.0.0", "vite": "^5.0.0 || ^6.0.0 || ^7.0.0-0", "vite-node": "3.2.4", "why-is-node-running": "^2.3.0" }, "peerDependencies": { "@edge-runtime/vm": "*", "@types/debug": "^4.1.12", "@types/node": "^18.0.0 || ^20.0.0 || >=22.0.0", "@vitest/browser": "3.2.7", "@vitest/ui": "3.2.7", "happy-dom": "*", "jsdom": "*" }, "optionalPeers": ["@edge-runtime/vm", "@types/debug", "@types/node", "@vitest/browser", "@vitest/ui", "happy-dom", "jsdom"], "bin": { "vitest": "./vitest.mjs" } }, "sha512-KrxIJ62Fd89gfysR4WotlgZABiz2dqFPgqGzX7s+CwsqLFomRH7777ZcrOD6+WVAh7khPQP41A+BKbpcJFrdEg=="],

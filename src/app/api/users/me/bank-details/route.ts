@@ -92,7 +92,7 @@ export const POST = apiRoute(async (req) => {
   let isVerified = false;
   let enquiryRef: string | undefined;
   try {
-    const provider = getDefaultProvider();
+    const provider = await getDefaultProvider();
     if (provider.resolveAccountName) {
       const enquiry = await provider.resolveAccountName({ accountNumber, bankCode });
       if (enquiry.valid && enquiry.accountName) {

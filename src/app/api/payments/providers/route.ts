@@ -8,7 +8,6 @@ export const GET = apiRoute(async () => {
   return {
     providers: listAvailableProviders(),
     livePaymentsEnabled: isLivePaymentsEnabled(),
-    defaultProvider: process.env.PAYMENTS_DEFAULT_PROVIDER ?? "mock",
-    mode: process.env.PAYMENTS_MODE ?? "mock",
+    defaultProvider: process.env.PAYMENTS_DEFAULT_PROVIDER ?? "monnify",
   };
 });

@@ -2,12 +2,10 @@
  * Provider-specific webhook endpoint.
  *
  * URL: /api/payments/webhook/[provider]
- *   - /api/payments/webhook/mock
  *   - /api/payments/webhook/monnify
  *   - /api/payments/webhook/opay
  *
  * Each provider has its own signature verification scheme:
- *   - Mock: HMAC-SHA256 with MOCK_WEBHOOK_SECRET
  *   - Monnify: HMAC-SHA512 with API key, signature in `monnify-signature` header
  *   - OPay: HMAC-SHA512 with private key, signature in body's `sign` field
  *
@@ -17,11 +15,13 @@
  *   3. Check timestamp (5-min replay window)
  *   4. Update PaymentTransaction status transactionally
  *   5. Create ledger entries atomically
+ *   6. Confirm linked FundingRecord + trigger payouts (for RELEASE records)
  */
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getProvider } from "@/lib/payments/registry";
 import { isValidTransition } from "@/lib/payments/provider-interface";
+import { confirmFundingRecord } from "@/lib/payments/webhook-handler";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 
 const MAX_BODY_BYTES = 64 * 1024;
@@ -30,8 +30,8 @@ const REPLAY_WINDOW_MS = 5 * 60 * 1000;
 export async function POST(req: Request, { params }: { params: Promise<{ provider: string }> }) {
   const { provider: providerName } = await params;
 
-  // Validate provider name
-  if (!["mock", "monnify", "opay"].includes(providerName)) {
+  // Validate provider name — only real providers allowed.
+  if (providerName !== "monnify" && providerName !== "opay") {
     return NextResponse.json({ error: "Unknown provider" }, { status: 400 });
   }
 
@@ -46,8 +46,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
     return NextResponse.json({ error: "Body too large" }, { status: 413 });
   }
 
-  // Get provider + verify webhook
-  const provider = getProvider(providerName as "mock" | "monnify" | "opay");
+  // Get provider + verify webhook signature
+  const provider = getProvider(providerName);
   const headers: Record<string, string> = {};
   req.headers.forEach((value, key) => {
     headers[key] = value;
@@ -83,9 +83,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // reject negative amounts in webhook payloads
-  // (defense-in-depth — even though we don't currently write this value to DB,
-  // a future refactor might trust it, so validate now)
+  // reject negative amounts in webhook payloads (defense-in-depth)
   if (payload.amount_minor !== undefined) {
     if (!Number.isFinite(payload.amount_minor) || payload.amount_minor < 0) {
       logSecurityEvent("warn", "payment.webhook_negative_amount", { provider: providerName });
@@ -114,6 +112,33 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   });
 
   if (!transaction) {
+    // No PaymentTransaction — but there may still be a FundingRecord
+    // (e.g., reserved-account funding doesn't always create a PaymentTransaction).
+    // Confirm the FundingRecord if it exists; record the webhook otherwise.
+    try {
+      const result = await confirmFundingRecord({
+        provider: providerName,
+        providerEventId,
+        providerTxRef: providerReference,
+        eventType: verification.eventType,
+        amountMinor: payload.amount_minor ?? Math.round((payload.amount ?? 0) * 100),
+        currency: payload.currency ?? "NGN",
+        status: mapEventToFundingStatus(verification.eventType, payload.status),
+        rawPayload: rawBody,
+        signatureValid: true,
+      });
+
+      if (result.processed) {
+        return NextResponse.json({ ok: true, processed: true, fundingRecordId: result.fundingRecordId });
+      }
+    } catch (err) {
+      logSecurityEvent("error", "payment.webhook_funding_confirm_failed", {
+        provider: providerName,
+        providerReference,
+        message: (err as Error)?.message,
+      });
+    }
+
     // Record webhook even if no transaction (for audit trail)
     await db.webhookEvent.create({
       data: {
@@ -149,7 +174,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   }
 
   // Validate state transition
-  if (newStatus !== transaction.status && !isValidTransition(transaction.status as any, newStatus as any)) {
+  if (newStatus !== transaction.status && !isValidTransition(transaction.status as never, newStatus as never)) {
     logSecurityEvent("warn", "payment.webhook_invalid_transition", {
       transactionId: transaction.id,
       from: transaction.status,
@@ -248,5 +273,41 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
     },
   });
 
+  // CRITICAL: Confirm the linked FundingRecord (if any) and trigger payouts
+  // for RELEASE records. This is what actually moves money to the worker's
+  // bank account — without this block, milestone releases never pay out.
+  try {
+    await confirmFundingRecord({
+      provider: providerName,
+      providerEventId: `${providerEventId}_funding`,
+      providerTxRef: providerReference,
+      eventType: verification.eventType,
+      amountMinor: transaction.amountMinor,
+      currency: transaction.currency,
+      status: mapEventToFundingStatus(verification.eventType, payload.status),
+      rawPayload: rawBody,
+      signatureValid: true,
+      paymentTransactionId: transaction.id,
+    });
+  } catch (err) {
+    logSecurityEvent("error", "payment.webhook_funding_confirm_failed", {
+      provider: providerName,
+      providerReference,
+      transactionId: transaction.id,
+      message: (err as Error)?.message,
+    });
+  }
+
   return NextResponse.json({ ok: true, processed: true });
+}
+
+function mapEventToFundingStatus(eventType: string, payloadStatus?: string): "PROVIDER_CONFIRMED" | "FAILED" | "INITIATED" {
+  const combined = `${eventType} ${payloadStatus ?? ""}`.toLowerCase();
+  if (combined.includes("success") || combined.includes("confirmed") || combined.includes("paid")) {
+    return "PROVIDER_CONFIRMED";
+  }
+  if (combined.includes("fail") || combined.includes("expired") || combined.includes("cancel")) {
+    return "FAILED";
+  }
+  return "INITIATED";
 }

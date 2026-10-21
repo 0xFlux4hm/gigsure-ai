@@ -61,12 +61,10 @@ fi
 echo_step "Generating cryptographic secrets…"
 
 NEXTAUTH_SECRET=$(openssl rand -base64 32)
-MOCK_WEBHOOK_SECRET=$(openssl rand -hex 32)
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
 
 echo_ok "Secrets generated:"
 echo "    NEXTAUTH_SECRET=$NEXTAUTH_SECRET"
-echo "    MOCK_WEBHOOK_SECRET=$MOCK_WEBHOOK_SECRET"
 echo "    POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
 
 # ---- Step 4: Update .env (without overwriting user's existing values) ----
@@ -84,7 +82,6 @@ update_env_var() {
 }
 
 update_env_var "NEXTAUTH_SECRET" "$NEXTAUTH_SECRET"
-update_env_var "MOCK_WEBHOOK_SECRET" "$MOCK_WEBHOOK_SECRET"
 update_env_var "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD"
 update_env_var "RATE_LIMIT_BACKEND" "memory"
 

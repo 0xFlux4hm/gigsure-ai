@@ -1,0 +1,2002 @@
+     1→"use client";
+     2→
+     3→import { useEffect, useState } from "react";
+     4→import { useNav } from "@/lib/nav";
+     5→import { api, formatDateTime, timeAgo, formatMinor } from "@/lib/client-api";
+     6→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+     7→import { Button } from "@/components/ui/button";
+     8→import { Input } from "@/components/ui/input";
+     9→import { Label } from "@/components/ui/label";
+    10→import { Badge } from "@/components/ui/badge";
+    11→import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+    12→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+    13→import {
+    14→  ShieldCheck,
+    15→  Users,
+    16→  FolderKanban,
+    17→  Wallet,
+    18→  CreditCard,
+    19→  Scale,
+    20→  ScrollText,
+    21→  Bot,
+    22→  Lock,
+    23→  Webhook,
+    24→  Settings,
+    25→  Loader2,
+    26→  AlertTriangle,
+    27→  ArrowRight,
+    28→  Search,
+    29→  CheckCircle2,
+    30→  XCircle,
+    31→  TrendingUp,
+    32→  Banknote,
+    33→  RefreshCw,
+    34→} from "lucide-react";
+    35→
+    36→type AdminTab = "overview" | "users" | "projects" | "payments" | "payouts" | "disputes" | "kyc" | "audit" | "ai" | "privacy" | "webhooks" | "gateway";
+    37→
+    38→export function AdminView() {
+    39→  const [tab, setTab] = useState<AdminTab>("overview");
+    40→  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+    41→
+    42→  useEffect(() => {
+    43→    api.get<{ platformRole: string }>("/api/admin/me")
+    44→      .then(() => setIsAdmin(true))
+    45→      .catch(() => setIsAdmin(false));
+    46→  }, []);
+    47→
+    48→  if (isAdmin === null) {
+    49→    return (
+    50→      <div className="flex items-center justify-center py-12">
+    51→        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    52→      </div>
+    53→    );
+    54→  }
+    55→
+    56→  if (!isAdmin) {
+    57→    return (
+    58→      <Card>
+    59→        <CardContent className="py-12 text-center">
+    60→          <ShieldCheck className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+    61→          <h2 className="text-lg font-semibold mb-2">Administrator access required</h2>
+    62→          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+    63→            This page is restricted to platform administrators. If you believe you should have access,
+    64→            contact your platform administrator or set <code className="bg-muted px-1.5 py-0.5 rounded text-xs">ADMIN_EMAILS</code> in the environment.
+    65→          </p>
+    66→        </CardContent>
+    67→      </Card>
+    68→    );
+    69→  }
+    70→
+    71→  return (
+    72→    <div className="space-y-6">
+    73→      <div>
+    74→        <h1 className="text-2xl font-bold flex items-center gap-2">
+    75→          <ShieldCheck className="h-6 w-6 text-primary" /> Admin Dashboard
+    76→        </h1>
+    77→        <p className="text-muted-foreground text-sm">
+    78→          Platform-wide oversight. All actions are audited.
+    79→        </p>
+    80→      </div>
+    81→
+    82→      <Tabs value={tab} onValueChange={(v) => setTab(v as AdminTab)}>
+    83→        <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/40 p-1">
+    84→          <TabsTrigger value="overview" className="data-[state=active]:bg-background"><TrendingUp className="h-3.5 w-3.5 mr-1" /> Overview</TabsTrigger>
+    85→          <TabsTrigger value="users" className="data-[state=active]:bg-background"><Users className="h-3.5 w-3.5 mr-1" /> Users</TabsTrigger>
+    86→          <TabsTrigger value="projects" className="data-[state=active]:bg-background"><FolderKanban className="h-3.5 w-3.5 mr-1" /> Projects</TabsTrigger>
+    87→          <TabsTrigger value="payments" className="data-[state=active]:bg-background"><CreditCard className="h-3.5 w-3.5 mr-1" /> Payments</TabsTrigger>
+    88→          <TabsTrigger value="payouts" className="data-[state=active]:bg-background"><Banknote className="h-3.5 w-3.5 mr-1" /> Payouts</TabsTrigger>
+    89→          <TabsTrigger value="disputes" className="data-[state=active]:bg-background"><Scale className="h-3.5 w-3.5 mr-1" /> Disputes</TabsTrigger>
+    90→          <TabsTrigger value="kyc" className="data-[state=active]:bg-background"><ShieldCheck className="h-3.5 w-3.5 mr-1" /> KYC</TabsTrigger>
+    91→          <TabsTrigger value="audit" className="data-[state=active]:bg-background"><ScrollText className="h-3.5 w-3.5 mr-1" /> Audit</TabsTrigger>
+    92→          <TabsTrigger value="ai" className="data-[state=active]:bg-background"><Bot className="h-3.5 w-3.5 mr-1" /> AI</TabsTrigger>
+    93→          <TabsTrigger value="privacy" className="data-[state=active]:bg-background"><Lock className="h-3.5 w-3.5 mr-1" /> Privacy</TabsTrigger>
+    94→          <TabsTrigger value="webhooks" className="data-[state=active]:bg-background"><Webhook className="h-3.5 w-3.5 mr-1" /> Webhooks</TabsTrigger>
+    95→          <TabsTrigger value="gateway" className="data-[state=active]:bg-background"><Settings className="h-3.5 w-3.5 mr-1" /> Gateway</TabsTrigger>
+    96→        </TabsList>
+    97→
+    98→        <TabsContent value="overview" className="mt-4"><OverviewTab /></TabsContent>
+    99→        <TabsContent value="users" className="mt-4"><UsersTab /></TabsContent>
+   100→        <TabsContent value="projects" className="mt-4"><ProjectsTab /></TabsContent>
+   101→        <TabsContent value="payments" className="mt-4"><PaymentsTab /></TabsContent>
+   102→        <TabsContent value="payouts" className="mt-4"><PayoutsTab /></TabsContent>
+   103→        <TabsContent value="disputes" className="mt-4"><DisputesTab /></TabsContent>
+   104→        <TabsContent value="kyc" className="mt-4"><KycTab /></TabsContent>
+   105→        <TabsContent value="audit" className="mt-4"><AuditTab /></TabsContent>
+   106→        <TabsContent value="ai" className="mt-4"><AiTab /></TabsContent>
+   107→        <TabsContent value="privacy" className="mt-4"><PrivacyTab /></TabsContent>
+   108→        <TabsContent value="webhooks" className="mt-4"><WebhooksTab /></TabsContent>
+   109→        <TabsContent value="gateway" className="mt-4"><GatewayTab /></TabsContent>
+   110→      </Tabs>
+   111→    </div>
+   112→  );
+   113→}
+   114→
+   115→// ---------------------------------------------------------------------------
+   116→// Overview
+   117→// ---------------------------------------------------------------------------
+   118→
+   119→type Stats = {
+   120→  generatedAt: string;
+   121→  generatedBy: string;
+   122→  counts: {
+   123→    users: { total: number; active: number; suspended: number; pendingDeletion: number };
+   124→    projects: { total: number; active: number; cancelled: number };
+   125→    contracts: { total: number; accepted: number };
+   126→    milestones: number;
+   127→    funding: {
+   128→      total: number;
+   129→      pending: number;
+   130→      confirmed: number;
+   131→      failed: number;
+   132→      confirmedVolumeMinor: number;
+   133→      releaseVolumeMinor: number;
+   134→    };
+   135→    disputes: { total: number; open: number; resolved: number };
+   136→    invitations: { total: number; pending: number };
+   137→    tasks: { total: number; open: number };
+   138→    ai: { totalActivities: number };
+   139→    privacy: { pendingRequests: number };
+   140→    webhooks: { total: number; invalidSignatures: number };
+   141→    auditEvents: number;
+   142→  };
+   143→  trends: {
+   144→    last7Days: { newUsers: number; newFunding: number; newDisputes: number; aiCalls: number };
+   145→  };
+   146→  recentAuditEvents: Array<{
+   147→    id: string;
+   148→    action: string;
+   149→    targetType: string | null;
+   150→    createdAt: string;
+   151→    actor: { id: string; displayName: string; email: string } | null;
+   152→  }>;
+   153→};
+   154→
+   155→function OverviewTab() {
+   156→  const [stats, setStats] = useState<Stats | null>(null);
+   157→  const [loading, setLoading] = useState(true);
+   158→  const [error, setError] = useState<string | null>(null);
+   159→
+   160→  const load = () => {
+   161→    setLoading(true);
+   162→    setError(null);
+   163→    api.get<Stats>("/api/admin/stats").then(setStats).catch((e) => setError(e.message)).finally(() => setLoading(false));
+   164→  };
+   165→  useEffect(load, []);
+   166→
+   167→  if (loading) return <LoadingState />;
+   168→  if (error || !stats) return <ErrorState message={error ?? "Failed to load"} onRetry={load} />;
+   169→
+   170→  const c = stats.counts;
+   171→  const t = stats.trends.last7Days;
+   172→
+   173→  return (
+   174→    <div className="space-y-6">
+   175→      {/* Top stats grid */}
+   176→      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+   177→        <StatCard label="Total users" value={c.users.total} sub={`${c.users.active} active · ${c.users.suspended} suspended`} icon={Users} accent="primary" />
+   178→        <StatCard label="Total projects" value={c.projects.total} sub={`${c.projects.active} active`} icon={FolderKanban} />
+   179→        <StatCard label="Open disputes" value={c.disputes.open} sub={`${c.disputes.total} total · ${c.disputes.resolved} resolved`} icon={Scale} accent={c.disputes.open > 0 ? "destructive" : "default"} />
+   180→        <StatCard label="Pending funding" value={c.funding.pending} sub={`${c.funding.confirmed} confirmed · ${c.funding.failed} failed`} icon={Wallet} />
+   181→      </div>
+   182→
+   183→      {/* 7-day trend */}
+   184→      <Card>
+   185→        <CardHeader>
+   186→          <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Last 7 days</CardTitle>
+   187→          <CardDescription>Platform activity over the past week</CardDescription>
+   188→        </CardHeader>
+   189→        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+   190→          <TrendCard label="New users" value={t.newUsers} />
+   191→          <TrendCard label="New funding records" value={t.newFunding} />
+   192→          <TrendCard label="New disputes" value={t.newDisputes} />
+   193→          <TrendCard label="AI calls" value={t.aiCalls} />
+   194→        </CardContent>
+   195→      </Card>
+   196→
+   197→      {/* Financial overview */}
+   198→      <Card>
+   199→        <CardHeader>
+   200→          <CardTitle className="text-base">Financial overview</CardTitle>
+   201→          <CardDescription>Transaction history and payment records</CardDescription>
+   202→        </CardHeader>
+   203→        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+   204→          <div>
+   205→            <div className="text-xs text-muted-foreground">Confirmed funding volume</div>
+   206→            <div className="text-lg font-semibold mt-1">{formatMinor(c.funding.confirmedVolumeMinor, "NGN")}</div>
+   207→          </div>
+   208→          <div>
+   209→            <div className="text-xs text-muted-foreground">Released volume</div>
+   210→            <div className="text-lg font-semibold mt-1">{formatMinor(c.funding.releaseVolumeMinor, "NGN")}</div>
+   211→          </div>
+   212→          <div>
+   213→            <div className="text-xs text-muted-foreground">Failed transactions</div>
+   214→            <div className="text-lg font-semibold mt-1 text-destructive">{c.funding.failed}</div>
+   215→          </div>
+   216→          <div>
+   217→            <div className="text-xs text-muted-foreground">Invalid webhook signatures</div>
+   218→            <div className="text-lg font-semibold mt-1 text-destructive">{c.webhooks.invalidSignatures}</div>
+   219→          </div>
+   220→        </CardContent>
+   221→      </Card>
+   222→
+   223→      {/* System counts */}
+   224→      <div className="grid md:grid-cols-3 gap-4">
+   225→        <MiniStat label="Contracts" value={`${c.contracts.accepted}/${c.contracts.total} accepted`} />
+   226→        <MiniStat label="Milestones" value={String(c.milestones)} />
+   227→        <MiniStat label="Tasks (open)" value={`${c.tasks.open} / ${c.tasks.total}`} />
+   228→        <MiniStat label="Pending invitations" value={String(c.invitations.pending)} />
+   229→        <MiniStat label="AI activities" value={String(c.ai.totalActivities)} />
+   230→        <MiniStat label="Pending privacy requests" value={String(c.privacy.pendingRequests)} accent={c.privacy.pendingRequests > 0 ? "warning" : "default"} />
+   231→      </div>
+   232→
+   233→    </div>
+   234→  );
+   235→}
+   236→
+   237→function StatCard({ label, value, sub, icon: Icon, accent = "default" }: {
+   238→  label: string;
+   239→  value: number;
+   240→  sub: string;
+   241→  icon: React.ComponentType<{ className?: string }>;
+   242→  accent?: "default" | "primary" | "destructive";
+   243→}) {
+   244→  const accentClasses = {
+   245→    default: "bg-muted/30",
+   246→    primary: "bg-primary/10 text-primary",
+   247→    destructive: "bg-destructive/10 text-destructive",
+   248→  };
+   249→  return (
+   250→    <Card>
+   251→      <CardContent className="p-4">
+   252→        <div className="flex items-start justify-between gap-2">
+   253→          <div className="min-w-0">
+   254→            <div className="text-xs text-muted-foreground">{label}</div>
+   255→            <div className="text-2xl font-bold mt-1">{value}</div>
+   256→            <div className="text-xs text-muted-foreground mt-1">{sub}</div>
+   257→          </div>
+   258→          <div className={`h-9 w-9 rounded-md flex items-center justify-center shrink-0 ${accentClasses[accent]}`}>
+   259→            <Icon className="h-5 w-5" />
+   260→          </div>
+   261→        </div>
+   262→      </CardContent>
+   263→    </Card>
+   264→  );
+   265→}
+   266→
+   267→function TrendCard({ label, value }: { label: string; value: number }) {
+   268→  return (
+   269→    <div>
+   270→      <div className="text-xs text-muted-foreground">{label}</div>
+   271→      <div className="text-2xl font-bold mt-1">{value}</div>
+   272→    </div>
+   273→  );
+   274→}
+   275→
+   276→function MiniStat({ label, value, accent = "default" }: { label: string; value: string; accent?: "default" | "warning" }) {
+   277→  return (
+   278→    <Card>
+   279→      <CardContent className="p-3">
+   280→        <div className="text-xs text-muted-foreground">{label}</div>
+   281→        <div className={`font-semibold mt-0.5 ${accent === "warning" ? "text-amber-700 dark:text-amber-400" : ""}`}>{value}</div>
+   282→      </CardContent>
+   283→    </Card>
+   284→  );
+   285→}
+   286→
+   287→// ---------------------------------------------------------------------------
+   288→// Users tab
+   289→// ---------------------------------------------------------------------------
+   290→
+   291→type AdminUser = {
+   292→  id: string;
+   293→  email: string;
+   294→  displayName: string;
+   295→  emailVerifiedAt: string | null;
+   296→  accountStatus: string;
+   297→  platformRole: string;
+   298→  lastLoginAt: string | null;
+   299→  createdAt: string;
+   300→  deletedAt: string | null;
+   301→  _count: { projectsOwned: number; memberships: number; auditEvents: number; aiActivities: number };
+   302→};
+   303→
+   304→function UsersTab() {
+   305→  const [users, setUsers] = useState<AdminUser[]>([]);
+   306→  const [total, setTotal] = useState(0);
+   307→  const [loading, setLoading] = useState(true);
+   308→  const [search, setSearch] = useState("");
+   309→  const [statusFilter, setStatusFilter] = useState<string>("");
+   310→  const [roleFilter, setRoleFilter] = useState<string>("");
+   311→  const [actingId, setActingId] = useState<string | null>(null);
+   312→
+   313→  const load = () => {
+   314→    setLoading(true);
+   315→    const params = new URLSearchParams();
+   316→    if (search) params.set("q", search);
+   317→    if (statusFilter) params.set("status", statusFilter);
+   318→    if (roleFilter) params.set("role", roleFilter);
+   319→    api.get<{ users: AdminUser[]; total: number }>(`/api/admin/users?${params.toString()}`)
+   320→      .then((r) => { setUsers(r.users); setTotal(r.total); })
+   321→      .finally(() => setLoading(false));
+   322→  };
+   323→  useEffect(load, [search, statusFilter, roleFilter]);
+   324→
+   325→  const act = async (userId: string, action: "suspend" | "activate" | "promote_admin" | "demote_admin") => {
+   326→    if (!confirm(`Are you sure you want to ${action.replace("_", " ")} this user?`)) return;
+   327→    setActingId(userId);
+   328→    try {
+   329→      const reason = action === "suspend" ? prompt("Reason for suspension (optional):") ?? "" : "";
+   330→      await api.patch(`/api/admin/users/${userId}`, { action, reason: reason || undefined });
+   331→      load();
+   332→    } catch (err) {
+   333→      alert((err as Error).message);
+   334→    } finally {
+   335→      setActingId(null);
+   336→    }
+   337→  };
+   338→
+   339→  return (
+   340→    <div className="space-y-4">
+   341→      <Card>
+   342→        <CardContent className="p-3 flex flex-wrap gap-2 items-end">
+   343→          <div className="flex-1 min-w-[200px] space-y-1">
+   344→            <Label className="text-xs">Search</Label>
+   345→            <div className="relative">
+   346→              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+   347→              <Input
+   348→                className="pl-8"
+   349→                placeholder="Email or name…"
+   350→                value={search}
+   351→                onChange={(e) => setSearch(e.target.value)}
+   352→              />
+   353→            </div>
+   354→          </div>
+   355→          <div className="space-y-1">
+   356→            <Label className="text-xs">Status</Label>
+   357→            <Select value={statusFilter || "ALL"} onValueChange={(v) => setStatusFilter(v === "ALL" ? "" : v)}>
+   358→              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+   359→              <SelectContent>
+   360→                <SelectItem value="ALL">All</SelectItem>
+   361→                <SelectItem value="ACTIVE">Active</SelectItem>
+   362→                <SelectItem value="SUSPENDED">Suspended</SelectItem>
+   363→                <SelectItem value="PENDING_DELETION">Pending deletion</SelectItem>
+   364→                <SelectItem value="DELETED">Deleted</SelectItem>
+   365→              </SelectContent>
+   366→            </Select>
+   367→          </div>
+   368→          <div className="space-y-1">
+   369→            <Label className="text-xs">Role</Label>
+   370→            <Select value={roleFilter || "ALL"} onValueChange={(v) => setRoleFilter(v === "ALL" ? "" : v)}>
+   371→              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+   372→              <SelectContent>
+   373→                <SelectItem value="ALL">All</SelectItem>
+   374→                <SelectItem value="USER">User</SelectItem>
+   375→                <SelectItem value="ADMIN">Admin</SelectItem>
+   376→              </SelectContent>
+   377→            </Select>
+   378→          </div>
+   379→        </CardContent>
+   380→      </Card>
+   381→
+   382→      <Card>
+   383→        <CardHeader className="pb-3">
+   384→          <CardTitle className="text-base flex items-center justify-between">
+   385→            <span>Users ({total})</span>
+   386→          </CardTitle>
+   387→        </CardHeader>
+   388→        <CardContent className="p-0">
+   389→          {loading ? (
+   390→            <LoadingState />
+   391→          ) : (
+   392→            <div className="overflow-x-auto">
+   393→              <table className="w-full text-sm">
+   394→                <thead className="bg-muted/30 text-xs text-muted-foreground">
+   395→                  <tr>
+   396→                    <th className="text-left p-2">User</th>
+   397→                    <th className="text-left p-2">Status</th>
+   398→                    <th className="text-left p-2">Role</th>
+   399→                    <th className="text-right p-2">Projects</th>
+   400→                    <th className="text-right p-2">AI calls</th>
+   401→                    <th className="text-left p-2">Last login</th>
+   402→                    <th className="text-right p-2">Actions</th>
+   403→                  </tr>
+   404→                </thead>
+   405→                <tbody>
+   406→                  {users.length === 0 && (
+   407→                    <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No users found.</td></tr>
+   408→                  )}
+   409→                  {users.map((u) => (
+   410→                    <tr key={u.id} className="border-t hover:bg-muted/30">
+   411→                      <td className="p-2">
+   412→                        <div className="font-medium">{u.displayName}</div>
+   413→                        <div className="text-xs text-muted-foreground">{u.email}</div>
+   414→                      </td>
+   415→                      <td className="p-2">
+   416→                        <Badge variant={
+   417→                          u.accountStatus === "ACTIVE" ? "default" :
+   418→                          u.accountStatus === "SUSPENDED" ? "destructive" :
+   419→                          u.accountStatus === "DELETED" ? "secondary" :
+   420→                          "outline"
+   421→                        } className="text-xs">{u.accountStatus}</Badge>
+   422→                      </td>
+   423→                      <td className="p-2">
+   424→                        <Badge variant={u.platformRole === "ADMIN" ? "default" : "outline"} className="text-xs">{u.platformRole}</Badge>
+   425→                      </td>
+   426→                      <td className="p-2 text-right">{u._count.projectsOwned}</td>
+   427→                      <td className="p-2 text-right">{u._count.aiActivities}</td>
+   428→                      <td className="p-2 text-xs text-muted-foreground">{u.lastLoginAt ? timeAgo(u.lastLoginAt) : "never"}</td>
+   429→                      <td className="p-2 text-right">
+   430→                        {actingId === u.id ? (
+   431→                          <Loader2 className="h-4 w-4 animate-spin inline" />
+   432→                        ) : (
+   433→                          <div className="flex justify-end gap-1">
+   434→                            {u.accountStatus === "ACTIVE" ? (
+   435→                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => act(u.id, "suspend")}>Suspend</Button>
+   436→                            ) : u.accountStatus === "SUSPENDED" ? (
+   437→                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => act(u.id, "activate")}>Activate</Button>
+   438→                            ) : null}
+   439→                            {u.platformRole === "USER" ? (
+   440→                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => act(u.id, "promote_admin")}>Promote</Button>
+   441→                            ) : (
+   442→                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => act(u.id, "demote_admin")}>Demote</Button>
+   443→                            )}
+   444→                          </div>
+   445→                        )}
+   446→                      </td>
+   447→                    </tr>
+   448→                  ))}
+   449→                </tbody>
+   450→              </table>
+   451→            </div>
+   452→          )}
+   453→        </CardContent>
+   454→      </Card>
+   455→    </div>
+   456→  );
+   457→}
+   458→
+   459→// ---------------------------------------------------------------------------
+   460→// Projects tab
+   461→// ---------------------------------------------------------------------------
+   462→
+   463→type AdminProject = {
+   464→  id: string;
+   465→  title: string;
+   466→  slug: string;
+   467→  status: string;
+   468→  currency: string;
+   469→  budgetMinor: number;
+   470→  fundingArrangement: string;
+   471→  createdAt: string;
+   472→  updatedAt: string;
+   473→  owner: { id: string; displayName: string; email: string };
+   474→  client: { id: string; displayName: string; email: string } | null;
+   475→  _count: { tasks: number; milestones: number; contracts: number; disputes: number; memberships: number; fundingRecords: number };
+   476→};
+   477→
+   478→function ProjectsTab() {
+   479→  const { navigate } = useNav();
+   480→  const [projects, setProjects] = useState<AdminProject[]>([]);
+   481→  const [total, setTotal] = useState(0);
+   482→  const [loading, setLoading] = useState(true);
+   483→  const [statusFilter, setStatusFilter] = useState("");
+   484→
+   485→  const load = () => {
+   486→    setLoading(true);
+   487→    const params = new URLSearchParams();
+   488→    if (statusFilter) params.set("status", statusFilter);
+   489→    api.get<{ projects: AdminProject[]; total: number }>(`/api/admin/projects?${params.toString()}`)
+   490→      .then((r) => { setProjects(r.projects); setTotal(r.total); })
+   491→      .finally(() => setLoading(false));
+   492→  };
+   493→  useEffect(load, [statusFilter]);
+   494→
+   495→  return (
+   496→    <div className="space-y-4">
+   497→      <Card>
+   498→        <CardContent className="p-3 flex gap-2 items-end">
+   499→          <div className="space-y-1">
+   500→            <Label className="text-xs">Status filter</Label>
+   501→            <Select value={statusFilter || "ALL"} onValueChange={(v) => setStatusFilter(v === "ALL" ? "" : v)}>
+   502→              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+   503→              <SelectContent>
+   504→                <SelectItem value="ALL">All</SelectItem>
+   505→                <SelectItem value="DRAFT">Draft</SelectItem>
+   506→                <SelectItem value="ACTIVE">Active</SelectItem>
+   507→                <SelectItem value="PAUSED">Paused</SelectItem>
+   508→                <SelectItem value="COMPLETED">Completed</SelectItem>
+   509→                <SelectItem value="CANCELLED">Cancelled</SelectItem>
+   510→              </SelectContent>
+   511→            </Select>
+   512→          </div>
+   513→        </CardContent>
+   514→      </Card>
+   515→
+   516→      <Card>
+   517→        <CardHeader className="pb-3">
+   518→          <CardTitle className="text-base">Projects ({total})</CardTitle>
+   519→        </CardHeader>
+   520→        <CardContent className="p-0">
+   521→          {loading ? <LoadingState /> : (
+   522→            <div className="overflow-x-auto">
+   523→              <table className="w-full text-sm">
+   524→                <thead className="bg-muted/30 text-xs text-muted-foreground">
+   525→                  <tr>
+   526→                    <th className="text-left p-2">Project</th>
+   527→                    <th className="text-left p-2">Owner</th>
+   528→                    <th className="text-left p-2">Status</th>
+   529→                    <th className="text-right p-2">Budget</th>
+   530→                    <th className="text-right p-2">Tasks</th>
+   531→                    <th className="text-right p-2">Milestones</th>
+   532→                    <th className="text-right p-2">Disputes</th>
+   533→                    <th className="text-left p-2">Created</th>
+   534→                  </tr>
+   535→                </thead>
+   536→                <tbody>
+   537→                  {projects.map((p) => (
+   538→                    <tr
+   539→                      key={p.id}
+   540→                      className="border-t hover:bg-muted/30 cursor-pointer"
+   541→                      onClick={() => navigate({ view: "project-detail", projectId: p.id })}
+   542→                    >
+   543→                      <td className="p-2">
+   544→                        <div className="font-medium">{p.title}</div>
+   545→                        <div className="text-xs text-muted-foreground">{p.slug}</div>
+   546→                      </td>
+   547→                      <td className="p-2 text-xs">
+   548→                        <div>{p.owner.displayName}</div>
+   549→                        <div className="text-muted-foreground">{p.owner.email}</div>
+   550→                      </td>
+   551→                      <td className="p-2"><Badge variant="outline" className="text-xs">{p.status}</Badge></td>
+   552→                      <td className="p-2 text-right">{p.budgetMinor > 0 ? formatMinor(p.budgetMinor, p.currency) : "—"}</td>
+   553→                      <td className="p-2 text-right">{p._count.tasks}</td>
+   554→                      <td className="p-2 text-right">{p._count.milestones}</td>
+   555→                      <td className="p-2 text-right">
+   556→                        {p._count.disputes > 0 ? (
+   557→                          <span className="text-destructive font-medium">{p._count.disputes}</span>
+   558→                        ) : "0"}
+   559→                      </td>
+   560→                      <td className="p-2 text-xs text-muted-foreground">{timeAgo(p.createdAt)}</td>
+   561→                    </tr>
+   562→                  ))}
+   563→                  {projects.length === 0 && (
+   564→                    <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">No projects found.</td></tr>
+   565→                  )}
+   566→                </tbody>
+   567→              </table>
+   568→            </div>
+   569→          )}
+   570→        </CardContent>
+   571→      </Card>
+   572→    </div>
+   573→  );
+   574→}
+   575→
+   576→// ---------------------------------------------------------------------------
+   577→// Funding tab
+   578→// ---------------------------------------------------------------------------
+   579→
+   580→type FundingRecord = {
+   581→  id: string;
+   582→  type: string;
+   583→  amountMinor: number;
+   584→  currency: string;
+   585→  status: string;
+   586→  provider: string;
+   587→  providerTxRef: string | null;
+   588→  isSimulated: boolean;
+   589→  initiatedAt: string;
+   590→  confirmedAt: string | null;
+   591→  failureReason: string | null;
+   592→  project: { id: string; title: string; slug: string };
+   593→  milestone: { id: string; title: string } | null;
+   594→  initiatedBy: { id: string; displayName: string; email: string };
+   595→  webhookEvents: Array<{ id: string; eventType: string; signatureValid: boolean; processedAt: string | null; createdAt: string }>;
+   596→};
+   597→
+   598→function FundingTab() {
+   599→  const [records, setRecords] = useState<FundingRecord[]>([]);
+   600→  const [total, setTotal] = useState(0);
+   601→  const [loading, setLoading] = useState(true);
+   602→  const [statusFilter, setStatusFilter] = useState("");
+   603→  const [typeFilter, setTypeFilter] = useState("");
+   604→  const [aggregates, setAggregates] = useState<{
+   605→    byStatus: Array<{ status: string; count: number }>;
+   606→    byType: Array<{ type: string; count: number }>;
+   607→    volumeByStatus: Array<{ status: string; totalAmountMinor: number }>;
+   608→  } | null>(null);
+   609→
+   610→  const load = () => {
+   611→    setLoading(true);
+   612→    const params = new URLSearchParams();
+   613→    if (statusFilter) params.set("status", statusFilter);
+   614→    if (typeFilter) params.set("type", typeFilter);
+   615→    api.get<{ records: FundingRecord[]; total: number; aggregates: typeof aggregates }>(`/api/admin/funding?${params.toString()}`)
+   616→      .then((r) => { setRecords(r.records); setTotal(r.total); setAggregates(r.aggregates); })
+   617→      .finally(() => setLoading(false));
+   618→  };
+   619→  useEffect(load, [statusFilter, typeFilter]);
+   620→
+   621→  return (
+   622→    <div className="space-y-4">
+   623→      {/* Aggregate summary */}
+   624→      {aggregates && (
+   625→        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+   626→          {aggregates.byStatus.map((s) => {
+   627→            const vol = aggregates.volumeByStatus.find((v) => v.status === s.status);
+   628→            return (
+   629→              <Card key={s.status}>
+   630→                <CardContent className="p-3">
+   631→                  <div className="text-xs text-muted-foreground">{s.status}</div>
+   632→                  <div className="font-semibold mt-0.5">{s.count} records</div>
+   633→                  {vol && vol.totalAmountMinor > 0 && (
+   634→                    <div className="text-xs text-muted-foreground">{formatMinor(vol.totalAmountMinor, "NGN")}</div>
+   635→                  )}
+   636→                </CardContent>
+   637→              </Card>
+   638→            );
+   639→          })}
+   640→        </div>
+   641→      )}
+   642→
+   643→      <Card>
+   644→        <CardContent className="p-3 flex gap-2 items-end">
+   645→          <div className="space-y-1">
+   646→            <Label className="text-xs">Status</Label>
+   647→            <Select value={statusFilter || "ALL"} onValueChange={(v) => setStatusFilter(v === "ALL" ? "" : v)}>
+   648→              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+   649→              <SelectContent>
+   650→                <SelectItem value="ALL">All</SelectItem>
+   651→                <SelectItem value="INITIATED">Initiated</SelectItem>
+   652→                <SelectItem value="PROVIDER_CONFIRMED">Confirmed</SelectItem>
+   653→                <SelectItem value="FAILED">Failed</SelectItem>
+   654→                <SelectItem value="CANCELLED">Cancelled</SelectItem>
+   655→                <SelectItem value="DISPUTED">Disputed</SelectItem>
+   656→              </SelectContent>
+   657→            </Select>
+   658→          </div>
+   659→          <div className="space-y-1">
+   660→            <Label className="text-xs">Type</Label>
+   661→            <Select value={typeFilter || "ALL"} onValueChange={(v) => setTypeFilter(v === "ALL" ? "" : v)}>
+   662→              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+   663→              <SelectContent>
+   664→                <SelectItem value="ALL">All</SelectItem>
+   665→                <SelectItem value="FUNDING">Funding</SelectItem>
+   666→                <SelectItem value="RELEASE">Release</SelectItem>
+   667→                <SelectItem value="REFUND">Refund</SelectItem>
+   668→              </SelectContent>
+   669→            </Select>
+   670→          </div>
+   671→        </CardContent>
+   672→      </Card>
+   673→
+   674→      <Card>
+   675→        <CardHeader className="pb-3">
+   676→          <CardTitle className="text-base">Funding records ({total})</CardTitle>
+   677→          <CardDescription>Transaction history and payment records.</CardDescription>
+   678→        </CardHeader>
+   679→        <CardContent className="p-0">
+   680→          {loading ? <LoadingState /> : (
+   681→            <div className="overflow-x-auto">
+   682→              <table className="w-full text-sm">
+   683→                <thead className="bg-muted/30 text-xs text-muted-foreground">
+   684→                  <tr>
+   685→                    <th className="text-left p-2">Type / Status</th>
+   686→                    <th className="text-right p-2">Amount</th>
+   687→                    <th className="text-left p-2">Project</th>
+   688→                    <th className="text-left p-2">Initiated by</th>
+   689→                    <th className="text-left p-2">Provider</th>
+   690→                    <th className="text-left p-2">Webhooks</th>
+   691→                    <th className="text-left p-2">Initiated</th>
+   692→                  </tr>
+   693→                </thead>
+   694→                <tbody>
+   695→                  {records.map((r) => (
+   696→                    <tr key={r.id} className="border-t hover:bg-muted/30 align-top">
+   697→                      <td className="p-2">
+   698→                        <div className="flex items-center gap-1 flex-wrap">
+   699→                          <Badge variant="outline" className="text-xs">{r.type}</Badge>
+   700→                          <Badge variant={r.status === "PROVIDER_CONFIRMED" ? "default" : r.status === "FAILED" ? "destructive" : "secondary"} className="text-xs">{r.status}</Badge>
+   701→                          
+   702→                        </div>
+   703→                      </td>
+   704→                      <td className="p-2 text-right font-medium">{formatMinor(r.amountMinor, r.currency)}</td>
+   705→                      <td className="p-2 text-xs">
+   706→                        <div className="font-medium">{r.project.title}</div>
+   707→                        {r.milestone && <div className="text-muted-foreground">{r.milestone.title}</div>}
+   708→                      </td>
+   709→                      <td className="p-2 text-xs">
+   710→                        <div>{r.initiatedBy.displayName}</div>
+   711→                        <div className="text-muted-foreground">{r.initiatedBy.email}</div>
+   712→                      </td>
+   713→                      <td className="p-2 text-xs">
+   714→                        <div>{r.provider}</div>
+   715→                        {r.providerTxRef && <div className="text-muted-foreground font-mono">{r.providerTxRef.slice(0, 18)}…</div>}
+   716→                        {r.failureReason && <div className="text-destructive mt-1">{r.failureReason}</div>}
+   717→                      </td>
+   718→                      <td className="p-2 text-xs">
+   719→                        {r.webhookEvents.length === 0 ? (
+   720→                          <span className="text-muted-foreground">none</span>
+   721→                        ) : (
+   722→                          <ul className="space-y-0.5">
+   723→                            {r.webhookEvents.map((w) => (
+   724→                              <li key={w.id} className="flex items-center gap-1">
+   725→                                {!w.signatureValid && <AlertTriangle className="h-3 w-3 text-destructive" />}
+   726→                                <span>{w.eventType}</span>
+   727→                                {w.processedAt && <CheckCircle2 className="h-3 w-3 text-primary" />}
+   728→                              </li>
+   729→                            ))}
+   730→                          </ul>
+   731→                        )}
+   732→                      </td>
+   733→                      <td className="p-2 text-xs text-muted-foreground">{timeAgo(r.initiatedAt)}</td>
+   734→                    </tr>
+   735→                  ))}
+   736→                  {records.length === 0 && (
+   737→                    <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No funding records.</td></tr>
+   738→                  )}
+   739→                </tbody>
+   740→              </table>
+   741→            </div>
+   742→          )}
+   743→        </CardContent>
+   744→      </Card>
+   745→    </div>
+   746→  );
+   747→}
+   748→
+   749→// ---------------------------------------------------------------------------
+   750→// Disputes tab
+   751→// ---------------------------------------------------------------------------
+   752→
+   753→type AdminDispute = {
+   754→  id: string;
+   755→  title: string;
+   756→  description: string;
+   757→  category: string;
+   758→  status: string;
+   759→  createdAt: string;
+   760→  project: { id: string; title: string; slug: string };
+   761→  opener: { id: string; displayName: string; email: string };
+   762→  milestone: { id: string; title: string; status: string } | null;
+   763→  reviews: Array<{ id: string; outcome: string | null; reviewer: { id: string; displayName: string; email: string } }>;
+   764→  _count: { evidence: number; messages: number };
+   765→};
+   766→
+   767→function DisputesTab() {
+   768→  const { navigate } = useNav();
+   769→  const [disputes, setDisputes] = useState<AdminDispute[]>([]);
+   770→  const [total, setTotal] = useState(0);
+   771→  const [loading, setLoading] = useState(true);
+   772→  const [statusFilter, setStatusFilter] = useState("");
+   773→
+   774→  const load = () => {
+   775→    setLoading(true);
+   776→    const params = new URLSearchParams();
+   777→    if (statusFilter) params.set("status", statusFilter);
+   778→    api.get<{ disputes: AdminDispute[]; total: number }>(`/api/admin/disputes?${params.toString()}`)
+   779→      .then((r) => { setDisputes(r.disputes); setTotal(r.total); })
+   780→      .finally(() => setLoading(false));
+   781→  };
+   782→  useEffect(load, [statusFilter]);
+   783→
+   784→  return (
+   785→    <div className="space-y-4">
+   786→      <Card>
+   787→        <CardContent className="p-3 flex gap-2 items-end">
+   788→          <div className="space-y-1">
+   789→            <Label className="text-xs">Status filter</Label>
+   790→            <Select value={statusFilter || "ALL"} onValueChange={(v) => setStatusFilter(v === "ALL" ? "" : v)}>
+   791→              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+   792→              <SelectContent>
+   793→                <SelectItem value="ALL">All</SelectItem>
+   794→                <SelectItem value="OPEN">Open</SelectItem>
+   795→                <SelectItem value="UNDER_REVIEW">Under review</SelectItem>
+   796→                <SelectItem value="RESOLVED">Resolved</SelectItem>
+   797→                <SelectItem value="ESCALATED">Escalated</SelectItem>
+   798→                <SelectItem value="CLOSED">Closed</SelectItem>
+   799→              </SelectContent>
+   800→            </Select>
+   801→          </div>
+   802→        </CardContent>
+   803→      </Card>
+   804→
+   805→      <Card>
+   806→        <CardHeader className="pb-3">
+   807→          <CardTitle className="text-base">Disputes ({total})</CardTitle>
+   808→        </CardHeader>
+   809→        <CardContent className="p-0">
+   810→          {loading ? <LoadingState /> : (
+   811→            <ul className="divide-y">
+   812→              {disputes.map((d) => (
+   813→                <li
+   814→                  key={d.id}
+   815→                  className="p-3 hover:bg-muted/30 cursor-pointer"
+   816→                  onClick={() => navigate({ view: "project-dispute-detail", projectId: d.project.id, disputeId: d.id })}
+   817→                >
+   818→                  <div className="flex items-center gap-2 flex-wrap">
+   819→                    <h3 className="font-medium">{d.title}</h3>
+   820→                    <Badge variant="outline" className="text-xs">{d.category}</Badge>
+   821→                    <Badge variant={d.status === "OPEN" ? "destructive" : d.status === "RESOLVED" ? "default" : "secondary"} className="text-xs">{d.status}</Badge>
+   822→                  </div>
+   823→                  <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{d.description}</p>
+   824→                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-2">
+   825→                    <span>Project: {d.project.title}</span>
+   826→                    <span>· Opener: {d.opener.displayName}</span>
+   827→                    <span>· {d._count.evidence} evidence · {d._count.messages} messages</span>
+   828→                    {d.milestone && <span>· Milestone: {d.milestone.title} ({d.milestone.status})</span>}
+   829→                    <span>· {timeAgo(d.createdAt)}</span>
+   830→                  </div>
+   831→                  {d.reviews.length > 0 && (
+   832→                    <div className="text-xs mt-1">
+   833→                      Reviews: {d.reviews.map((r) => `${r.reviewer.displayName} (${r.outcome ?? "pending"})`).join(", ")}
+   834→                    </div>
+   835→                  )}
+   836→                </li>
+   837→              ))}
+   838→              {disputes.length === 0 && (
+   839→                <li className="p-6 text-center text-muted-foreground">No disputes found.</li>
+   840→              )}
+   841→            </ul>
+   842→          )}
+   843→        </CardContent>
+   844→      </Card>
+   845→    </div>
+   846→  );
+   847→}
+   848→
+   849→// ---------------------------------------------------------------------------
+   850→// Audit tab
+   851→// ---------------------------------------------------------------------------
+   852→
+   853→type AuditEvent = {
+   854→  id: string;
+   855→  action: string;
+   856→  targetType: string | null;
+   857→  targetId: string | null;
+   858→  metadata: string;
+   859→  ipAddress: string | null;
+   860→  createdAt: string;
+   861→  actor: { id: string; displayName: string; email: string } | null;
+   862→};
+   863→
+   864→function AuditTab() {
+   865→  const [events, setEvents] = useState<AuditEvent[]>([]);
+   866→  const [total, setTotal] = useState(0);
+   867→  const [topActions, setTopActions] = useState<Array<{ action: string; _count: { action: number } }>>([]);
+   868→  const [loading, setLoading] = useState(true);
+   869→  const [actionFilter, setActionFilter] = useState("");
+   870→  const [actorFilter, setActorFilter] = useState("");
+   871→
+   872→  const load = () => {
+   873→    setLoading(true);
+   874→    const params = new URLSearchParams();
+   875→    if (actionFilter) params.set("action", actionFilter);
+   876→    if (actorFilter) params.set("actorId", actorFilter);
+   877→    api.get<{ events: AuditEvent[]; total: number; topActions: typeof topActions }>(`/api/admin/audit?${params.toString()}`)
+   878→      .then((r) => { setEvents(r.events); setTotal(r.total); setTopActions(r.topActions); })
+   879→      .finally(() => setLoading(false));
+   880→  };
+   881→  useEffect(load, [actionFilter, actorFilter]);
+   882→
+   883→  return (
+   884→    <div className="space-y-4">
+   885→      <Card>
+   886→        <CardContent className="p-3 flex gap-2 items-end">
+   887→          <div className="flex-1 space-y-1">
+   888→            <Label className="text-xs">Filter by action</Label>
+   889→            <Input value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} placeholder="e.g. auth, project, payment" />
+   890→          </div>
+   891→          <div className="flex-1 space-y-1">
+   892→            <Label className="text-xs">Filter by user ID</Label>
+   893→            <Input value={actorFilter} onChange={(e) => setActorFilter(e.target.value)} placeholder="cmv…" />
+   894→          </div>
+   895→        </CardContent>
+   896→      </Card>
+   897→
+   898→      <Card>
+   899→        <CardHeader className="pb-3">
+   900→          <CardTitle className="text-base">Audit Log ({total})</CardTitle>
+   901→        </CardHeader>
+   902→        <CardContent className="p-0">
+   903→          {loading ? <LoadingState /> : (
+   904→            <div className="overflow-x-auto">
+   905→              <table className="w-full text-sm">
+   906→                <thead className="bg-muted/30 text-xs text-muted-foreground">
+   907→                  <tr>
+   908→                    <th className="text-left p-2">Action</th>
+   909→                    <th className="text-left p-2">User</th>
+   910→                    <th className="text-left p-2">Target</th>
+   911→                    <th className="text-left p-2">IP</th>
+   912→                    <th className="text-left p-2">Timestamp</th>
+   913→                  </tr>
+   914→                </thead>
+   915→                <tbody>
+   916→                  {events.length === 0 && (
+   917→                    <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">No audit events.</td></tr>
+   918→                  )}
+   919→                  {events.map((e) => {
+   920→                    let meta: Record<string, unknown> = {};
+   921→                    try { meta = JSON.parse(e.metadata || "{}"); } catch {}
+   922→                    return (
+   923→                      <tr key={e.id} className="border-t hover:bg-muted/30">
+   924→                        <td className="p-2">
+   925→                          <Badge variant="outline" className="text-xs">{e.action}</Badge>
+   926→                        </td>
+   927→                        <td className="p-2">
+   928→                          <div className="font-medium">{e.actor?.displayName ?? "System"}</div>
+   929→                          <div className="text-xs text-muted-foreground">{e.actor?.email ?? "—"}</div>
+   930→                        </td>
+   931→                        <td className="p-2">
+   932→                          {e.targetType ? (
+   933→                            <Badge variant="secondary" className="text-xs">{e.targetType}</Badge>
+   934→                          ) : "—"}
+   935→                        </td>
+   936→                        <td className="p-2 text-xs text-muted-foreground font-mono">{e.ipAddress ?? "—"}</td>
+   937→                        <td className="p-2 text-xs text-muted-foreground">{formatDateTime(e.createdAt)}</td>
+   938→                      </tr>
+   939→                    );
+   940→                  })}
+   941→                </tbody>
+   942→              </table>
+   943→            </div>
+   944→          )}
+   945→        </CardContent>
+   946→      </Card>
+   947→    </div>
+   948→  );
+   949→}
+   950→
+   951→// ---------------------------------------------------------------------------
+   952→// AI tab
+   953→// ---------------------------------------------------------------------------
+   954→
+   955→type AiActivity = {
+   956→  id: string;
+   957→  assistantType: string;
+   958→  prompt: string;
+   959→  response: string;
+   960→  tokensUsed: number;
+   961→  fallbackUsed: boolean;
+   962→  createdAt: string;
+   963→  user: { id: string; displayName: string; email: string };
+   964→  project: { id: string; title: string } | null;
+   965→};
+   966→
+   967→function AiTab() {
+   968→  const [activities, setActivities] = useState<AiActivity[]>([]);
+   969→  const [total, setTotal] = useState(0);
+   970→  const [aggregates, setAggregates] = useState<{
+   971→    byAssistant: Array<{ assistant: string; count: number; tokensUsed: number }>;
+   972→    totalTokensUsed: number;
+   973→    fallbackCount: number;
+   974→    fallbackRate: number;
+   975→  } | null>(null);
+   976→  const [loading, setLoading] = useState(true);
+   977→  const [assistantFilter, setAssistantFilter] = useState("");
+   978→  const [onlyFallback, setOnlyFallback] = useState(false);
+   979→
+   980→  const load = () => {
+   981→    setLoading(true);
+   982→    const params = new URLSearchParams();
+   983→    if (assistantFilter) params.set("assistant", assistantFilter);
+   984→    if (onlyFallback) params.set("fallback", "true");
+   985→    api.get<{ activities: AiActivity[]; total: number; aggregates: typeof aggregates }>(`/api/admin/ai-activity?${params.toString()}`)
+   986→      .then((r) => { setActivities(r.activities); setTotal(r.total); setAggregates(r.aggregates); })
+   987→      .finally(() => setLoading(false));
+   988→  };
+   989→  useEffect(load, [assistantFilter, onlyFallback]);
+   990→
+   991→  return (
+   992→    <div className="space-y-4">
+   993→      {aggregates && (
+   994→        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+   995→          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Total calls</div><div className="font-semibold mt-0.5">{total}</div></CardContent></Card>
+   996→          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Total tokens used</div><div className="font-semibold mt-0.5">{aggregates.totalTokensUsed.toLocaleString()}</div></CardContent></Card>
+   997→          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Fallback count</div><div className="font-semibold mt-0.5 text-amber-700 dark:text-amber-400">{aggregates.fallbackCount}</div></CardContent></Card>
+   998→          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Fallback rate</div><div className="font-semibold mt-0.5">{(aggregates.fallbackRate * 100).toFixed(1)}%</div></CardContent></Card>
+   999→        </div>
+  1000→      )}
+  1001→
+  1002→      {aggregates && aggregates.byAssistant.length > 0 && (
+  1003→        <Card>
+  1004→          <CardHeader className="pb-3"><CardTitle className="text-base">By assistant</CardTitle></CardHeader>
+  1005→          <CardContent className="space-y-2">
+  1006→            {aggregates.byAssistant.map((a) => (
+  1007→              <div key={a.assistant} className="flex items-center justify-between text-sm">
+  1008→                <span>{a.assistant}</span>
+  1009→                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+  1010→                  <span>{a.count} calls</span>
+  1011→                  <span>{a.tokensUsed.toLocaleString()} tokens</span>
+  1012→                </div>
+  1013→              </div>
+  1014→            ))}
+  1015→          </CardContent>
+  1016→        </Card>
+  1017→      )}
+  1018→
+  1019→      <Card>
+  1020→        <CardContent className="p-3 flex gap-2 items-end flex-wrap">
+  1021→          <div className="space-y-1">
+  1022→            <Label className="text-xs">Assistant</Label>
+  1023→            <Select value={assistantFilter || "ALL"} onValueChange={(v) => setAssistantFilter(v === "ALL" ? "" : v)}>
+  1024→              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+  1025→              <SelectContent>
+  1026→                <SelectItem value="ALL">All</SelectItem>
+  1027→                <SelectItem value="TEAM_PLANNER">Team Planner</SelectItem>
+  1028→                <SelectItem value="TASK_PLANNER">Task Planner</SelectItem>
+  1029→                <SelectItem value="CONTRACT">Contract</SelectItem>
+  1030→                <SelectItem value="FUNDING">Funding</SelectItem>
+  1031→                <SelectItem value="RISK">Risk</SelectItem>
+  1032→                <SelectItem value="EVIDENCE">Evidence</SelectItem>
+  1033→                <SelectItem value="PROGRESS">Progress</SelectItem>
+  1034→              </SelectContent>
+  1035→            </Select>
+  1036→          </div>
+  1037→          <label className="flex items-center gap-2 text-sm">
+  1038→            <input type="checkbox" checked={onlyFallback} onChange={(e) => setOnlyFallback(e.target.checked)} />
+  1039→            Only fallback responses
+  1040→          </label>
+  1041→        </CardContent>
+  1042→      </Card>
+  1043→
+  1044→      <Card>
+  1045→        <CardHeader className="pb-3"><CardTitle className="text-base">Recent AI activity</CardTitle></CardHeader>
+  1046→        <CardContent className="p-0">
+  1047→          {loading ? <LoadingState /> : (
+  1048→            <ul className="divide-y max-h-[600px] overflow-y-auto">
+  1049→              {activities.map((a) => (
+  1050→                <li key={a.id} className="p-3 text-sm">
+  1051→                  <div className="flex items-center gap-2 flex-wrap mb-1">
+  1052→                    <Badge variant="outline" className="text-xs">{a.assistantType}</Badge>
+  1053→                    {a.fallbackUsed && <Badge variant="outline" className="text-xs text-amber-700 border-amber-500">fallback</Badge>}
+  1054→                    <span className="text-xs text-muted-foreground">{a.tokensUsed} tokens</span>
+  1055→                  </div>
+  1056→                  <div className="text-xs text-muted-foreground">
+  1057→                    {a.user.displayName} · {a.project?.title ?? "no project"} · {timeAgo(a.createdAt)}
+  1058→                  </div>
+  1059→                  <details className="mt-1">
+  1060→                    <summary className="text-xs cursor-pointer text-muted-foreground">View prompt + response</summary>
+  1061→                    <div className="mt-2 space-y-2">
+  1062→                      <div>
+  1063→                        <div className="text-xs font-medium text-muted-foreground">Prompt:</div>
+  1064→                        <pre className="text-xs bg-muted/50 rounded p-2 mt-1 whitespace-pre-wrap">{a.prompt}</pre>
+  1065→                      </div>
+  1066→                      <div>
+  1067→                        <div className="text-xs font-medium text-muted-foreground">Response:</div>
+  1068→                        <pre className="text-xs bg-muted/50 rounded p-2 mt-1 whitespace-pre-wrap">{a.response}</pre>
+  1069→                      </div>
+  1070→                    </div>
+  1071→                  </details>
+  1072→                </li>
+  1073→              ))}
+  1074→              {activities.length === 0 && <li className="p-6 text-center text-muted-foreground">No AI activity yet.</li>}
+  1075→            </ul>
+  1076→          )}
+  1077→        </CardContent>
+  1078→      </Card>
+  1079→    </div>
+  1080→  );
+  1081→}
+  1082→
+  1083→// ---------------------------------------------------------------------------
+  1084→// Privacy tab
+  1085→// ---------------------------------------------------------------------------
+  1086→
+  1087→type PrivacyRequest = {
+  1088→  id: string;
+  1089→  type: string;
+  1090→  status: string;
+  1091→  result: string | null;
+  1092→  createdAt: string;
+  1093→  completedAt: string | null;
+  1094→  user: { id: string; displayName: string; email: string; accountStatus: string };
+  1095→};
+  1096→
+  1097→function PrivacyTab() {
+  1098→  const [requests, setRequests] = useState<PrivacyRequest[]>([]);
+  1099→  const [total, setTotal] = useState(0);
+  1100→  const [loading, setLoading] = useState(true);
+  1101→  const [statusFilter, setStatusFilter] = useState("");
+  1102→  const [actingId, setActingId] = useState<string | null>(null);
+  1103→
+  1104→  const load = () => {
+  1105→    setLoading(true);
+  1106→    const params = new URLSearchParams();
+  1107→    if (statusFilter) params.set("status", statusFilter);
+  1108→    api.get<{ requests: PrivacyRequest[]; total: number }>(`/api/admin/privacy-requests?${params.toString()}`)
+  1109→      .then((r) => { setRequests(r.requests); setTotal(r.total); })
+  1110→      .finally(() => setLoading(false));
+  1111→  };
+  1112→  useEffect(load, [statusFilter]);
+  1113→
+  1114→  const update = async (id: string, status: "PROCESSING" | "READY" | "COMPLETED" | "DENIED") => {
+  1115→    setActingId(id);
+  1116→    try {
+  1117→      const result = status === "DENIED" ? prompt("Reason for denial (optional):") ?? "" : "";
+  1118→      await api.patch("/api/admin/privacy-requests", { requestId: id, status, result: result || undefined });
+  1119→      load();
+  1120→    } catch (err) {
+  1121→      alert((err as Error).message);
+  1122→    } finally {
+  1123→      setActingId(null);
+  1124→    }
+  1125→  };
+  1126→
+  1127→  return (
+  1128→    <div className="space-y-4">
+  1129→      <Card>
+  1130→        <CardContent className="p-3 flex gap-2 items-end">
+  1131→          <div className="space-y-1">
+  1132→            <Label className="text-xs">Status</Label>
+  1133→            <Select value={statusFilter || "ALL"} onValueChange={(v) => setStatusFilter(v === "ALL" ? "" : v)}>
+  1134→              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+  1135→              <SelectContent>
+  1136→                <SelectItem value="ALL">All</SelectItem>
+  1137→                <SelectItem value="PENDING">Pending</SelectItem>
+  1138→                <SelectItem value="PROCESSING">Processing</SelectItem>
+  1139→                <SelectItem value="READY">Ready</SelectItem>
+  1140→                <SelectItem value="COMPLETED">Completed</SelectItem>
+  1141→                <SelectItem value="DENIED">Denied</SelectItem>
+  1142→              </SelectContent>
+  1143→            </Select>
+  1144→          </div>
+  1145→        </CardContent>
+  1146→      </Card>
+  1147→
+  1148→      <Card>
+  1149→        <CardHeader className="pb-3"><CardTitle className="text-base">Privacy requests ({total})</CardTitle></CardHeader>
+  1150→        <CardContent className="p-0">
+  1151→          {loading ? <LoadingState /> : (
+  1152→            <ul className="divide-y">
+  1153→              {requests.map((r) => (
+  1154→                <li key={r.id} className="p-3 text-sm">
+  1155→                  <div className="flex items-center justify-between gap-3 flex-wrap">
+  1156→                    <div className="min-w-0 flex-1">
+  1157→                      <div className="flex items-center gap-2 flex-wrap">
+  1158→                        <Badge variant="outline" className="text-xs">{r.type}</Badge>
+  1159→                        <Badge variant={r.status === "PENDING" ? "destructive" : r.status === "COMPLETED" ? "default" : "secondary"} className="text-xs">{r.status}</Badge>
+  1160→                      </div>
+  1161→                      <div className="mt-1">
+  1162→                        <span className="font-medium">{r.user.displayName}</span>
+  1163→                        <span className="text-muted-foreground ml-1">({r.user.email})</span>
+  1164→                      </div>
+  1165→                      <div className="text-xs text-muted-foreground mt-0.5">
+  1166→                        Requested {timeAgo(r.createdAt)} · Account: {r.user.accountStatus}
+  1167→                        {r.completedAt && ` · Completed ${timeAgo(r.completedAt)}`}
+  1168→                      </div>
+  1169→                      {r.result && <div className="text-xs mt-1">Result: {r.result}</div>}
+  1170→                    </div>
+  1171→                    {r.status === "PENDING" && (
+  1172→                      <div className="flex gap-1">
+  1173→                        {actingId === r.id ? (
+  1174→                          <Loader2 className="h-4 w-4 animate-spin" />
+  1175→                        ) : (
+  1176→                          <>
+  1177→                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => update(r.id, "PROCESSING")}>Mark processing</Button>
+  1178→                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => update(r.id, "READY")}>Mark ready</Button>
+  1179→                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => update(r.id, "COMPLETED")}>Mark completed</Button>
+  1180→                            <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => update(r.id, "DENIED")}>Deny</Button>
+  1181→                          </>
+  1182→                        )}
+  1183→                      </div>
+  1184→                    )}
+  1185→                    {r.status === "PROCESSING" && (
+  1186→                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => update(r.id, "READY")}>Mark ready</Button>
+  1187→                    )}
+  1188→                  </div>
+  1189→                </li>
+  1190→              ))}
+  1191→              {requests.length === 0 && <li className="p-6 text-center text-muted-foreground">No privacy requests.</li>}
+  1192→            </ul>
+  1193→          )}
+  1194→        </CardContent>
+  1195→      </Card>
+  1196→    </div>
+  1197→  );
+  1198→}
+  1199→
+  1200→// ---------------------------------------------------------------------------
+  1201→// Webhooks tab
+  1202→// ---------------------------------------------------------------------------
+  1203→
+  1204→type WebhookEvent = {
+  1205→  id: string;
+  1206→  provider: string;
+  1207→  eventType: string;
+  1208→  providerEventId: string | null;
+  1209→  signatureValid: boolean;
+  1210→  payload: string;
+  1211→  processedAt: string | null;
+  1212→  createdAt: string;
+  1213→  fundingRecord: {
+  1214→    id: string;
+  1215→    providerTxRef: string;
+  1216→    status: string;
+  1217→    amountMinor: number;
+  1218→    currency: string;
+  1219→    project: { id: string; title: string };
+  1220→  } | null;
+  1221→};
+  1222→
+  1223→function WebhooksTab() {
+  1224→  const [events, setEvents] = useState<WebhookEvent[]>([]);
+  1225→  const [total, setTotal] = useState(0);
+  1226→  const [aggregates, setAggregates] = useState<{
+  1227→    invalidSignatureCount: number;
+  1228→    unprocessedCount: number;
+  1229→    byProvider: Array<{ provider: string; count: number }>;
+  1230→  } | null>(null);
+  1231→  const [loading, setLoading] = useState(true);
+  1232→  const [filterValid, setFilterValid] = useState("");
+  1233→  const [unprocessedOnly, setUnprocessedOnly] = useState(false);
+  1234→
+  1235→  const load = () => {
+  1236→    setLoading(true);
+  1237→    const params = new URLSearchParams();
+  1238→    if (filterValid === "true") params.set("signatureValid", "true");
+  1239→    if (filterValid === "false") params.set("signatureValid", "false");
+  1240→    if (unprocessedOnly) params.set("unprocessed", "true");
+  1241→    api.get<{ events: WebhookEvent[]; total: number; aggregates: typeof aggregates }>(`/api/admin/webhooks?${params.toString()}`)
+  1242→      .then((r) => { setEvents(r.events); setTotal(r.total); setAggregates(r.aggregates); })
+  1243→      .finally(() => setLoading(false));
+  1244→  };
+  1245→  useEffect(load, [filterValid, unprocessedOnly]);
+  1246→
+  1247→  return (
+  1248→    <div className="space-y-4">
+  1249→      {aggregates && (
+  1250→        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+  1251→          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Total</div><div className="font-semibold mt-0.5">{total}</div></CardContent></Card>
+  1252→          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Invalid signatures</div><div className="font-semibold mt-0.5 text-destructive">{aggregates.invalidSignatureCount}</div></CardContent></Card>
+  1253→          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Unprocessed</div><div className="font-semibold mt-0.5 text-amber-700 dark:text-amber-400">{aggregates.unprocessedCount}</div></CardContent></Card>
+  1254→          <Card><CardContent className="p-3">
+  1255→            <div className="text-xs text-muted-foreground">By provider</div>
+  1256→            <div className="text-xs mt-0.5">
+  1257→              {aggregates.byProvider.map((p) => `${p.provider}: ${p.count}`).join(" · ")}
+  1258→            </div>
+  1259→          </CardContent></Card>
+  1260→        </div>
+  1261→      )}
+  1262→
+  1263→      <Card>
+  1264→        <CardContent className="p-3 flex gap-4 items-end flex-wrap">
+  1265→          <div className="space-y-1">
+  1266→            <Label className="text-xs">Signature</Label>
+  1267→            <Select value={filterValid || "ALL"} onValueChange={(v) => setFilterValid(v === "ALL" ? "" : v)}>
+  1268→              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+  1269→              <SelectContent>
+  1270→                <SelectItem value="ALL">All</SelectItem>
+  1271→                <SelectItem value="true">Valid only</SelectItem>
+  1272→                <SelectItem value="false">Invalid only</SelectItem>
+  1273→              </SelectContent>
+  1274→            </Select>
+  1275→          </div>
+  1276→          <label className="flex items-center gap-2 text-sm pb-2">
+  1277→            <input type="checkbox" checked={unprocessedOnly} onChange={(e) => setUnprocessedOnly(e.target.checked)} />
+  1278→            Unprocessed only
+  1279→          </label>
+  1280→        </CardContent>
+  1281→      </Card>
+  1282→
+  1283→      <Card>
+  1284→        <CardHeader className="pb-3"><CardTitle className="text-base">Webhook events ({total})</CardTitle></CardHeader>
+  1285→        <CardContent className="p-0">
+  1286→          {loading ? <LoadingState /> : (
+  1287→            <ul className="divide-y max-h-[600px] overflow-y-auto">
+  1288→              {events.map((e) => (
+  1289→                <li key={e.id} className="p-3 text-sm">
+  1290→                  <div className="flex items-center gap-2 flex-wrap">
+  1291→                    <Badge variant="outline" className="text-xs">{e.provider}</Badge>
+  1292→                    <Badge variant="secondary" className="text-xs">{e.eventType}</Badge>
+  1293→                    {!e.signatureValid && <Badge variant="destructive" className="text-xs">invalid signature</Badge>}
+  1294→                    {e.processedAt ? <Badge variant="default" className="text-xs">processed</Badge> : <Badge variant="outline" className="text-xs text-amber-700 border-amber-500">unprocessed</Badge>}
+  1295→                  </div>
+  1296→                  <div className="text-xs text-muted-foreground mt-1">
+  1297→                    {timeAgo(e.createdAt)}
+  1298→                    {e.providerEventId && ` · event: ${e.providerEventId.slice(0, 24)}…`}
+  1299→                  </div>
+  1300→                  {e.fundingRecord && (
+  1301→                    <div className="text-xs mt-1">
+  1302→                      Funding: {formatMinor(e.fundingRecord.amountMinor, e.fundingRecord.currency)} ·{" "}
+  1303→                      {e.fundingRecord.project.title} · status: {e.fundingRecord.status}
+  1304→                    </div>
+  1305→                  )}
+  1306→                  <details className="mt-1">
+  1307→                    <summary className="text-xs cursor-pointer text-muted-foreground">View payload</summary>
+  1308→                    <pre className="text-xs bg-muted/50 rounded p-2 mt-1 overflow-x-auto">{e.payload}</pre>
+  1309→                  </details>
+  1310→                </li>
+  1311→              ))}
+  1312→              {events.length === 0 && <li className="p-6 text-center text-muted-foreground">No webhook events.</li>}
+  1313→            </ul>
+  1314→          )}
+  1315→        </CardContent>
+  1316→      </Card>
+  1317→    </div>
+  1318→  );
+  1319→}
+  1320→
+  1321→// ---------------------------------------------------------------------------
+  1322→// Shared states
+  1323→// ---------------------------------------------------------------------------
+  1324→
+  1325→function LoadingState() {
+  1326→  return (
+  1327→    <div className="flex items-center justify-center py-12">
+  1328→      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+  1329→    </div>
+  1330→  );
+  1331→}
+  1332→
+  1333→function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  1334→  return (
+  1335→    <Card>
+  1336→      <CardContent className="py-12 text-center">
+  1337→        <AlertTriangle className="h-10 w-10 mx-auto text-destructive mb-3" />
+  1338→        <h3 className="font-semibold mb-1">Failed to load</h3>
+  1339→        <p className="text-sm text-muted-foreground mb-4">{message}</p>
+  1340→        <Button onClick={onRetry} variant="outline"><ArrowRight className="h-4 w-4 mr-2" /> Retry</Button>
+  1341→      </CardContent>
+  1342→    </Card>
+  1343→  );
+  1344→}
+  1345→
+  1346→// ---------------------------------------------------------------------------
+  1347→// KYC tab
+  1348→// ---------------------------------------------------------------------------
+  1349→
+  1350→type AdminKyc = {
+  1351→  id: string;
+  1352→  status: string;
+  1353→  provider: string;
+  1354→  ninNumberLast4: string;
+  1355→  fullName: string;
+  1356→  selfieMatch: boolean | null;
+  1357→  livenessPassed: boolean | null;
+  1358→  confidenceScore: number | null;
+  1359→  failureReason: string | null;
+  1360→  createdAt: string;
+  1361→  verifiedAt: string | null;
+  1362→  expiresAt: string | null;
+  1363→  user: { id: string; displayName: string; email: string };
+  1364→};
+  1365→
+  1366→function KycTab() {
+  1367→  const [verifications, setVerifications] = useState<AdminKyc[]>([]);
+  1368→  const [total, setTotal] = useState(0);
+  1369→  const [aggregates, setAggregates] = useState<{ byStatus: Array<{ status: string; count: number }> } | null>(null);
+  1370→  const [loading, setLoading] = useState(true);
+  1371→  const [statusFilter, setStatusFilter] = useState("");
+  1372→
+  1373→  const load = () => {
+  1374→    setLoading(true);
+  1375→    const params = new URLSearchParams();
+  1376→    if (statusFilter) params.set("status", statusFilter);
+  1377→    api.get<{ verifications: AdminKyc[]; total: number; aggregates: typeof aggregates }>(`/api/admin/kyc?${params.toString()}`)
+  1378→      .then((r) => { setVerifications(r.verifications); setTotal(r.total); setAggregates(r.aggregates); })
+  1379→      .finally(() => setLoading(false));
+  1380→  };
+  1381→  useEffect(load, [statusFilter]);
+  1382→
+  1383→  return (
+  1384→    <div className="space-y-4">
+  1385→      {aggregates && (
+  1386→        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+  1387→          {aggregates.byStatus.map((s) => (
+  1388→            <Card key={s.status}>
+  1389→              <CardContent className="p-3">
+  1390→                <div className="text-xs text-muted-foreground">{s.status}</div>
+  1391→                <div className="font-semibold mt-0.5">{s.count}</div>
+  1392→              </CardContent>
+  1393→            </Card>
+  1394→          ))}
+  1395→        </div>
+  1396→      )}
+  1397→
+  1398→      <Card>
+  1399→        <CardContent className="p-3 flex gap-2 items-end">
+  1400→          <div className="space-y-1">
+  1401→            <Label className="text-xs">Status filter</Label>
+  1402→            <Select value={statusFilter || "ALL"} onValueChange={(v) => setStatusFilter(v === "ALL" ? "" : v)}>
+  1403→              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+  1404→              <SelectContent>
+  1405→                <SelectItem value="ALL">All</SelectItem>
+  1406→                <SelectItem value="PENDING">Pending</SelectItem>
+  1407→                <SelectItem value="IN_PROGRESS">In progress</SelectItem>
+  1408→                <SelectItem value="VERIFIED">Verified</SelectItem>
+  1409→                <SelectItem value="REJECTED">Rejected</SelectItem>
+  1410→                <SelectItem value="EXPIRED">Expired</SelectItem>
+  1411→              </SelectContent>
+  1412→            </Select>
+  1413→          </div>
+  1414→        </CardContent>
+  1415→      </Card>
+  1416→
+  1417→      <Card>
+  1418→        <CardHeader className="pb-3">
+  1419→          <CardTitle className="text-base">KYC Verifications ({total})</CardTitle>
+  1420→        </CardHeader>
+  1421→        <CardContent className="p-0">
+  1422→          {loading ? <LoadingState /> : (
+  1423→            <div className="overflow-x-auto">
+  1424→              <table className="w-full text-sm">
+  1425→                <thead className="bg-muted/30 text-xs text-muted-foreground">
+  1426→                  <tr>
+  1427→                    <th className="text-left p-2">User</th>
+  1428→                    <th className="text-left p-2">Status</th>
+  1429→                    <th className="text-left p-2">Provider</th>
+  1430→                    <th className="text-left p-2">NIN</th>
+  1431→                    <th className="text-left p-2">Name</th>
+  1432→                    <th className="text-center p-2">Selfie</th>
+  1433→                    <th className="text-center p-2">Liveness</th>
+  1434→                    <th className="text-right p-2">Score</th>
+  1435→                    <th className="text-left p-2">Verified</th>
+  1436→                  </tr>
+  1437→                </thead>
+  1438→                <tbody>
+  1439→                  {verifications.length === 0 && (
+  1440→                    <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">No KYC verifications yet.</td></tr>
+  1441→                  )}
+  1442→                  {verifications.map((v) => (
+  1443→                    <tr key={v.id} className="border-t hover:bg-muted/30 align-top">
+  1444→                      <td className="p-2">
+  1445→                        <div className="font-medium">{v.user.displayName}</div>
+  1446→                        <div className="text-xs text-muted-foreground">{v.user.email}</div>
+  1447→                      </td>
+  1448→                      <td className="p-2">
+  1449→                        <Badge variant={v.status === "VERIFIED" ? "default" : v.status === "REJECTED" ? "destructive" : "secondary"} className="text-xs">
+  1450→                          {v.status}
+  1451→                        </Badge>
+  1452→                      </td>
+  1453→                      <td className="p-2 text-xs">{v.provider}</td>
+  1454→                      <td className="p-2 text-xs font-mono">****{v.ninNumberLast4}</td>
+  1455→                      <td className="p-2 text-xs">{v.fullName}</td>
+  1456→                      <td className="p-2 text-center">
+  1457→                        {v.selfieMatch === true ? <CheckCircle2 className="h-4 w-4 text-primary inline" /> :
+  1458→                         v.selfieMatch === false ? <XCircle className="h-4 w-4 text-destructive inline" /> : "—"}
+  1459→                      </td>
+  1460→                      <td className="p-2 text-center">
+  1461→                        {v.livenessPassed === true ? <CheckCircle2 className="h-4 w-4 text-primary inline" /> :
+  1462→                         v.livenessPassed === false ? <XCircle className="h-4 w-4 text-destructive inline" /> : "—"}
+  1463→                      </td>
+  1464→                      <td className="p-2 text-right text-xs">
+  1465→                        {v.confidenceScore ? `${v.confidenceScore.toFixed(1)}%` : "—"}
+  1466→                      </td>
+  1467→                      <td className="p-2 text-xs text-muted-foreground">
+  1468→                        {v.verifiedAt ? formatDateTime(v.verifiedAt) : "—"}
+  1469→                      </td>
+  1470→                    </tr>
+  1471→                  ))}
+  1472→                </tbody>
+  1473→              </table>
+  1474→            </div>
+  1475→          )}
+  1476→        </CardContent>
+  1477→      </Card>
+  1478→    </div>
+  1479→  );
+  1480→}
+  1481→
+  1482→// ---------------------------------------------------------------------------
+  1483→// Payments tab
+  1484→// ---------------------------------------------------------------------------
+  1485→
+  1486→type AdminPayment = {
+  1487→  id: string;
+  1488→  paymentReference: string;
+  1489→  provider: string;
+  1490→  providerReference: string | null;
+  1491→  amountMinor: number;
+  1492→  currency: string;
+  1493→  status: string;
+  1494→  feeMinor: number;
+  1495→  netMinor: number;
+  1496→  feeRateBps: number;
+  1497→  paymentMethod: string | null;
+  1498→  createdAt: string;
+  1499→  paidAt: string | null;
+  1500→  user: { id: string; displayName: string; email: string };
+  1501→  project: { id: string; title: string } | null;
+  1502→  milestone: { id: string; title: string } | null;
+  1503→};
+  1504→
+  1505→type AdminPayout = {
+  1506→  id: string;
+  1507→  payoutReference: string;
+  1508→  projectTitle: string;
+  1509→  milestoneTitle?: string;
+  1510→  payee: { id: string; displayName: string; email: string };
+  1511→  initiatedBy: { id: string; displayName: string };
+  1512→  provider: string;
+  1513→  providerReference: string | null;
+  1514→  amountMinor: number;
+  1515→  feeMinor: number;
+  1516→  netMinor: number;
+  1517→  currency: string;
+  1518→  payeeAccountName: string;
+  1519→  payeeAccountNumber: string;
+  1520→  payeeBankName: string;
+  1521→  status: string;
+  1522→  failureReason: string | null;
+  1523→  initiatedAt: string;
+  1524→  settledAt: string | null;
+  1525→  failedAt: string | null;
+  1526→};
+  1527→
+  1528→type AdminPayoutsResponse = {
+  1529→  payouts: AdminPayout[];
+  1530→  stats: Array<{ status: string; count: number; totalAmountMinor: number; totalNetMinor: number }>;
+  1531→  pagination: { page: number; limit: number; total: number; pages: number };
+  1532→};
+  1533→
+  1534→function PayoutsTab() {
+  1535→  const [data, setData] = useState<AdminPayoutsResponse | null>(null);
+  1536→  const [loading, setLoading] = useState(true);
+  1537→  const [error, setError] = useState<string | null>(null);
+  1538→  const [statusFilter, setStatusFilter] = useState<string>("");
+  1539→
+  1540→  const load = () => {
+  1541→    setLoading(true);
+  1542→    const qs = statusFilter ? `?status=${statusFilter}` : "";
+  1543→    api.get<AdminPayoutsResponse>(`/api/admin/payouts${qs}`)
+  1544→      .then((d) => setData(d))
+  1545→      .catch((e: Error) => setError(e.message))
+  1546→      .finally(() => setLoading(false));
+  1547→  };
+  1548→  useEffect(load, [statusFilter]);
+  1549→
+  1550→  async function handleVerify(payoutId: string) {
+  1551→    try {
+  1552→      await api.post(`/api/payouts/${payoutId}/verify`, {});
+  1553→      load();
+  1554→    } catch (e) {
+  1555→      setError(e instanceof Error ? e.message : "Verify failed");
+  1556→    }
+  1557→  }
+  1558→
+  1559→  if (loading) return <LoadingState />;
+  1560→  if (error || !data) return <ErrorState message={error ?? "Failed to load payouts"} onRetry={load} />;
+  1561→
+  1562→  const statsByStatus = new Map(data.stats.map((s) => [s.status, s]));
+  1563→  const pending = statsByStatus.get("PENDING");
+  1564→  const succeeded = statsByStatus.get("SUCCEEDED");
+  1565→  const failed = statsByStatus.get("FAILED");
+  1566→
+  1567→  return (
+  1568→    <div className="space-y-4">
+  1569→      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+  1570→        <Card>
+  1571→          <CardHeader className="pb-2">
+  1572→            <CardDescription>Pending payouts</CardDescription>
+  1573→            <CardTitle className="text-2xl">{pending?.count ?? 0}</CardTitle>
+  1574→          </CardHeader>
+  1575→          <CardContent>
+  1576→            <div className="text-xs text-muted-foreground">
+  1577→              {pending ? formatMinor(pending.totalNetMinor) : "₦0.00"}
+  1578→            </div>
+  1579→          </CardContent>
+  1580→        </Card>
+  1581→        <Card>
+  1582→          <CardHeader className="pb-2">
+  1583→            <CardDescription>Successful payouts</CardDescription>
+  1584→            <CardTitle className="text-2xl text-emerald-600">{succeeded?.count ?? 0}</CardTitle>
+  1585→          </CardHeader>
+  1586→          <CardContent>
+  1587→            <div className="text-xs text-muted-foreground">
+  1588→              {succeeded ? formatMinor(succeeded.totalNetMinor) : "₦0.00"}
+  1589→            </div>
+  1590→          </CardContent>
+  1591→        </Card>
+  1592→        <Card>
+  1593→          <CardHeader className="pb-2">
+  1594→            <CardDescription>Failed payouts</CardDescription>
+  1595→            <CardTitle className="text-2xl text-destructive">{failed?.count ?? 0}</CardTitle>
+  1596→          </CardHeader>
+  1597→          <CardContent>
+  1598→            <div className="text-xs text-muted-foreground">
+  1599→              {failed ? formatMinor(failed.totalNetMinor) : "₦0.00"}
+  1600→            </div>
+  1601→          </CardContent>
+  1602→        </Card>
+  1603→      </div>
+  1604→
+  1605→      <Card>
+  1606→        <CardHeader>
+  1607→          <CardTitle className="text-base flex items-center justify-between">
+  1608→            <span>All payouts</span>
+  1609→            <div className="flex items-center gap-2">
+  1610→              <Select value={statusFilter} onValueChange={setStatusFilter}>
+  1611→                <SelectTrigger className="w-[160px] h-8">
+  1612→                  <SelectValue placeholder="All statuses" />
+  1613→                </SelectTrigger>
+  1614→                <SelectContent>
+  1615→                  <SelectItem value="">All statuses</SelectItem>
+  1616→                  <SelectItem value="PENDING">Pending</SelectItem>
+  1617→                  <SelectItem value="SUCCEEDED">Succeeded</SelectItem>
+  1618→                  <SelectItem value="FAILED">Failed</SelectItem>
+  1619→                  <SelectItem value="REVERSED">Reversed</SelectItem>
+  1620→                </SelectContent>
+  1621→              </Select>
+  1622→              <Button variant="outline" size="sm" onClick={load}>
+  1623→                <RefreshCw className="h-3 w-3 mr-1" /> Refresh
+  1624→              </Button>
+  1625→            </div>
+  1626→          </CardTitle>
+  1627→        </CardHeader>
+  1628→        <CardContent className="p-0">
+  1629→          {data.payouts.length === 0 ? (
+  1630→            <div className="py-10 text-center text-muted-foreground">
+  1631→              <Banknote className="h-8 w-8 mx-auto mb-2" />
+  1632→              No payouts yet. When a project owner releases an approved milestone, payouts to workers will appear here.
+  1633→            </div>
+  1634→          ) : (
+  1635→            <div className="overflow-x-auto">
+  1636→              <table className="w-full text-sm">
+  1637→                <thead className="border-b bg-muted/40">
+  1638→                  <tr>
+  1639→                    <th className="text-left p-3 font-medium">Payee</th>
+  1640→                    <th className="text-left p-3 font-medium">Project</th>
+  1641→                    <th className="text-right p-3 font-medium">Amount</th>
+  1642→                    <th className="text-left p-3 font-medium">Bank</th>
+  1643→                    <th className="text-left p-3 font-medium">Status</th>
+  1644→                    <th className="text-left p-3 font-medium">Initiated</th>
+  1645→                    <th className="text-right p-3 font-medium">Actions</th>
+  1646→                  </tr>
+  1647→                </thead>
+  1648→                <tbody className="divide-y">
+  1649→                  {data.payouts.map((p) => (
+  1650→                    <tr key={p.id} className="hover:bg-muted/30">
+  1651→                      <td className="p-3">
+  1652→                        <div className="font-medium">{p.payee.displayName}</div>
+  1653→                        <div className="text-xs text-muted-foreground">{p.payee.email}</div>
+  1654→                      </td>
+  1655→                      <td className="p-3">
+  1656→                        <div className="text-sm">{p.projectTitle}</div>
+  1657→                        {p.milestoneTitle && (
+  1658→                          <div className="text-xs text-muted-foreground">{p.milestoneTitle}</div>
+  1659→                        )}
+  1660→                      </td>
+  1661→                      <td className="p-3 text-right">
+  1662→                        <div className="font-medium">{formatMinor(p.netMinor, p.currency)}</div>
+  1663→                        <div className="text-xs text-muted-foreground">{p.provider}</div>
+  1664→                      </td>
+  1665→                      <td className="p-3">
+  1666→                        <div className="text-xs">{p.payeeBankName}</div>
+  1667→                        <div className="text-xs font-mono text-muted-foreground">{p.payeeAccountNumber}</div>
+  1668→                        <div className="text-xs text-muted-foreground">{p.payeeAccountName}</div>
+  1669→                      </td>
+  1670→                      <td className="p-3">
+  1671→                        <Badge
+  1672→                          variant={
+  1673→                            p.status === "SUCCEEDED"
+  1674→                              ? "default"
+  1675→                              : p.status === "FAILED"
+  1676→                              ? "destructive"
+  1677→                              : "secondary"
+  1678→                          }
+  1679→                        >
+  1680→                          {p.status}
+  1681→                        </Badge>
+  1682→                        {p.failureReason && (
+  1683→                          <div className="text-xs text-destructive mt-1 max-w-[200px]">
+  1684→                            {p.failureReason}
+  1685→                          </div>
+  1686→                        )}
+  1687→                      </td>
+  1688→                      <td className="p-3 text-xs text-muted-foreground">
+  1689→                        {formatDateTime(p.initiatedAt)}
+  1690→                        {p.settledAt && <div>settled {formatDateTime(p.settledAt)}</div>}
+  1691→                        {p.failedAt && <div>failed {formatDateTime(p.failedAt)}</div>}
+  1692→                      </td>
+  1693→                      <td className="p-3 text-right">
+  1694→                        {p.status === "PENDING" && (
+  1695→                          <Button size="sm" variant="outline" onClick={() => handleVerify(p.id)}>
+  1696→                            <RefreshCw className="h-3 w-3 mr-1" /> Verify
+  1697→                          </Button>
+  1698→                        )}
+  1699→                      </td>
+  1700→                    </tr>
+  1701→                  ))}
+  1702→                </tbody>
+  1703→              </table>
+  1704→            </div>
+  1705→          )}
+  1706→        </CardContent>
+  1707→      </Card>
+  1708→    </div>
+  1709→  );
+  1710→}
+  1711→
+  1712→function PaymentsTab() {
+  1713→  const [transactions, setTransactions] = useState<AdminPayment[]>([]);
+  1714→  const [total, setTotal] = useState(0);
+  1715→  const [aggregates, setAggregates] = useState<{
+  1716→    byStatus: Array<{ status: string; count: number }>;
+  1717→    byProvider: Array<{ provider: string; count: number }>;
+  1718→    totalAmountMinor: number;
+  1719→    totalFeeMinor: number;
+  1720→    totalNetMinor: number;
+  1721→    totalCount: number;
+  1722→  } | null>(null);
+  1723→  const [providers, setProviders] = useState<Array<{ name: string; enabled: boolean; configured: boolean; environment: string; message: string }>>([]);
+  1724→  const [livePayments, setLivePayments] = useState(false);
+  1725→  const [loading, setLoading] = useState(true);
+  1726→  const [statusFilter, setStatusFilter] = useState("");
+  1727→
+  1728→  const [fundingRecords, setFundingRecords] = useState<FundingRecord[]>([]);
+  1729→
+  1730→  const load = () => {
+  1731→    setLoading(true);
+  1732→    const params = new URLSearchParams();
+  1733→    if (statusFilter) params.set("status", statusFilter);
+  1734→    Promise.all([
+  1735→      api.get<{
+  1736→        transactions: AdminPayment[];
+  1737→        total: number;
+  1738→        aggregates: typeof aggregates;
+  1739→        providers: typeof providers;
+  1740→        livePaymentsEnabled: boolean;
+  1741→      }>(`/api/admin/payments?${params.toString()}`),
+  1742→      api.get<{ records: FundingRecord[]; total: number }>(`/api/admin/funding?limit=10`),
+  1743→    ])
+  1744→      .then(([payData, fundData]) => {
+  1745→        setTransactions(payData.transactions);
+  1746→        setTotal(payData.total);
+  1747→        setAggregates(payData.aggregates);
+  1748→        setProviders(payData.providers);
+  1749→        setLivePayments(payData.livePaymentsEnabled);
+  1750→        setFundingRecords(fundData.records ?? []);
+  1751→      })
+  1752→      .finally(() => setLoading(false));
+  1753→  };
+  1754→  useEffect(load, [statusFilter]);
+  1755→
+  1756→  return (
+  1757→    <div className="space-y-4">
+  1758→      {/* Provider status */}
+  1759→      <Card>
+  1760→        <CardHeader className="pb-3">
+  1761→          <CardTitle className="text-base">Payment Providers</CardTitle>
+  1762→        </CardHeader>
+  1763→        <CardContent>
+  1764→          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+  1765→            {providers.map((p) => (
+  1766→              <div key={p.name} className="border rounded p-3">
+  1767→                <div className="flex items-center justify-between mb-1">
+  1768→                  <span className="font-medium capitalize">{p.name}</span>
+  1769→                  <Badge variant={p.enabled ? "default" : "secondary"} className="text-xs">
+  1770→                    {p.enabled ? "Enabled" : "Disabled"}
+  1771→                  </Badge>
+  1772→                </div>
+  1773→                <div className="text-xs text-muted-foreground">{p.message}</div>
+  1774→                <div className="text-xs text-muted-foreground mt-1">Env: {p.environment}</div>
+  1775→              </div>
+  1776→            ))}
+  1777→          </div>
+  1778→          <div className="mt-3 flex items-center gap-2 text-sm">
+  1779→            <Badge variant={livePayments ? "default" : "outline"}>
+  1780→              {livePayments ? "Live payments ON" : "Live payments OFF"}
+  1781→            </Badge>
+  1782→            <span className="text-muted-foreground">Fee rate: {process.env.PLATFORM_FEE_BPS ?? "150"} bps (1.5%)</span>
+  1783→          </div>
+  1784→        </CardContent>
+  1785→      </Card>
+  1786→
+  1787→      {/* Aggregates */}
+  1788→      {aggregates && (
+  1789→        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+  1790→          <Card><CardContent className="p-3">
+  1791→            <div className="text-xs text-muted-foreground">Total Volume</div>
+  1792→            <div className="font-semibold mt-0.5">{formatMinor(aggregates.totalAmountMinor, "NGN")}</div>
+  1793→          </CardContent></Card>
+  1794→          <Card><CardContent className="p-3">
+  1795→            <div className="text-xs text-muted-foreground">Platform Fees</div>
+  1796→            <div className="font-semibold mt-0.5 text-primary">{formatMinor(aggregates.totalFeeMinor, "NGN")}</div>
+  1797→          </CardContent></Card>
+  1798→          <Card><CardContent className="p-3">
+  1799→            <div className="text-xs text-muted-foreground">Net to Freelancers</div>
+  1800→            <div className="font-semibold mt-0.5">{formatMinor(aggregates.totalNetMinor, "NGN")}</div>
+  1801→          </CardContent></Card>
+  1802→          <Card><CardContent className="p-3">
+  1803→            <div className="text-xs text-muted-foreground">Transactions</div>
+  1804→            <div className="font-semibold mt-0.5">{aggregates.totalCount}</div>
+  1805→          </CardContent></Card>
+  1806→        </div>
+  1807→      )}
+  1808→
+  1809→      {/* Status filter */}
+  1810→      <Card>
+  1811→        <CardContent className="p-3">
+  1812→          <div className="space-y-1">
+  1813→            <Label className="text-xs">Status filter</Label>
+  1814→            <Select value={statusFilter || "ALL"} onValueChange={(v) => setStatusFilter(v === "ALL" ? "" : v)}>
+  1815→              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+  1816→              <SelectContent>
+  1817→                <SelectItem value="ALL">All</SelectItem>
+  1818→                <SelectItem value="CREATED">Created</SelectItem>
+  1819→                <SelectItem value="PENDING">Pending</SelectItem>
+  1820→                <SelectItem value="SUCCEEDED">Succeeded</SelectItem>
+  1821→                <SelectItem value="FAILED">Failed</SelectItem>
+  1822→                <SelectItem value="REFUNDED">Refunded</SelectItem>
+  1823→                <SelectItem value="CANCELED">Canceled</SelectItem>
+  1824→              </SelectContent>
+  1825→            </Select>
+  1826→          </div>
+  1827→        </CardContent>
+  1828→      </Card>
+  1829→
+  1830→      {/* Transactions table */}
+  1831→      <Card>
+  1832→        <CardHeader className="pb-3">
+  1833→          <CardTitle className="text-base">Payment Transactions ({total})</CardTitle>
+  1834→        </CardHeader>
+  1835→        <CardContent className="p-0">
+  1836→          {loading ? <LoadingState /> : (
+  1837→            <div className="overflow-x-auto">
+  1838→              <table className="w-full text-sm">
+  1839→                <thead className="bg-muted/30 text-xs text-muted-foreground">
+  1840→                  <tr>
+  1841→                    <th className="text-left p-2">User</th>
+  1842→                    <th className="text-left p-2">Status</th>
+  1843→                    <th className="text-left p-2">Provider</th>
+  1844→                    <th className="text-left p-2">Project</th>
+  1845→                    <th className="text-right p-2">Amount</th>
+  1846→                    <th className="text-right p-2">Fee (1.5%)</th>
+  1847→                    <th className="text-right p-2">Net</th>
+  1848→                    <th className="text-left p-2">Date</th>
+  1849→                  </tr>
+  1850→                </thead>
+  1851→                <tbody>
+  1852→                  {transactions.length === 0 && (
+  1853→                    <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">No payment transactions yet.</td></tr>
+  1854→                  )}
+  1855→                  {transactions.map((t) => (
+  1856→                    <tr key={t.id} className="border-t hover:bg-muted/30">
+  1857→                      <td className="p-2">
+  1858→                        <div className="font-medium">{t.user.displayName}</div>
+  1859→                        <div className="text-xs text-muted-foreground">{t.user.email}</div>
+  1860→                      </td>
+  1861→                      <td className="p-2">
+  1862→                        <Badge variant={t.status === "SUCCEEDED" ? "default" : t.status === "FAILED" ? "destructive" : "secondary"} className="text-xs">
+  1863→                          {t.status}
+  1864→                        </Badge>
+  1865→                      </td>
+  1866→                      <td className="p-2 text-xs capitalize">{t.provider}</td>
+  1867→                      <td className="p-2 text-xs">{t.project?.title ?? "—"}</td>
+  1868→                      <td className="p-2 text-right font-medium">{formatMinor(t.amountMinor, t.currency)}</td>
+  1869→                      <td className="p-2 text-right text-primary">{formatMinor(t.feeMinor, t.currency)}</td>
+  1870→                      <td className="p-2 text-right">{formatMinor(t.netMinor, t.currency)}</td>
+  1871→                      <td className="p-2 text-xs text-muted-foreground">{formatDateTime(t.createdAt)}</td>
+  1872→                    </tr>
+  1873→                  ))}
+  1874→                </tbody>
+  1875→              </table>
+  1876→            </div>
+  1877→          )}
+  1878→        </CardContent>
+  1879→      </Card>
+  1880→    </div>
+  1881→  );
+  1882→}
+  1883→
+  1884→// ---------------------------------------------------------------------------
+  1885→// Gateway tab — payment gateway configuration
+  1886→// ---------------------------------------------------------------------------
+  1887→
+  1888→type PaymentSettings = {
+  1889→  feeRateBps: number;
+  1890→  livePaymentsEnabled: boolean;
+  1891→  livePayoutsEnabled: boolean;
+  1892→  defaultProvider: string;
+  1893→  monnify: {
+  1894→    enabled: boolean;
+  1895→    environment: string;
+  1896→    hasApiKey: boolean;
+  1897→    hasSecretKey: boolean;
+  1898→    hasContractCode: boolean;
+  1899→    contractCode: string;
+  1900→  };
+  1901→  opay: {
+  1902→    enabled: boolean;
+  1903→    environment: string;
+  1904→    hasMerchantId: boolean;
+  1905→    hasPublicKey: boolean;
+  1906→    hasPrivateKey: boolean;
+  1907→    merchantId: string;
+  1908→  };
+  1909→};
+  1910→
+  1911→function GatewayTab() {
+  1912→  const [settings, setSettings] = useState<PaymentSettings | null>(null);
+  1913→  const [loading, setLoading] = useState(true);
+  1914→  const [saving, setSaving] = useState(false);
+  1915→  const [saved, setSaved] = useState(false);
+  1916→  const [error, setError] = useState<string | null>(null);
+  1917→
+  1918→  // Form state
+  1919→  const [feeRate, setFeeRate] = useState("150");
+  1920→  const [livePayments, setLivePayments] = useState(false);
+  1921→  const [defaultProvider, setDefaultProvider] = useState("monnify");
+  1922→  const [monnifyEnabled, setMonnifyEnabled] = useState(false);
+  1923→  const [monnifyEnv, setMonnifyEnv] = useState("sandbox");
+  1924→  const [monnifyApiKey, setMonnifyApiKey] = useState("");
+  1925→  const [monnifySecretKey, setMonnifySecretKey] = useState("");
+  1926→  const [monnifyContractCode, setMonnifyContractCode] = useState("");
+  1927→  const [opayEnabled, setOpayEnabled] = useState(false);
+  1928→  const [opayEnv, setOpayEnv] = useState("sandbox");
+  1929→  const [opayMerchantId, setOpayMerchantId] = useState("");
+  1930→  const [opayPublicKey, setOpayPublicKey] = useState("");
+  1931→  const [opayPrivateKey, setOpayPrivateKey] = useState("");
+  1932→
+  1933→  const load = () => {
+  1934→    setLoading(true);
+  1935→    api.get<PaymentSettings>("/api/admin/payment-settings")
+  1936→      .then((s) => {
+  1937→        setSettings(s);
+  1938→        setFeeRate(String(s.feeRateBps));
+  1939→        setLivePayments(s.livePaymentsEnabled);
+  1940→        setDefaultProvider(s.defaultProvider);
+  1941→        setMonnifyEnabled(s.monnify.enabled);
+  1942→        setMonnifyEnv(s.monnify.environment);
+  1943→        setMonnifyContractCode(s.monnify.contractCode);
+  1944→        setOpayEnabled(s.opay.enabled);
+  1945→        setOpayEnv(s.opay.environment);
+  1946→        setOpayMerchantId(s.opay.merchantId);
+  1947→      })
+  1948→      .finally(() => setLoading(false));
+  1949→  };
+  1950→  useEffect(load, []);
+  1951→
+  1952→  const save = async () => {
+  1953→    setSaving(true);
+  1954→    setError(null);
+  1955→    setSaved(false);
+  1956→    try {
+  1957→      const update: Record<string, unknown> = {
+  1958→        feeRateBps: parseInt(feeRate, 10),
+  1959→        livePaymentsEnabled: livePayments,
+  1960→        defaultProvider,
+  1961→        monnifyEnabled,
+  1962→        monnifyEnvironment: monnifyEnv,
+  1963→        opayEnabled,
+  1964→        opayEnvironment: opayEnv,
+  1965→      };
+  1966→      if (monnifyApiKey) update.monnifyApiKey = monnifyApiKey;
+  1967→      if (monnifySecretKey) update.monnifySecretKey = monnifySecretKey;
+  1968→      if (monnifyContractCode) update.monnifyContractCode = monnifyContractCode;
+  1969→      if (opayMerchantId) update.opayMerchantId = opayMerchantId;
+  1970→      if (opayPublicKey) update.opayPublicKey = opayPublicKey;
+  1971→      if (opayPrivateKey) update.opayPrivateKey = opayPrivateKey;
+  1972→
+  1973→      await api.put("/api/admin/payment-settings", update);
+  1974→      setSaved(true);
+  1975→      setTimeout(() => setSaved(false), 3000);
+  1976→      load(); // reload
+  1977→    } catch (err) {
+  1978→      setError((err as Error).message);
+  1979→    } finally {
+  1980→      setSaving(false);
+  1981→    }
+  1982→  };
+  1983→
+  1984→  if (loading) return <LoadingState />;
+  1985→
+  1986→  return (
+  1987→    <div className="space-y-6">
+  1988→      <div>
+  1989→        <h2 className="text-xl font-bold">Payment Gateway Configuration</h2>
+  1990→        <p className="text-sm text-muted-foreground">Configure payment providers, fee rates, and live mode.</p>
+  1991→      </div>
+  1992→
+  1993→      {/* Fee Configuration */}
+  1994→      <Card>
+  1995→        <CardHeader><CardTitle className="text-base">Platform Fee</CardTitle></CardHeader>
+  1996→        <CardContent className="space-y-3">
+  1997→          <div className="grid grid-cols-2 gap-3">
+  1998→            <div className="space-y-1">
+  1999→              <Label className="text-xs">Fee Rate (basis points)</Label>
+  2000→              <Input value={feeRate} onChange={(e) => setFeeRate(e.target.value.replace(/\D/g, ""))} placeholder="150" />
+
+[showing lines 1-2000 of 2140; use offset=2001 with limit to continue reading]

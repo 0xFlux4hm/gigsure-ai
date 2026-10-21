@@ -1,0 +1,197 @@
+/**
+ * Webhook handler — provider-agnostic confirmation of FundingRecord.
+ *
+ * Called by /api/payments/webhook/[provider]/route.ts AFTER the provider's
+ * signature verification has passed. This module:
+ *
+ *   1. Looks up the FundingRecord by providerTxRef.
+ *   2. Records the WebhookEvent (replay-protected via providerEventId uniqueness).
+ *   3. Updates the FundingRecord status (INITIATED → PROVIDER_CONFIRMED | FAILED).
+ *   4. If type=FUNDING and milestone-bound, advances milestone to FUNDED.
+ *   5. If type=RELEASE, triggers initiatePayoutsForRelease() to disburse funds
+ *      to the worker's bank account via the configured provider.
+ *   6. Records an audit event.
+ *
+ * This module is provider-neutral: Monnify webhooks, OPay webhooks, and any
+ * future provider all funnel through this same confirmation logic. Only the
+ * signature verification differs per provider — that stays in the provider's
+ * verifyWebhook() method.
+ */
+import { db } from "@/lib/db";
+import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
+import { initiatePayoutsForRelease } from "@/lib/payments/payout-service";
+
+export type FundingStatus =
+  | "DRAFT"
+  | "INITIATED"
+  | "PROVIDER_CONFIRMED"
+  | "PARTIALLY_CONFIRMED"
+  | "FAILED"
+  | "CANCELLED"
+  | "DISPUTED";
+
+export type ConfirmFundingInput = {
+  provider: string; // "monnify" | "opay"
+  providerEventId: string;
+  providerTxRef: string;
+  eventType: string;
+  amountMinor: number;
+  currency: string;
+  status: FundingStatus;
+  failureReason?: string;
+  rawPayload: string;
+  signatureValid: boolean;
+  paymentTransactionId?: string; // optional link to PaymentTransaction if it exists
+};
+
+export type ConfirmFundingResult = {
+  processed: boolean;
+  reason?: string;
+  fundingRecordId?: string;
+};
+
+/**
+ * Idempotent webhook handler. Records the WebhookEvent for replay protection,
+ * updates the linked FundingRecord, and triggers downstream actions
+ * (milestone advancement, payouts).
+ *
+ * Safe to call multiple times with the same providerEventId — the second
+ * call is a no-op.
+ */
+export async function confirmFundingRecord(
+  input: ConfirmFundingInput,
+): Promise<ConfirmFundingResult> {
+  // Replay protection: if this providerEventId was already processed, bail.
+  const existing = await db.webhookEvent.findUnique({
+    where: { providerEventId: input.providerEventId },
+  });
+  if (existing) {
+    return { processed: false, reason: "duplicate_event" };
+  }
+
+  // Locate the funding record by provider transaction reference.
+  const record = await db.fundingRecord.findUnique({
+    where: { providerTxRef: input.providerTxRef },
+  });
+  if (!record) {
+    // Still record the webhook so we have evidence — but no funding update.
+    await db.webhookEvent.create({
+      data: {
+        provider: input.provider,
+        providerEventId: input.providerEventId,
+        eventType: input.eventType,
+        signatureValid: input.signatureValid,
+        payload: input.rawPayload,
+        paymentTransactionId: input.paymentTransactionId,
+        processedAt: new Date(),
+      },
+    });
+    return { processed: false, reason: "funding_record_not_found" };
+  }
+
+  // Atomic update: record webhook + update funding status in one transaction
+  await db.$transaction([
+    db.webhookEvent.create({
+      data: {
+        provider: input.provider,
+        providerEventId: input.providerEventId,
+        eventType: input.eventType,
+        signatureValid: input.signatureValid,
+        payload: input.rawPayload,
+        fundingRecordId: record.id,
+        paymentTransactionId: input.paymentTransactionId,
+        processedAt: new Date(),
+      },
+    }),
+    db.fundingRecord.update({
+      where: { id: record.id },
+      data: {
+        status: input.status,
+        confirmedAt: input.status === "PROVIDER_CONFIRMED" ? new Date() : record.confirmedAt,
+        failureReason: input.failureReason ?? null,
+      },
+    }),
+  ]);
+
+  // If milestone funding confirmed, advance milestone status
+  if (
+    input.status === "PROVIDER_CONFIRMED" &&
+    record.milestoneId &&
+    record.type === "FUNDING"
+  ) {
+    const milestone = await db.milestone.findUnique({
+      where: { id: record.milestoneId },
+    });
+    if (milestone && milestone.status === "AWAITING_FUNDING") {
+      await db.milestone.update({
+        where: { id: milestone.id },
+        data: { status: "FUNDED" },
+      });
+    }
+  }
+
+  // If milestone release confirmed, trigger the actual payout(s) to the worker(s).
+  // This is where the real money movement is initiated — the platform pays out
+  // from its escrow balance to the worker's bank account via the provider.
+  if (
+    input.status === "PROVIDER_CONFIRMED" &&
+    record.type === "RELEASE"
+  ) {
+    try {
+      const payoutResult = await initiatePayoutsForRelease({
+        projectId: record.projectId,
+        milestoneId: record.milestoneId,
+        fundingRecordId: record.id,
+        initiatedById: record.initiatedById,
+        totalAmountMinor: record.amountMinor,
+        currency: record.currency,
+      });
+
+      await recordAuditEvent({
+        actorId: record.initiatedById,
+        projectId: record.projectId,
+        fundingRecordId: record.id,
+        action: "payout.batch_initiated",
+        targetType: "FundingRecord",
+        targetId: record.id,
+        metadata: {
+          payoutCount: payoutResult.payouts.length,
+          totalDisbursedMinor: payoutResult.totalDisbursedMinor,
+        },
+      });
+    } catch (err) {
+      // Log the failure but don't roll back the funding record —
+      // the release is confirmed by the provider, and the payout
+      // failure will be visible in the Payouts dashboard for admin resolution.
+      logSecurityEvent("error", "payout.batch_initiation_failed", {
+        fundingRecordId: record.id,
+        message: (err as Error)?.message,
+      });
+      await recordAuditEvent({
+        actorId: record.initiatedById,
+        projectId: record.projectId,
+        fundingRecordId: record.id,
+        action: "payout.batch_initiation_failed",
+        targetType: "FundingRecord",
+        targetId: record.id,
+        metadata: { error: (err as Error)?.message },
+      });
+    }
+  }
+
+  await recordAuditEvent({
+    actorId: record.initiatedById,
+    projectId: record.projectId,
+    fundingRecordId: record.id,
+    action: `funding.${input.status.toLowerCase()}`,
+    targetType: "FundingRecord",
+    targetId: record.id,
+    metadata: {
+      providerEventId: input.providerEventId,
+      signatureValid: input.signatureValid,
+      provider: input.provider,
+    },
+  });
+
+  return { processed: true, fundingRecordId: record.id };
+}

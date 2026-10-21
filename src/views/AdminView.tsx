@@ -585,7 +585,6 @@ type FundingRecord = {
   status: string;
   provider: string;
   providerTxRef: string | null;
-  isSimulated: boolean;
   initiatedAt: string;
   confirmedAt: string | null;
   failureReason: string | null;
@@ -1574,7 +1573,7 @@ function PayoutsTab() {
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">
-              {pending ? formatMinor(pending.totalNetMinor) : "₦0.00"}
+              {pending ? formatMinor(pending.totalNetMinor, "NGN") : "₦0.00"}
             </div>
           </CardContent>
         </Card>
@@ -1585,7 +1584,7 @@ function PayoutsTab() {
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">
-              {succeeded ? formatMinor(succeeded.totalNetMinor) : "₦0.00"}
+              {succeeded ? formatMinor(succeeded.totalNetMinor, "NGN") : "₦0.00"}
             </div>
           </CardContent>
         </Card>
@@ -1596,7 +1595,7 @@ function PayoutsTab() {
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">
-              {failed ? formatMinor(failed.totalNetMinor) : "₦0.00"}
+              {failed ? formatMinor(failed.totalNetMinor, "NGN") : "₦0.00"}
             </div>
           </CardContent>
         </Card>
@@ -2007,7 +2006,6 @@ function GatewayTab() {
                 <SelectContent>
                   <SelectItem value="monnify">Monnify</SelectItem>
                   <SelectItem value="opay">OPay</SelectItem>
-                  <SelectItem value="mock">Mock (testing)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2015,9 +2013,9 @@ function GatewayTab() {
           <div className="flex items-center gap-2 pt-2">
             <input type="checkbox" id="livePayments" checked={livePayments} onChange={(e) => setLivePayments(e.target.checked)} className="h-4 w-4" />
             <label htmlFor="livePayments" className="text-sm">
-              Enable live payments
-              {!livePayments && <span className="ml-2 text-xs text-amber-600">(currently in test mode)</span>}
-              {livePayments && <span className="ml-2 text-xs text-green-600">(LIVE — real money will be processed)</span>}
+              Payments enabled
+              {!livePayments && <span className="ml-2 text-xs text-amber-600">(payments paused — no funding or payouts will be processed)</span>}
+              {livePayments && <span className="ml-2 text-xs text-green-600">(active — real money will be processed via configured provider)</span>}
             </label>
           </div>
         </CardContent>

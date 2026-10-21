@@ -38,9 +38,10 @@ export function generateIdempotencyKey(): string {
 }
 
 /**
- * Webhook signature verification. The mock payment provider uses HMAC-SHA256
- * with a shared secret. Real providers (Paystack, Flutterwave) have their own
- * schemes documented in `docs/PAYMENT_INTEGRATION.md`.
+ * Webhook signature verification (HMAC-SHA256 with a shared secret).
+ * Used for internal webhook signing (e.g., release confirmations).
+ * Real payment providers (Monnify, OPay) use HMAC-SHA512 — those signatures
+ * are verified inside their respective provider adapter's verifyWebhook() method.
  */
 export function signWebhookPayload(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("hex");

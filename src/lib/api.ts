@@ -14,7 +14,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { AuthnError, AuthzError } from "@/lib/auth/authorization";
 import { logSecurityEvent } from "@/lib/auth/audit";
-import { PaymentProviderError } from "@/lib/payments/mock-provider";
+import { PaymentProviderError } from "@/lib/payments/errors";
 
 export type ApiHandler<T> = (req: Request, ctx: { params: Record<string, string> }) => Promise<T>;
 

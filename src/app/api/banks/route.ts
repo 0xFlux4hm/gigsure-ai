@@ -36,7 +36,7 @@ export const GET = apiRoute(async () => {
 
   // Fetch fresh from provider.
   try {
-    const provider = getDefaultProvider();
+    const provider = await getDefaultProvider();
     if (!provider.listBanks) {
       // Provider doesn't implement listBanks — fall back to whatever's in DB.
       const fallback = await db.bank.findMany({

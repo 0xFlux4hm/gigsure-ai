@@ -26,7 +26,7 @@ export const GET = apiRoute(async (_req, { params }) => {
   // If transaction is in a non-terminal state, poll the provider for latest status
   if (["CREATED", "PENDING", "REQUIRES_ACTION"].includes(transaction.status)) {
     try {
-      const provider = getProvider(transaction.provider as "mock" | "monnify" | "opay");
+      const provider = getProvider(transaction.provider as "monnify" | "opay");
       if (transaction.providerReference) {
         const result = await provider.verifyPayment(transaction.providerReference);
         if (result.status !== transaction.status) {
@@ -62,7 +62,6 @@ export const GET = apiRoute(async (_req, { params }) => {
     checkoutUrl: transaction.checkoutUrl,
     paidAt: transaction.paidAt,
     createdAt: transaction.createdAt,
-    simulated: transaction.provider === "mock",
     ledgerEntries: transaction.ledgerEntries.map((e) => ({
       type: e.entryType,
       amount: e.amountMinor,

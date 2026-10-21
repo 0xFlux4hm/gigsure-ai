@@ -16,7 +16,6 @@ const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? "file:/tmp/gigsure-te
 process.env.DATABASE_URL = TEST_DATABASE_URL;
 process.env.NEXTAUTH_SECRET = "test-secret-only-for-vitest-32chars";
 process.env.NEXTAUTH_URL = "http://localhost:3000";
-process.env.MOCK_WEBHOOK_SECRET = "test-webhook-secret";
 process.env.NODE_ENV = "test";
 
 beforeAll(() => {

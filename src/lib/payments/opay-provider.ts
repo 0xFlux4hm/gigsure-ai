@@ -346,8 +346,8 @@ export class OpayProvider implements PaymentProvider {
       return OPAY_BANKS_CACHE.banks;
     }
 
-    // OPay uses Monnify's bank list format. We fall back to mock banks here
-    // for sandbox testing and use OPay's bank-list endpoint in production.
+    // OPay bank list endpoint. Throws on API failure — the upstream
+    // /api/banks route will fall back to the DB-cached bank list if needed.
     const requestBody = JSON.stringify({ merchantId: this.merchantId });
     const signature = this.generateSignature(requestBody);
     const res = await fetch(`${this.baseUrl}/bank/list`, {
@@ -363,21 +363,14 @@ export class OpayProvider implements PaymentProvider {
 
     const data = await res.json() as {
       code?: string;
+      message?: string;
       data?: Array<{ bankCode?: string; bankName?: string; shortCode?: string }>;
     };
 
     if (data.code !== "00000" || !Array.isArray(data.data)) {
-      // Fallback to mock banks for sandbox — keeps dev workflow smooth.
-      const mockBanks: BankInfo[] = [
-        { code: "044", name: "Access Bank Nigeria", shortName: "Access" },
-        { code: "050", name: "Ecobank Nigeria", shortName: "Ecobank" },
-        { code: "011", name: "First Bank of Nigeria", shortName: "FirstBank" },
-        { code: "058", name: "Guaranty Trust Bank", shortName: "GTBank" },
-        { code: "033", name: "United Bank for Africa", shortName: "UBA" },
-        { code: "057", name: "Zenith Bank", shortName: "Zenith" },
-      ];
-      OPAY_BANKS_CACHE = { banks: mockBanks, expiresAt: Date.now() + 24 * 60 * 60 * 1000 };
-      return mockBanks;
+      throw new Error(
+        `OPay bank list fetch failed: ${data.message ?? data.code ?? "Unknown error"}`,
+      );
     }
 
     const banks: BankInfo[] = data.data.map((b) => ({
@@ -547,17 +540,16 @@ export class OpayProvider implements PaymentProvider {
   }
 
   // -------------------------------------------------------------------------
-  // RESERVED ACCOUNTS — OPay does not expose a dedicated reserved-accounts API
-  // in the same way Monnify does. We return a generated account reference that
-  // routes to the OPay wallet, or fall back to the hosted checkout.
+  // RESERVED ACCOUNTS — OPay does not expose a dedicated reserved-accounts API.
+  // Clients funding via OPay must use the hosted checkout flow instead.
   // -------------------------------------------------------------------------
 
   async createReservedAccount(input: ReservedAccountInput): Promise<ReservedAccountResult> {
-    // OPay does not natively support per-project virtual accounts the way
-    // Monnify does. We return a deterministic virtual reference that maps
-    // to the platform's OPay wallet, and the client funds via hosted checkout.
+    // OPay does not natively support per-project reserved accounts the way
+    // Monnify does. Clients funding via OPay must use the hosted checkout
+    // flow at /api/payments/initiate instead.
     throw new Error(
-      "OPay does not natively support reserved accounts. Use Monnify provider for virtual accounts, or use OPay hosted checkout instead.",
+      "OPay does not support reserved accounts. Configure Monnify as the default provider to use virtual-account funding, or fund via OPay hosted checkout.",
     );
   }
 

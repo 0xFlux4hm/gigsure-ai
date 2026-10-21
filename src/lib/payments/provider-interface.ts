@@ -6,7 +6,7 @@
  */
 import type { FeePolicy } from "./fee-calculator";
 
-export type PaymentProviderName = "mock" | "monnify" | "opay";
+export type PaymentProviderName = "monnify" | "opay";
 
 export type PaymentState =
   | "CREATED"
@@ -100,7 +100,7 @@ export type ProviderHealth = {
   name: PaymentProviderName;
   enabled: boolean;
   configured: boolean;
-  environment: "sandbox" | "production" | "mock";
+  environment: "sandbox" | "production";
   message: string;
 };
 

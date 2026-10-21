@@ -48,7 +48,6 @@ services:
       DATABASE_URL: postgresql://gigsure:${POSTGRES_PASSWORD}@postgres:5432/gigsure?schema=public
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?must be set}
       NEXTAUTH_URL: ${NEXTAUTH_URL:?must be set}
-      MOCK_WEBHOOK_SECRET: ${MOCK_WEBHOOK_SECRET:?must be set}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}

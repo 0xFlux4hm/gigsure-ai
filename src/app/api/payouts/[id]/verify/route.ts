@@ -47,7 +47,7 @@ export const POST = apiRoute(async (_req, { params }) => {
     return fail("Payout has no provider reference to verify.", 400);
   }
 
-  const provider = getProvider(payout.provider as "mock" | "monnify" | "opay");
+  const provider = getProvider(payout.provider as "monnify" | "opay");
   if (!provider.verifyTransfer) {
     return fail(`Provider ${payout.provider} does not support transfer verification.`, 400);
   }

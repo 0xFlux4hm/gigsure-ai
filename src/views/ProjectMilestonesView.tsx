@@ -20,7 +20,7 @@ type Milestone = {
   status: string;
   orderIndex: number;
   tasks: Array<{ id: string; title: string; status: string }>;
-  fundingRecords: Array<{ id: string; type: string; status: string; amountMinor: number; isSimulated: boolean }>;
+  fundingRecords: Array<{ id: string; type: string; status: string; amountMinor: number }>;
 };
 
 export function ProjectMilestonesView({ projectId }: { projectId: string }) {

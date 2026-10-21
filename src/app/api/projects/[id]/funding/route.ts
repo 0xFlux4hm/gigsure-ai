@@ -2,22 +2,32 @@
  * List & initiate funding records.
  *
  * Types:
- *   - FUNDING: client funds milestone (simulated mock provider).
+ *   - FUNDING: client funds milestone (via virtual account or hosted checkout).
  *   - RELEASE: milestone approved → owner can release funds to collaborator.
  *   - REFUND: client can request refund (only on FUNDING records that are PROVIDER_CONFIRMED).
  *
  * Idempotency: each request returns the same record for the same idempotencyKey.
+ *
+ * Note: This endpoint creates the FundingRecord row in INITIATED status.
+ * For FUNDING records, the client then funds via the virtual account at
+ * /api/projects/[id]/virtual-account OR via hosted checkout at
+ * /api/payments/initiate. When the provider's webhook confirms the payment,
+ * the FundingRecord is advanced to PROVIDER_CONFIRMED by webhook-handler.ts.
+ *
+ * For RELEASE records, the FundingRecord is confirmed synchronously (the
+ * release is initiated by the project owner who has already approved the
+ * milestone). Webhook handler then triggers payouts to the worker.
  */
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
 import { assertPermission, AuthzError } from "@/lib/auth/authorization";
-import { initiateFunding } from "@/lib/payments/mock-provider";
-import { recordAuditEvent } from "@/lib/auth/audit";
+import { createFundingRecord } from "@/lib/payments/funding-service";
+import { confirmFundingRecord } from "@/lib/payments/webhook-handler";
+import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { isUserKycVerified } from "@/lib/kyc/provider";
 import { z } from "zod";
 
-import { logSecurityEvent } from "@/lib/auth/audit";
 const Schema = z.object({
   type: z.enum(["FUNDING", "RELEASE", "REFUND"]),
   milestoneId: z.string().cuid().optional(),
@@ -60,7 +70,12 @@ export const POST = apiRoute(async (req, { params }) => {
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid funding request", 422); }
+  if (!parsed.success) {
+    logSecurityEvent("warn", "api.validation_failed", {
+      issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
+    });
+    return fail("Invalid funding request", 422);
+  }
 
   const project = await db.project.findUnique({
     where: { id: params.id },
@@ -69,7 +84,7 @@ export const POST = apiRoute(async (req, { params }) => {
   if (!project) return fail("Project not found", 404);
 
   // If milestone-bound, validate milestone belongs to project + check status.
-  let milestone: { id: string; status: string; amountMinor: number } | null = null;
+  let milestone: { id: string; status: string; amountMinor: number; projectId: string } | null = null;
   if (parsed.data.milestoneId) {
     milestone = await db.milestone.findUnique({
       where: { id: parsed.data.milestoneId },
@@ -84,8 +99,7 @@ export const POST = apiRoute(async (req, { params }) => {
     if (parsed.data.type === "RELEASE" && milestone.status !== "APPROVED") {
       return fail(`Milestone must be APPROVED to release (current: ${milestone.status})`, 400);
     }
-    // REFUND requires an existing PROVIDER_CONFIRMED
-    // FUNDING record (header comment says so but it wasn't enforced).
+    // REFUND requires an existing PROVIDER_CONFIRMED FUNDING record.
     // Refund amount must not exceed the original funding amount.
     if (parsed.data.type === "REFUND") {
       const originalFunding = await db.fundingRecord.findFirst({
@@ -113,7 +127,10 @@ export const POST = apiRoute(async (req, { params }) => {
     }
   }
 
-  const result = await initiateFunding({
+  // Create the funding record (idempotent). No provider simulation — the
+  // FundingRecord is created in INITIATED status and waits for a real
+  // provider webhook to confirm it.
+  const result = await createFundingRecord({
     projectId: params.id,
     milestoneId: parsed.data.milestoneId ?? null,
     type: parsed.data.type,
@@ -122,6 +139,39 @@ export const POST = apiRoute(async (req, { params }) => {
     initiatedById: userId,
     idempotencyKey: parsed.data.idempotencyKey,
   });
+
+  // For RELEASE records, the project owner is initiating the release of an
+  // already-approved milestone. The FundingRecord is confirmed immediately
+  // (no payment-provider roundtrip needed for the release step — the funds
+  // are already in escrow). The downstream payout to the worker happens via
+  // initiatePayoutsForRelease() inside confirmFundingRecord().
+  if (parsed.data.type === "RELEASE") {
+    try {
+      await confirmFundingRecord({
+        provider: "internal", // release is platform-internal; no external provider
+        providerEventId: `release_${result.fundingRecordId}_${Date.now()}`,
+        providerTxRef: result.providerTxRef,
+        eventType: "release.confirmed",
+        amountMinor: parsed.data.amountMinor,
+        currency: project.currency,
+        status: "PROVIDER_CONFIRMED",
+        rawPayload: JSON.stringify({
+          type: "RELEASE",
+          fundingRecordId: result.fundingRecordId,
+          initiatedBy: userId,
+        }),
+        signatureValid: true,
+      });
+    } catch (err) {
+      // Log the failure — the release is recorded but payout failed.
+      // The FundingRecord stays in INITIATED; admin can re-trigger from
+      // the Payouts dashboard.
+      logSecurityEvent("error", "funding.release_confirm_failed", {
+        fundingRecordId: result.fundingRecordId,
+        message: (err as Error)?.message,
+      });
+    }
+  }
 
   // Set milestone to AWAITING_FUNDING if a FUNDING record was initiated
   if (parsed.data.type === "FUNDING" && parsed.data.milestoneId && milestone?.status === "DRAFT") {
@@ -137,12 +187,16 @@ export const POST = apiRoute(async (req, { params }) => {
     action: "funding.initiated",
     targetType: "FundingRecord",
     targetId: result.fundingRecordId,
-    metadata: { type: parsed.data.type, simulated: true },
+    metadata: { type: parsed.data.type },
   });
 
   return {
     ...result,
-    simulated: true,
-    message: "Funding initiated.",
+    message:
+      parsed.data.type === "FUNDING"
+        ? "Funding initiated. Transfer to the project's virtual account to complete payment."
+        : parsed.data.type === "RELEASE"
+        ? "Release initiated. Funds will be paid out to the worker's bank account."
+        : "Refund request initiated.",
   };
 });

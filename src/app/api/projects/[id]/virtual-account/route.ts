@@ -39,7 +39,7 @@ async function generateVirtualAccount(
   projectId: string,
   milestoneId: string | undefined,
   userId: string,
-): Promise<{ accountNumber: string; accountName: string; bankName: string; bankCode: string }> {
+): Promise<{ accountNumber: string; accountName: string; bankName: string; bankCode: string; provider: string }> {
   const project = await db.project.findUnique({
     where: { id: projectId },
     select: { id: true, title: true, slug: true, currency: true, budgetMinor: true },
@@ -59,7 +59,7 @@ async function generateVirtualAccount(
     expectedAmountMinor = milestone.amountMinor;
   }
 
-  const provider = getDefaultProvider();
+  const provider = await getDefaultProvider();
   if (!provider.createReservedAccount) {
     throw new Error(
       `Provider ${provider.name} does not support reserved accounts. Use Monnify provider for virtual accounts.`,
@@ -113,6 +113,7 @@ async function generateVirtualAccount(
     accountName: reserved.accountName,
     bankName: reserved.bankName,
     bankCode: reserved.bankCode,
+    provider: provider.name,
   };
 }
 
@@ -166,7 +167,7 @@ export const GET = apiRoute(async (req, { params }) => {
     return {
       virtualAccount: {
         ...result,
-        provider: process.env.PAYMENTS_DEFAULT_PROVIDER ?? "mock",
+        provider: result.provider,
         status: "ACTIVE",
         expectedAmountMinor: undefined,
         totalReceivedMinor: 0,
@@ -208,7 +209,7 @@ export const POST = apiRoute(async (req, { params }) => {
     return {
       virtualAccount: {
         ...result,
-        provider: process.env.PAYMENTS_DEFAULT_PROVIDER ?? "mock",
+        provider: result.provider,
         status: "ACTIVE",
       },
       message: "Virtual account created. Share the account number with the client to receive funds.",

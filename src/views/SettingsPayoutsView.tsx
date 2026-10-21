@@ -209,7 +209,7 @@ export function SettingsPayoutsView() {
   async function handleDelete(id: string) {
     if (!confirm("Remove this bank account? You'll need to re-add it before receiving payouts.")) return;
     try {
-      await api.delete(`/api/users/me/bank-details/${id}`);
+      await api.del(`/api/users/me/bank-details/${id}`);
       await loadData();
     } catch (err) {
       setError((err as Error)?.message ?? "Failed to remove bank account.");

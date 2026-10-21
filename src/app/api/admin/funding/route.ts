@@ -14,14 +14,11 @@ export const GET = apiRoute(async (req) => {
   const status = getQueryParam(req, "status");
   const type = getQueryParam(req, "type");
   const provider = getQueryParam(req, "provider");
-  const onlySimulated = getQueryParam(req, "simulated");
 
   const where: Record<string, unknown> = {};
   if (status) where.status = status;
   if (type) where.type = type;
   if (provider) where.provider = provider;
-  if (onlySimulated === "true") where.isSimulated = true;
-  if (onlySimulated === "false") where.isSimulated = false;
 
   const [records, total, statusCounts, typeCounts] = await Promise.all([
     db.fundingRecord.findMany({

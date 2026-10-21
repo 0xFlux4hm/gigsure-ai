@@ -432,7 +432,7 @@ model FundingRecord {
   initiatedAt       DateTime @default(now())
   confirmedAt       DateTime?
   failureReason     String?
-  isSimulated       Boolean  @default(true)
+  isSimulated       Boolean  @default(false) // retained for historical audit; new records are always real
 
   project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   milestone     Milestone?      @relation(fields: [milestoneId], references: [id])

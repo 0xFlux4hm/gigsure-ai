@@ -17,7 +17,7 @@
  * exists, it's returned as-is rather than re-initiated.
  */
 import { db } from "@/lib/db";
-import { getProvider, getDefaultProvider, isLivePayoutsEnabled } from "@/lib/payments/registry";
+import { getProvider, getDefaultProvider } from "@/lib/payments/registry";
 import type { PaymentProvider } from "@/lib/payments/provider-interface";
 import { generateProviderTxRef, generateIdempotencyKey } from "@/lib/security/tokens";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
@@ -135,10 +135,8 @@ export async function initiatePayoutsForRelease(
     input.milestoneId,
   );
 
-  // Choose provider — live payouts if enabled, else mock.
-  const provider: PaymentProvider = isLivePayoutsEnabled()
-    ? getDefaultProvider()
-    : getProvider("mock");
+  // Choose provider — always the configured default. No mock fallback.
+  const provider: PaymentProvider = await getDefaultProvider();
 
   if (!provider.initiateTransfer) {
     throw new Error(
@@ -298,7 +296,6 @@ export async function initiatePayoutsForRelease(
           amountMinor: recipient.amountMinor,
           provider: provider.name,
           providerReference: result.providerReference,
-          simulated: provider.name === "mock",
         },
       });
     } catch (err) {

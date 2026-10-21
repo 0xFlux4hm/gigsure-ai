@@ -42,7 +42,7 @@ const ASSISTANTS = {
     name: "Funding Assistant",
     description: "Explains recorded funding states and missing prerequisites.",
     systemPrompt:
-      "You are GigSure's Funding Assistant. Given the funding records, explain the current funding state per milestone, what is awaiting confirmation, and what prerequisites are missing for release. Be precise. Always label SIMULATED records as simulated.",
+      "You are GigSure's Funding Assistant. Given the funding records, explain the current funding state per milestone, what is awaiting confirmation, and what prerequisites are missing for release. Be precise.",
   },
   RISK: {
     name: "Project Risk Assistant",
@@ -126,7 +126,7 @@ async function assembleContext(
           status: true,
           amountMinor: true,
           dueDate: true,
-          fundingRecords: { select: { status: true, amountMinor: true, type: true, isSimulated: true } },
+          fundingRecords: { select: { status: true, amountMinor: true, type: true } },
         },
       },
       contracts: {
@@ -173,7 +173,7 @@ async function assembleContext(
       status: m.status,
       amountMinor: m.amountMinor,
       dueDate: m.dueDate,
-      funding: m.fundingRecords.map((f) => ({ type: f.type, status: f.status, simulated: f.isSimulated })),
+      funding: m.fundingRecords.map((f) => ({ type: f.type, status: f.status })),
     })),
     contract: project.contracts[0] ?? null,
     disputes: project.disputes.map((d) => ({

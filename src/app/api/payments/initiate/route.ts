@@ -4,7 +4,7 @@
  * Body: {
  *   projectId: string,
  *   milestoneId: string,
- *   provider?: "monnify" | "opay" | "mock"  (defaults to system default)
+ *   provider?: "monnify" | "opay"  (defaults to system default)
  * }
  *
  * Flow:
@@ -21,7 +21,7 @@ import { requireUserId } from "@/lib/auth/session";
 import { assertPermission, AuthzError } from "@/lib/auth/authorization";
 import { isUserKycVerified } from "@/lib/kyc/provider";
 import { calculatePaymentBreakdown } from "@/lib/payments/fee-calculator";
-import { getDefaultProvider, getProvider, isLivePaymentsEnabled } from "@/lib/payments/registry";
+import { getDefaultProvider, getProvider } from "@/lib/payments/registry";
 import { generateProviderTxRef } from "@/lib/security/tokens";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { z } from "zod";
@@ -29,7 +29,7 @@ import { z } from "zod";
 const Schema = z.object({
   projectId: z.string().cuid(),
   milestoneId: z.string().cuid(),
-  provider: z.enum(["monnify", "opay", "mock"]).optional(),
+  provider: z.enum(["monnify", "opay"]).optional(),
 });
 
 export const POST = apiRoute(async (req) => {
@@ -79,21 +79,19 @@ export const POST = apiRoute(async (req) => {
   // Calculate fee breakdown (1.5%)
   const breakdown = calculatePaymentBreakdown(milestone.amountMinor);
 
-  // Select provider
+  // Select provider — only real providers (Monnify / OPay) are supported.
   let providerName = parsed.data.provider;
-  if (providerName) {
-    // If user requests a specific provider, verify it's enabled
-    if (providerName !== "mock" && !isLivePaymentsEnabled()) {
-      return fail("Live payments are not enabled. Use mock provider for testing.", 403);
-    }
-  } else {
-    const defaultProvider = getDefaultProvider();
+  if (!providerName) {
+    const defaultProvider = await getDefaultProvider();
     providerName = defaultProvider.name;
   }
 
   const provider = getProvider(providerName);
   if (!provider.isEnabled()) {
-    return fail(`Provider '${providerName}' is not enabled.`, 403);
+    return fail(
+      `Provider '${providerName}' is not enabled. Configure it via the Admin → Gateway tab or set the corresponding env vars.`,
+      403,
+    );
   }
 
   // Create internal payment reference
@@ -201,7 +199,6 @@ export const POST = apiRoute(async (req) => {
       feeRate: `${breakdown.rateBps / 100}%`,
       feePayer: "freelancer",
       currency: project.currency,
-      simulated: false,
     };
   } catch (err) {
     // Mark transaction as FAILED

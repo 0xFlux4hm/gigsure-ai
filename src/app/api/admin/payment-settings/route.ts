@@ -58,7 +58,7 @@ const UpdateSchema = z.object({
   feeRateBps: z.number().int().min(0).max(10000).optional(),
   livePaymentsEnabled: z.boolean().optional(),
   livePayoutsEnabled: z.boolean().optional(),
-  defaultProvider: z.enum(["monnify", "opay", "mock"]).optional(),
+  defaultProvider: z.enum(["monnify", "opay"]).optional(),
   monnifyEnabled: z.boolean().optional(),
   monnifyEnvironment: z.enum(["sandbox", "production"]).optional(),
   monnifyApiKey: z.string().max(256).optional(),

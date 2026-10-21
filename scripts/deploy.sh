@@ -56,7 +56,7 @@ echo_fail() {
 
 # ---- 1. Validate env vars ----
 echo_step "Validating environment…"
-REQUIRED_VARS=(DATABASE_URL NEXTAUTH_SECRET NEXTAUTH_URL MOCK_WEBHOOK_SECRET)
+REQUIRED_VARS=(DATABASE_URL NEXTAUTH_SECRET NEXTAUTH_URL)
 MISSING=()
 for var in "${REQUIRED_VARS[@]}"; do
     if [ -z "${!var:-}" ]; then
