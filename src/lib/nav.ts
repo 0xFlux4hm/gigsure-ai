@@ -57,7 +57,10 @@ interface NavState extends ViewState {
 const initial: ViewState = parseHash();
 
 function parseHash(): ViewState {
-  if (typeof window === "undefined") return { view: "landing" };
+  if (typeof window === "undefined") {
+    // On server: return landing. Client will pick up the real ?view= on hydration.
+    return { view: "landing" };
+  }
   const url = new URL(window.location.href);
   const view = (url.searchParams.get("view") as ViewName | null) ?? "landing";
   const projectId = url.searchParams.get("project") ?? undefined;

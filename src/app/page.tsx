@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { SessionProvider, useSession } from "next-auth/react";
-import { useNav } from "@/lib/nav";
+import { useNav, type ViewName } from "@/lib/nav";
 import { LandingView } from "@/views/LandingView";
 import { AuthViews } from "@/views/AuthViews";
 import { AppShell } from "@/views/AppShell";
@@ -91,8 +91,14 @@ function Router() {
 }
 
 export default function Home() {
-  // Listen for popstate so the URL ↔ state sync stays correct.
+  // Re-parse the URL on mount to pick up ?view= params that the server
+  // didn't know about during SSR.
   useEffect(() => {
+    const url = new URL(window.location.href);
+    const view = url.searchParams.get("view");
+    if (view && view !== "landing") {
+      useNav.getState().navigate({ view: view as ViewName });
+    }
     const onPop = () => useNav.getState().navigate({});
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
