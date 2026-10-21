@@ -209,7 +209,7 @@ export const POST = apiRoute(async (req) => {
   const sanitizedPrompt = sanitizeForAI(parsed.data.prompt);
   const context = await assembleContext(parsed.data.assistant, parsed.data.projectId, userId);
 
-  // SECURITY (2026-10): use unique delimiter pair around the context to
+  // use unique delimiter pair around the context to
   // defend against prompt injection. The delimiters are themselves escaped
   // out of any literal occurrences inside `context` so an attacker-controlled
   // dispute message can't forge a delimiter and inject instructions.

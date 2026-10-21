@@ -5,7 +5,7 @@
  * is recorded as advisory metadata; only the platform admin (or future legal
  * workflow) can finalize.
  *
- * SECURITY (2026-10): Fixed IDOR — handler previously didn't verify
+ * Fixed IDOR — handler previously didn't verify
  * `disputeId` belongs to `projectId` in the URL, didn't check `dispute:review`
  * permission, and didn't verify a REVIEWER is assigned to the dispute.
  * Attackers could post reviews to any project's dispute by guessing the cuid.
@@ -34,7 +34,7 @@ export const POST = apiRoute(async (req, { params }) => {
   if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
   assertPermission(membership, "dispute:review");
 
-  // SECURITY: verify dispute belongs to the project in the URL.
+  // verify dispute belongs to the project in the URL.
   const dispute = await db.dispute.findUnique({
     where: { id: disputeId },
     select: { id: true, projectId: true, status: true },
@@ -42,7 +42,7 @@ export const POST = apiRoute(async (req, { params }) => {
   if (!dispute || dispute.projectId !== projectId) {
     return fail("Dispute not found in this project", 404);
   }
-  // SECURITY: REVIEWER role must be assigned to this specific dispute.
+  // REVIEWER role must be assigned to this specific dispute.
   if (membership.role === "REVIEWER") {
     const assigned = await db.disputeReview.findUnique({
       where: { disputeId_reviewerId: { disputeId, reviewerId: userId } },
@@ -52,7 +52,7 @@ export const POST = apiRoute(async (req, { params }) => {
       throw new AuthzError("Dispute not assigned to you", 403);
     }
   }
-  // SECURITY: refuse to mutate a closed dispute.
+  // refuse to mutate a closed dispute.
   if (["RESOLVED", "CLOSED"].includes(dispute.status)) {
     return fail(`Cannot review a ${dispute.status} dispute`, 400);
   }

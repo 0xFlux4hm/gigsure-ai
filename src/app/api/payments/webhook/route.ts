@@ -14,7 +14,7 @@ import { verifyWebhookSignature } from "@/lib/security/tokens";
 import { processWebhookEvent, MOCK_PROVIDER_NAME, MOCK_WEBHOOK_SECRET } from "@/lib/payments/mock-provider";
 import { logSecurityEvent } from "@/lib/auth/audit";
 
-// SECURITY: provider → secret mapping. Prevents an attacker who learns one
+// provider → secret mapping. Prevents an attacker who learns one
 // provider's secret from forging events attributed to a different provider.
 // When real providers are integrated, add them here with their own secrets.
 const PROVIDER_SECRETS: Record<string, string> = {
@@ -27,7 +27,7 @@ const MAX_BODY_BYTES = 64 * 1024; // 64 KiB — webhooks are small JSON payloads
 const REPLAY_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
 export async function POST(req: Request) {
-  // SECURITY: body-size limit (defense against memory-exhaustion DoS).
+  // body-size limit (defense against memory-exhaustion DoS).
   const contentLength = Number(req.headers.get("content-length") ?? "0");
   if (contentLength && contentLength > MAX_BODY_BYTES) {
     return NextResponse.json({ error: "Body too large" }, { status: 413 });
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
   const providerHeader = req.headers.get("x-gigsure-provider") ?? MOCK_PROVIDER_NAME;
   const simulated = req.headers.get("x-gigsure-simulated") === "true";
 
-  // SECURITY: look up secret by provider. Reject unknown providers.
+  // look up secret by provider. Reject unknown providers.
   const providerSecret = PROVIDER_SECRETS[providerHeader];
   if (!providerSecret) {
     logSecurityEvent("warn", "webhook.unknown_provider", { provider: providerHeader });
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     amount_minor: number;
     currency: string;
     type: string;
-    timestamp: string; // SECURITY: now mandatory
+    timestamp: string; // now mandatory
   };
   try {
     payload = JSON.parse(raw);
@@ -70,13 +70,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // SECURITY (2026-10): reject negative amounts in webhook payloads
+  // reject negative amounts in webhook payloads
   if (payload.amount_minor !== undefined && (!Number.isFinite(payload.amount_minor) || payload.amount_minor < 0)) {
     logSecurityEvent("warn", "webhook.negative_amount", { provider: providerHeader });
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
   }
 
-  // SECURITY (2026-10): timestamp is now MANDATORY (previously optional, which
+  // timestamp is now MANDATORY (previously optional, which
   // allowed an attacker with the secret to omit it and bypass the replay window).
   if (!payload.timestamp || !Number.isFinite(Date.parse(payload.timestamp))) {
     logSecurityEvent("warn", "webhook.missing_or_invalid_timestamp", { provider: providerHeader });

@@ -43,7 +43,7 @@ function hashPasswordInternal(plain: string, params: typeof SCRYPT_PARAMS): stri
 }
 
 export function verifyPassword(plain: string, stored: string): boolean {
-  // SECURITY (2026-10): cap password length to prevent DoS via huge passwords
+  // cap password length to prevent DoS via huge passwords
   // (scryptSync runs the full PBKDF2 phase over every byte of `plain`).
   if (typeof plain !== "string" || plain.length === 0 || plain.length > 1024) return false;
   if (!stored || !stored.startsWith("scrypt:")) return false;
@@ -55,7 +55,7 @@ export function verifyPassword(plain: string, stored: string): boolean {
   const salt = Buffer.from(parts[4], "hex");
   const expected = Buffer.from(parts[5], "hex");
 
-  // SECURITY: reject attacker-downgraded hash parameters.
+  // reject attacker-downgraded hash parameters.
   // Only accept hashes that match our SCRYPT_PARAMS, so a DB-tamper attack
   // that replaces a victim's hash with scrypt:2:1:1:... can't succeed.
   if (!Number.isFinite(N) || !Number.isFinite(r) || !Number.isFinite(p)) return false;

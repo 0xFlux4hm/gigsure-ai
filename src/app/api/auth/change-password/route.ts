@@ -21,7 +21,7 @@ const Schema = z.object({
 
 export const POST = apiRoute(async (req) => {
   const userId = await requireUserId();
-  // SECURITY (2026-10): rate-limit password change attempts to prevent
+  // rate-limit password change attempts to prevent
   // brute-forcing the currentPassword via this endpoint (5 attempts/hour).
   const rl = await checkRateLimit(`changepw:user:${userId}`, { limit: 5, windowMs: 60 * 60 * 1000 });
   if (!rl.ok) {
@@ -44,7 +44,7 @@ export const POST = apiRoute(async (req) => {
   }
 
   const newHash = hashPassword(parsed.data.newPassword);
-  // SECURITY (2026-10): set passwordChangedAt so existing JWTs are invalidated
+  // set passwordChangedAt so existing JWTs are invalidated
   // (the NextAuth jwt callback checks token.issuedAt vs passwordChangedAt).
   await db.user.update({
     where: { id: userId },

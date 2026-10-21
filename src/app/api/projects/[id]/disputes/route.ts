@@ -46,7 +46,7 @@ export const POST = apiRoute(async (req, { params }) => {
     where: { projectId_userId: { projectId: params.id, userId } },
   });
   if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
-  // SECURITY (2026-10): REVIEWER role has only `dispute:review` — they cannot
+  // REVIEWER role has only `dispute:review` — they cannot
   // open disputes. TEAM_LEAD has no `dispute:open` either.
   assertPermission(membership, "dispute:open");
 
@@ -54,7 +54,7 @@ export const POST = apiRoute(async (req, { params }) => {
   const parsed = Schema.safeParse(body);
   if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid dispute", 422); }
 
-  // SECURITY (2026-10): if milestoneId is supplied, verify it belongs to this
+  // if milestoneId is supplied, verify it belongs to this
   // project. Otherwise an attacker could open a dispute on project A that
   // references project B's milestone, then mutate project B's milestone
   // status to DISPUTED (blocking its funding/release flow).

@@ -25,7 +25,6 @@ import { SettingsPrivacyView } from "@/views/SettingsPrivacyView";
 import { SettingsAuditView } from "@/views/SettingsAuditView";
 import { NotificationsView } from "@/views/NotificationsView";
 import { InvitationView } from "@/views/InvitationView";
-import { GoogleDemoConsentView } from "@/views/GoogleDemoConsentView";
 import { AdminView } from "@/views/AdminView";
 import { KycView } from "@/views/KycView";
 
@@ -33,9 +32,8 @@ function Router() {
   const { data: session, status } = useSession();
   const { view, projectId, disputeId, token, navigate } = useNav();
 
-  // Public views (no auth required)
+  // Public views
   if (view === "landing") return <LandingView />;
-  if (view === "google-demo-consent") return <GoogleDemoConsentView />;
 
   // Auth views
   if (["login", "register", "verify-email", "forgot-password", "reset-password"].includes(view)) {

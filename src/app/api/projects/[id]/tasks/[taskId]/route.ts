@@ -57,7 +57,7 @@ export const PATCH = apiRoute(async (req, { params }) => {
   const data = parsed.data;
   const update: Record<string, unknown> = {};
 
-  // SECURITY (2026-10): Editing task metadata (title, description, priority,
+  // Editing task metadata (title, description, priority,
   // dueDate) requires `task:create` permission (OWNER or TEAM_LEAD only).
   // Without this check, any member — including CLIENT with no task perms —
   // could vandalize task fields.
@@ -86,7 +86,7 @@ export const PATCH = apiRoute(async (req, { params }) => {
     if (!TRANSITIONS[task.status]?.has(data.status)) {
       return fail(`Cannot transition from ${task.status} to ${data.status}`, 400);
     }
-    // SECURITY (2026-10): Transitions to APPROVED/CHANGES_REQUESTED require
+    // Transitions to APPROVED/CHANGES_REQUESTED require
     // task:review (OWNER or TEAM_LEAD). CANCELLED from terminal states also
     // requires task:review — only project owners can cancel tasks.
     const isReviewAction = ["APPROVED", "CHANGES_REQUESTED", "CANCELLED"].includes(data.status);

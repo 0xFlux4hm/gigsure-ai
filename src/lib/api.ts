@@ -19,7 +19,7 @@ import { PaymentProviderError } from "@/lib/payments/mock-provider";
 export type ApiHandler<T> = (req: Request, ctx: { params: Record<string, string> }) => Promise<T>;
 
 export function ok<T>(data: T, status = 200) {
-  // SECURITY (2026-10): never cache authenticated API responses —
+  // never cache authenticated API responses —
   // prevents cross-user PII leaks at CDN edges / intermediate proxies.
   return NextResponse.json(
     { ok: true, data },
@@ -63,7 +63,7 @@ export function apiRoute<T>(
         return fail(err.message, err.status);
       }
       if (err instanceof ZodError) {
-        // SECURITY: log issues server-side only — don't echo to client
+        // log issues server-side only — don't echo to client
         // (prevents schema-probing reconnaissance).
         logSecurityEvent("warn", "api.validation_failed", {
           issues: err.issues.map((i) => ({ path: i.path, message: i.message })),
@@ -73,7 +73,7 @@ export function apiRoute<T>(
       if (err instanceof SyntaxError) {
         return fail("Invalid JSON body", 400);
       }
-      // SECURITY: removed the generic `e?.status && e?.message` branch —
+      // removed the generic `e?.status && e?.message` branch —
       // third-party errors (Prisma, z-ai SDK, nodemailer) can carry .status
       // + .message with internal context (hostnames, query fragments,
       // connection strings). All unknown errors return generic 500.
@@ -104,7 +104,7 @@ export async function parseJsonBody<T = unknown>(req: Request): Promise<T> {
     throw new SyntaxError("Request body too large");
   }
   if (!text) return {} as T;
-  // SECURITY: strip __proto__ / constructor keys to defend against prototype
+  // strip __proto__ / constructor keys to defend against prototype
   // pollution if any caller ever spreads the parsed result into an object.
   const parsed = JSON.parse(text) as T;
   if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
@@ -118,7 +118,7 @@ export async function parseJsonBody<T = unknown>(req: Request): Promise<T> {
 
 export function getQueryParam(req: Request, key: string): string | null {
   const url = new URL(req.url);
-  // SECURITY: cap query param length (defense in depth against search DoS).
+  // cap query param length (defense in depth against search DoS).
   const v = url.searchParams.get(key);
   if (v && v.length > 500) return v.slice(0, 500);
   return v;

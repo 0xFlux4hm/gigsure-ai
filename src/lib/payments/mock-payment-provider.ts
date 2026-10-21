@@ -35,7 +35,7 @@ export class MockPaymentProvider implements PaymentProvider {
   }
 
   async initiatePayment(input: InitiatePaymentInput): Promise<InitiatePaymentResult> {
-    // SECURITY: validate amount at provider boundary (defense-in-depth)
+    // validate amount at provider boundary (defense-in-depth)
     if (!Number.isFinite(input.amountMinor) || input.amountMinor <= 0) {
       throw new Error("Invalid amountMinor: must be a positive finite number");
     }
@@ -68,7 +68,7 @@ export class MockPaymentProvider implements PaymentProvider {
   }
 
   async requestRefund(input: RefundInput): Promise<RefundResult> {
-    // SECURITY: validate refund amount (defense-in-depth)
+    // validate refund amount (defense-in-depth)
     if (!Number.isFinite(input.amountMinor) || input.amountMinor <= 0) {
       throw new Error("Invalid refund amount: must be a positive finite number");
     }

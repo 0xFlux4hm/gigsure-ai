@@ -18,7 +18,7 @@ export const POST = apiRoute(async (_req, { params }) => {
     where: { projectId_userId: { projectId, userId } },
   });
   if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
-  // SECURITY (2026-10): CLIENT role has `milestone:approve` (not `task:submit`),
+  // CLIENT role has `milestone:approve` (not `task:submit`),
   // so they cannot self-submit + self-approve. Only OWNER, TEAM_LEAD, and
   // COLLABORATOR have `task:submit` (see authorization.ts:96-100, 51-65).
   assertPermission(membership, "task:submit");

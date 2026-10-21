@@ -12,7 +12,7 @@
  * Auto-merge by email is FORBIDDEN. Even if the email strings match, we will
  * NOT silently transfer a Google identity from one account to another.
  *
- * SECURITY (2026-10): This endpoint previously accepted an arbitrary
+ * This endpoint previously accepted an arbitrary
  * client-supplied `googleSub` and `email` with no proof of Google identity
  * ownership. That allowed account-squatting: an attacker could pre-claim any
  * victim's Google sub, blocking the victim from ever linking their real
@@ -50,7 +50,7 @@ const Schema = z.object({
 });
 
 export const POST = apiRoute(async (req) => {
-  // SECURITY (2026-10): require recent reauthentication (sudo mode) for
+  // require recent reauthentication (sudo mode) for
   // linking a Google identity. Prevents a stolen session cookie from being
   // used to add a persistent OAuth backdoor.
   const userId = await requireRecentAuth(15);
@@ -62,24 +62,13 @@ export const POST = apiRoute(async (req) => {
   let email: string;
 
   if (parsed.data.code) {
-    // Preferred path: verify the code was actually issued by our demo OAuth flow
-    const { issuedCodes } = await import("@/app/api/auth/google-demo/callback/route");
-    const record = issuedCodes.get(parsed.data.code);
-    if (!record) {
-      logSecurityEvent("warn", "auth.link_google_unknown_code", { userId });
-      return fail("Invalid or expired code", 400);
-    }
-    if (record.exp < Date.now()) {
-      issuedCodes.delete(parsed.data.code);
-      return fail("Code expired", 400);
-    }
-    googleSub = record.sub;
-    email = record.email;
-    // Consume the code so it can't be reused
-    issuedCodes.delete(parsed.data.code);
+    // In production, this code would be exchanged with Google's token endpoint
+    // to get a verified id_token containing the user's sub + email.
+    // For now, this path is disabled until real Google OIDC code exchange is implemented.
+    return fail("Google account linking via code exchange is not yet implemented. Use the Google OAuth sign-in flow.", 400);
   } else {
     // Legacy path: trust client-supplied googleSub + email
-    // SECURITY (2026-10): blocked in production EVEN IF the env var is set
+    // blocked in production EVEN IF the env var is set
     // (defense in depth — operator misconfiguration can't enable this path).
     if (process.env.NODE_ENV === "production") {
       logSecurityEvent("error", "auth.link_google_legacy_blocked_in_prod", { userId });

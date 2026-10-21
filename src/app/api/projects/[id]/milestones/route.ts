@@ -10,7 +10,7 @@ import { logSecurityEvent } from "@/lib/auth/audit";
 const Schema = z.object({
   title: z.string().min(2).max(200),
   description: z.string().max(4000).optional(),
-  amountMinor: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER), // SECURITY: min(1) — zero-value milestones are meaningless and pollute the ledger
+  amountMinor: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER), // min(1) — zero-value milestones are meaningless and pollute the ledger
   dueDate: z.string().datetime().nullable().optional(),
   orderIndex: z.number().int().min(0).default(0),
 });

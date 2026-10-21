@@ -4,7 +4,7 @@
  * A user may accept only their OWN allocation. Once all allocations are
  * accepted, the agreement flips to ACCEPTED.
  *
- * SECURITY (2026-10): Same TOCTOU race as contract version acceptance —
+ * Same TOCTOU race as contract version acceptance —
  * findUnique + create + count + conditional update were not atomic.
  * Wrapped in `db.$transaction(async (tx) => ...)` to fix.
  */

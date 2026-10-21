@@ -45,7 +45,7 @@ export const GET = apiRoute(async (_req, { params }) => {
 
 export const POST = apiRoute(async (req, { params }) => {
   const userId = await requireUserId();
-  // SECURITY (2026-10): rate-limit invitations to prevent email-bombing
+  // rate-limit invitations to prevent email-bombing
   // victims via the platform's SMTP account.
   const inviterRL = await checkRateLimit(`invite:user:${userId}`, { limit: 20, windowMs: 60 * 60 * 1000 });
   if (!inviterRL.ok) {
@@ -62,7 +62,7 @@ export const POST = apiRoute(async (req, { params }) => {
   if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid invitation", 422); }
 
   const data = parsed.data;
-  // SECURITY (2026-10): also rate-limit per invitee email to prevent one
+  // also rate-limit per invitee email to prevent one
   // attacker from email-bombing a specific victim.
   if (data.inviteeEmail) {
     const inviteeEmail = normalizeEmail(data.inviteeEmail);

@@ -25,7 +25,7 @@ import { recordAuditEvent } from "@/lib/auth/audit";
 
 export const MOCK_PROVIDER_NAME = "mock";
 
-// SECURITY: never default to a public constant in production.
+// never default to a public constant in production.
 // If MOCK_WEBHOOK_SECRET is unset in production, we refuse to start.
 // In dev/test, we use a clearly-marked dev-only default.
 function resolveMockWebhookSecret(): string {
@@ -95,7 +95,7 @@ export async function initiateFunding(
   const idempotencyKey = input.idempotencyKey ?? generateIdempotencyKey();
   const providerTxRef = generateProviderTxRef();
 
-  // SECURITY (2026-10): wrap the findUnique + create in a try/catch on
+  // wrap the findUnique + create in a try/catch on
   // Prisma P2002 (unique constraint). If two concurrent requests share the
   // same idempotencyKey, both pass the findUnique check (race window), but
   // only one create succeeds — the other hits P2002 and we return the

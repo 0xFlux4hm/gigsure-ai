@@ -23,12 +23,12 @@ export function middleware(req: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
 
   // CSP: restricts where resources can be loaded from.
-  // SECURITY (2026-10): removed `'unsafe-inline'` and `'unsafe-eval'` from
+  // removed `'unsafe-inline'` and `'unsafe-eval'` from
   // script-src in production — both undermined the per-request nonce. With
   // both allowed, any HTML injection became executable JS.
   // In development, Next.js Turbopack HMR requires 'unsafe-eval' — we add
   // it back only in dev.
-  // SECURITY (2026-10): added report-uri + report-to for CSP violation
+  // added report-uri + report-to for CSP violation
   // monitoring. Browsers POST violation reports to /api/csp-report.
   const scriptSrc = isProduction
     ? `script-src 'self' 'nonce-${nonce}'`
@@ -45,7 +45,7 @@ export function middleware(req: NextRequest) {
     `base-uri 'self'`,
     `object-src 'none'`,
     `upgrade-insecure-requests`,
-    // SECURITY (2026-10): CSP violation reporting
+    // CSP violation reporting
     `report-uri /api/csp-report`,
     `report-to gigsure-csp`,
   ].join("; ");
@@ -53,11 +53,11 @@ export function middleware(req: NextRequest) {
   res.headers.set("Content-Security-Policy", csp);
   res.headers.set("X-Frame-Options", "DENY");
   res.headers.set("X-Content-Type-Options", "nosniff");
-  // SECURITY (2026-10): tightened Referrer-Policy to same-origin — prevents
+  // tightened Referrer-Policy to same-origin — prevents
   // leaking the app's origin to third parties when users click external links
   // (e.g., a link posted in a dispute message).
   res.headers.set("Referrer-Policy", "same-origin");
-  // SECURITY (2026-10): expanded Permissions-Policy to disable more browser
+  // expanded Permissions-Policy to disable more browser
   // APIs we don't use (USB, Bluetooth, Payment Request, Serial, HID, sensors,
   // clipboard, gamepad) — reduces fingerprinting surface + XSS blast radius.
   res.headers.set(
@@ -70,10 +70,10 @@ export function middleware(req: NextRequest) {
   res.headers.set("X-DNS-Prefetch-Control", "off");
   res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
   res.headers.set("Cross-Origin-Resource-Policy", "same-origin");
-  // SECURITY (2026-10): COEP require-corp — defense in depth against
+  // COEP require-corp — defense in depth against
   // Spectre-class attacks that read cross-origin responses.
   res.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
-  // SECURITY (2026-10): Report-To header for CSP violation reporting.
+  // Report-To header for CSP violation reporting.
   // Browsers use this to know where to send violation reports.
   res.headers.set(
     "Report-To",

@@ -30,7 +30,7 @@ const hasGoogleCreds =
   !process.env.GOOGLE_CLIENT_ID.startsWith("demo_");
 
 export const authOptions: NextAuthOptions = {
-  // SECURITY (2026-10): explicitly set secret (was implicit via env var).
+  // explicitly set secret (was implicit via env var).
   // Fail loudly in production if NEXTAUTH_SECRET is missing.
   secret: (() => {
     const s = process.env.NEXTAUTH_SECRET;
@@ -48,7 +48,7 @@ export const authOptions: NextAuthOptions = {
     maxAge: 60 * 60 * 24 * 7,
   },
   cookies: {
-    // SECURITY (2026-10): use __Secure- / __Host- prefixes in production.
+    // use __Secure- / __Host- prefixes in production.
     //   __Secure- → browser refuses to set the cookie over HTTP (downgrade defense)
     //   __Host-   → browser refuses to set the cookie from any subdomain (no Domain attr, Path=/)
     // NextAuth v4 normally applies these automatically when useSecureCookies=true,
@@ -95,7 +95,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // SECURITY (2026-10): derive IP from request headers, NOT from
+        // derive IP from request headers, NOT from
         // req.body.ipAddress (which was fully attacker-controlled — bypassed
         // the per-IP rate limit trivially). NextAuth passes the NextRequest
         // as `req`. We trust the leftmost X-Forwarded-For entry as the
@@ -121,7 +121,7 @@ export const authOptions: NextAuthOptions = {
         const user = await db.user.findUnique({
           where: { emailNormalized: email },
         });
-        // SECURITY (2026-10): use a real scrypt-formatted decoy hash so
+        // use a real scrypt-formatted decoy hash so
         // verifyPassword runs the full scryptSync path even when the user
         // doesn't exist. Previously the decoy was "$scrypt$..." which failed
         // the startsWith("scrypt:") check immediately, leaking timing info.
@@ -167,27 +167,8 @@ export const authOptions: NextAuthOptions = {
             },
           },
         })
-      : // Demo Google provider — runs only when real creds are absent.
-        // Used so the demo can show the Google OAuth UX without real credentials.
-        // CLEARLY marked as simulated in the UI; never used in production.
-        ({
-          id: "google-demo",
-          name: "Continue with Google (Demo)",
-          type: "oauth",
-          idToken: false,
-          wellKnown: undefined,
-          authorization: { url: "/api/auth/google-demo/start" },
-          token: { url: "/api/auth/google-demo/callback" },
-          userinfo: { url: "/api/auth/google-demo/userinfo" },
-          profile(profile: { sub: string; email: string; name: string }) {
-            return {
-              id: profile.sub,
-              email: profile.email,
-              name: profile.name,
-            };
-          },
-        } as unknown as NextAuthOptions["providers"][number]),
-  ],
+      : null,
+  ].filter(Boolean) as NextAuthOptions["providers"],
   callbacks: {
     async signIn(_user, _account, _profile) {
       return true;
@@ -195,23 +176,23 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account, trigger, session }) {
       if (user?.id) {
         token.userId = user.id;
-        // SECURITY (2026-10): record issuedAt so we can invalidate the
+        // record issuedAt so we can invalidate the
         // session after a password change/reset (see jwt callback below).
         token.issuedAt = Date.now();
-        // SECURITY (2026-10): generate a unique JTI per JWT so individual
+        // generate a unique JTI per JWT so individual
         // sessions can be revoked without logging out all sessions.
         token.jti = crypto.randomUUID();
       }
       if (account?.provider) {
         token.provider = account.provider;
       }
-      // SECURITY (2026-10): handle session update trigger from /api/auth/reauth.
+      // handle session update trigger from /api/auth/reauth.
       // When the frontend calls `await update({ sudo: true })` after reauth,
       // we refresh issuedAt so requireRecentAuth() passes for 15 minutes.
       if (trigger === "update" && session?.sudo === true) {
         token.issuedAt = Date.now();
       }
-      // SECURITY (2026-10): if the user has changed their password since
+      // if the user has changed their password since
       // this JWT was issued, force re-authentication by returning an empty
       // token (NextAuth treats this as "not authenticated").
       if (token.userId && token.issuedAt) {
@@ -227,7 +208,7 @@ export const authOptions: NextAuthOptions = {
           // Password changed after this JWT was issued — invalidate
           return { ...token, userId: undefined } as typeof token;
         }
-        // SECURITY (2026-10): check if this specific session (JTI) has been
+        // check if this specific session (JTI) has been
         // revoked. This enables per-session revocation (e.g., "sign out my
         // lost phone") without the all-or-nothing passwordChangedAt approach.
         if (token.jti) {
@@ -246,7 +227,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user && token.userId) {
         (session.user as { id?: string }).id = token.userId as string;
         (session.user as { provider?: string }).provider = token.provider as string;
-        // SECURITY (2026-10): expose JTI + issuedAt so the frontend can:
+        // expose JTI + issuedAt so the frontend can:
         //   - Display the current session's JTI for "this device" labeling
         //   - Check requireRecentAuth status locally before calling sensitive endpoints
         //   - Call /api/auth/sessions/[jti] DELETE to revoke this session
@@ -256,7 +237,7 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // SECURITY (2026-10): use isSafeRedirect (rejects scheme, protocol-relative,
+      // use isSafeRedirect (rejects scheme, protocol-relative,
       // backslash, CRLF, control chars) instead of loose startsWith("/") check.
       if (isSafeRedirect(url)) return `${baseUrl}${url}`;
       try {

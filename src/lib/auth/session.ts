@@ -47,7 +47,7 @@ export async function getAuthenticatedUser() {
  * The env-var fallback lets you bootstrap the first admin without DB access:
  *   ADMIN_EMAILS=founder@example.com,ops@example.com
  *
- * SECURITY (2026-10): includes a per-admin rate limit (30/min) to prevent
+ * includes a per-admin rate limit (30/min) to prevent
  * admin endpoints from being used as DoS amplifiers (e.g. /api/admin/stats
  * runs 35+ DB queries per request).
  */
@@ -120,7 +120,7 @@ export async function isCurrentUserAdmin(): Promise<boolean> {
 }
 
 /**
- * SECURITY (2026-10): "sudo mode" — requires the session to have been
+ * "sudo mode" — requires the session to have been
  * issued within the last `maxAgeMinutes` minutes. Use this for sensitive
  * actions like linking/unlinking OAuth identities, changing email, etc.
  *

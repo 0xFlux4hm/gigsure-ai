@@ -13,7 +13,7 @@ import { createHash } from "crypto";
 
 export const PLATFORM_FEE_BPS_DEFAULT = 150; // 1.5% = 150 basis points
 
-// SECURITY (2026-10): validate PLATFORM_FEE_BPS at module load.
+// validate PLATFORM_FEE_BPS at module load.
 // A negative value would flip the fee into a CREDIT to the freelancer
 // (e.g., bps=-150 → fee=-₦1,500 → freelancer gets ₦101,500 on ₦100,000).
 // A value >10000 (100%) would charge more than the payment amount.

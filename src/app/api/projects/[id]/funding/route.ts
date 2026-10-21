@@ -49,7 +49,7 @@ export const POST = apiRoute(async (req, { params }) => {
   if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
   assertPermission(membership, "funding:initiate");
 
-  // SECURITY: require KYC verification before any funding transaction
+  // require KYC verification before any funding transaction
   const kycVerified = await isUserKycVerified(userId);
   if (!kycVerified) {
     return fail(
@@ -84,7 +84,7 @@ export const POST = apiRoute(async (req, { params }) => {
     if (parsed.data.type === "RELEASE" && milestone.status !== "APPROVED") {
       return fail(`Milestone must be APPROVED to release (current: ${milestone.status})`, 400);
     }
-    // SECURITY (2026-10): REFUND requires an existing PROVIDER_CONFIRMED
+    // REFUND requires an existing PROVIDER_CONFIRMED
     // FUNDING record (header comment says so but it wasn't enforced).
     // Refund amount must not exceed the original funding amount.
     if (parsed.data.type === "REFUND") {

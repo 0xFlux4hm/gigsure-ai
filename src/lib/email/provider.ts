@@ -35,7 +35,7 @@ class MockEmailProvider implements EmailProvider {
   }
 }
 
-// SECURITY (2026-10): HTML-escape any user-controlled value interpolated
+// HTML-escape any user-controlled value interpolated
 // into email HTML to prevent HTML/script injection in email clients.
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => {
@@ -83,7 +83,7 @@ class SMTPEmailProvider implements EmailProvider {
       const result = await transporter.sendMail(message);
       return { ok: true, messageId: result.messageId };
     } catch (err) {
-      // SECURITY (2026-10): never expose the raw error message — it may
+      // never expose the raw error message — it may
       // contain the SMTP URL with embedded credentials. Redact both smtp://
       // AND smtps:// schemes (previously only smtp:// was covered).
       const msg = (err as Error).message ?? "Unknown SMTP error";
@@ -174,7 +174,7 @@ export function passwordResetEmail(to: string, resetUrl: string): EmailMessage {
 
 export function securityNotificationEmail(to: string, subject: string, body: string): EmailMessage {
   const from = process.env.EMAIL_FROM ?? "GigSure AI <noreply@localhost>";
-  // SECURITY (2026-10): escape subject/body before interpolating into HTML.
+  // escape subject/body before interpolating into HTML.
   return {
     to,
     from,

@@ -4,7 +4,7 @@
  * SAFETY: refuse to unlink the user's LAST usable authentication method.
  * A user must always have at least one of: password, google, (future providers).
  *
- * SECURITY (2026-10): requires recent reauthentication (sudo mode) to
+ * requires recent reauthentication (sudo mode) to
  * prevent a stolen session cookie from being used to lock the victim out
  * of their account by unlinking all auth methods.
  */
@@ -20,7 +20,7 @@ const Schema = z.object({
 });
 
 export const POST = apiRoute(async (req) => {
-  // SECURITY (2026-10): sudo mode — prevent stolen-session lockout attacks.
+  // sudo mode — prevent stolen-session lockout attacks.
   const userId = await requireRecentAuth(15);
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);

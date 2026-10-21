@@ -243,6 +243,13 @@ export function getKycProvider(): { provider: SmileIdProvider | MockKycProvider;
   if (smile.isConfigured()) {
     return { provider: smile, name: "smile_id" };
   }
+  // Fallback to mock for local development only.
+  // In production, SMILE_ID_PARTNER_ID and SMILE_ID_API_KEY must be set.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "KYC provider not configured. Set SMILE_ID_PARTNER_ID and SMILE_ID_API_KEY.",
+    );
+  }
   return { provider: getMockProvider(), name: "mock" };
 }
 

@@ -37,7 +37,7 @@ export const POST = apiRoute(async (req) => {
       passwordHash: true,
       accountStatus: true,
       platformRole: true,
-      // SECURITY (2026-10): for OAuth-only accounts, require a recent
+      // for OAuth-only accounts, require a recent
       // passwordChangedAt (i.e., user just set a password) OR a recent
       // session re-issue. Without this, OAuth-only users could self-delete
       // with just `confirmPhrase` — no reauthentication at all.
@@ -46,7 +46,7 @@ export const POST = apiRoute(async (req) => {
   if (!user) return fail("User not found", 404);
   if (user.accountStatus !== "ACTIVE") return fail("Account not active", 400);
 
-  // SECURITY (2026-10): prevent the last admin from deleting themselves.
+  // prevent the last admin from deleting themselves.
   if (user.platformRole === "ADMIN") {
     const adminCount = await db.user.count({
       where: { platformRole: "ADMIN", accountStatus: "ACTIVE" },
@@ -69,7 +69,7 @@ export const POST = apiRoute(async (req) => {
       return fail("Current password is incorrect", 403);
     }
   } else {
-    // SECURITY (2026-10): OAuth-only account — require reauthentication via
+    // OAuth-only account — require reauthentication via
     // Google. For now we refuse deletion until the user sets a password
     // first. (Future: accept a fresh Google OIDC `code` here.)
     return fail(

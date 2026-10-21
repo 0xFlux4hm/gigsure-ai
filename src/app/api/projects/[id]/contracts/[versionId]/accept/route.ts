@@ -3,7 +3,7 @@
  * by all required parties, its status flips to ACCEPTED and the project's
  * currentContractVersionId is updated.
  *
- * SECURITY (2026-10): The previous implementation had a TOCTOU race:
+ * The previous implementation had a TOCTOU race:
  *   1. findUnique (load acceptances snapshot)
  *   2. create ContractAcceptance (separate write)
  *   3. compute allAccepted from stale snapshot

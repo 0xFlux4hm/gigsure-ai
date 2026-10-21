@@ -34,7 +34,7 @@ export function InvitationView({ token }: { token?: string }) {
       setLoading(false);
       return;
     }
-    // SECURITY (2026-10): URL-encode the token to prevent path-traversal
+    // URL-encode the token to prevent path-traversal
     // via crafted token values (e.g., ?token=../../admin/users).
     const encToken = encodeURIComponent(token);
     api

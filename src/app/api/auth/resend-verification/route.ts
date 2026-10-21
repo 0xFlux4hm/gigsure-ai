@@ -1,7 +1,7 @@
 /**
  * Resend email verification. Rate-limited via central rate limiter.
  *
- * SECURITY (2026-10): replaced ad-hoc `resendStore` Map with the central
+ * replaced ad-hoc `resendStore` Map with the central
  * `checkRateLimit` rate limiter (which has periodic cleanup).
  */
 import { db } from "@/lib/db";
@@ -23,7 +23,7 @@ export const POST = apiRoute(async (req) => {
   const email = normalizeEmail(parsed.data.email);
   if (!validateEmail(email)) return fail("Invalid email", 400);
 
-  // SECURITY (2026-10): central rate limiter (has cleanup) instead of Map.
+  // central rate limiter (has cleanup) instead of Map.
   const rateResult = await checkRateLimit(
     `resendverify:email:${email}`,
     RATE_LIMITS.RESEND_VERIFICATION_PER_EMAIL,

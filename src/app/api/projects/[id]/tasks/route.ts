@@ -56,7 +56,7 @@ export const POST = apiRoute(async (req, { params }) => {
     if (!m || m.revokedAt) return fail("Assignee is not a project member", 400);
   }
 
-  // SECURITY (2026-10): if milestoneId is supplied, verify it belongs to this
+  // if milestoneId is supplied, verify it belongs to this
   // project. Otherwise an attacker on project A could create a task in project
   // A but reference project B's milestone — polluting project B's milestone
   // task list and potentially breaking milestone-completion logic.

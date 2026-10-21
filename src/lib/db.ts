@@ -4,7 +4,7 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-// SECURITY (2026-10): gate Prisma query logging on dev/test only.
+// gate Prisma query logging on dev/test only.
 // In production, `log: ['query']` writes every SQL statement (with bound
 // parameters — including emails, hashed tokens, dispute bodies) to stdout,
 // which is captured by log aggregators (Loki, CloudWatch, Datadog).

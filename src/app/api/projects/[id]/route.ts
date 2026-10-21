@@ -78,7 +78,7 @@ export const PATCH = apiRoute(async (req, { params }) => {
 
   const data = parsed.data;
   if (data.currency && !validateCurrency(data.currency)) return fail("Unsupported currency", 400);
-  // SECURITY (2026-10): setting status to CANCELLED is equivalent to deletion
+  // setting status to CANCELLED is equivalent to deletion
   // and must require project:delete (defense in depth — currently both
   // permissions are OWNER-only, but if a future role gets project:edit
   // without project:delete, they shouldn't be able to cancel projects).

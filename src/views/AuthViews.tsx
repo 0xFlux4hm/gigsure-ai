@@ -41,10 +41,6 @@ export function AuthViews() {
 
 function GoogleButton({ label = "Continue with Google" }: { label?: string }) {
   const [loading, setLoading] = useState(false);
-  const hasGoogleCreds =
-    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
-    !process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID.startsWith("demo_");
-  const isDemo = !hasGoogleCreds;
 
   return (
     <Button
@@ -53,9 +49,7 @@ function GoogleButton({ label = "Continue with Google" }: { label?: string }) {
       disabled={loading}
       onClick={async () => {
         setLoading(true);
-        await signIn(isDemo ? "google-demo" : "google", {
-          callbackUrl: "/?view=dashboard",
-        });
+        await signIn("google", { callbackUrl: "/?view=dashboard" });
       }}
     >
       {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (
@@ -67,7 +61,6 @@ function GoogleButton({ label = "Continue with Google" }: { label?: string }) {
         </svg>
       )}
       {label}
-      {isDemo && <span className="ml-2 text-xs opacity-70">(Demo)</span>}
     </Button>
   );
 }

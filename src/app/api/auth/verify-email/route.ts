@@ -28,7 +28,7 @@ export const POST = apiRoute(async (req) => {
   if (record.consumedAt) return fail("Token already used", 400);
   if (record.expiresAt < new Date()) return fail("Token expired", 400);
 
-  // SECURITY (2026-10): atomic conditional update — `updateMany` with
+  // atomic conditional update — `updateMany` with
   // `where: { id, consumedAt: null }` so two concurrent requests with the
   // same token can't both pass the consumedAt check. The loser's updateMany
   // returns count=0, and we return "already used" without doing the user

@@ -62,7 +62,7 @@ export const POST = apiRoute(async (req, { params }) => {
   if (!validateCurrency(data.currency)) return fail("Unsupported currency", 400);
   const totalMinor = amountToMinor(data.totalDistributable, data.currency);
   const sum = data.allocations.reduce((s, a) => s + a.amountMinor, 0);
-  // SECURITY (2026-10): always enforce total match — previously `enforceTotalMatch: false`
+  // always enforce total match — previously `enforceTotalMatch: false`
   // allowed allocations sum != total, creating logically inconsistent agreements
   // where collaborators were promised more than the project budget.
   if (sum !== totalMinor) {

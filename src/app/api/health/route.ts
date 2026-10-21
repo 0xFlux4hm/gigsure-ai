@@ -28,7 +28,7 @@ export async function GET() {
     await db.$queryRaw`SELECT 1`;
     checks.database = { ok: true, latencyMs: Date.now() - t0 };
   } catch (err) {
-    // SECURITY (2026-10): never expose raw Prisma error message on an
+    // never expose raw Prisma error message on an
     // unauthenticated endpoint — leaks internal hostnames/ports during outages.
     logSecurityEvent("error", "health.database_down", {
       message: (err as Error).message.slice(0, 100),

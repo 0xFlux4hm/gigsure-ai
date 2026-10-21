@@ -83,7 +83,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // SECURITY (2026-10): reject negative amounts in webhook payloads
+  // reject negative amounts in webhook payloads
   // (defense-in-depth — even though we don't currently write this value to DB,
   // a future refactor might trust it, so validate now)
   if (payload.amount_minor !== undefined) {

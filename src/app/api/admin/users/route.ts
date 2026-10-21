@@ -17,7 +17,7 @@ export const GET = apiRoute(async (req) => {
 
   const limit = Math.min(getQueryInt(req, "limit", 50), 200);
   const offset = getQueryInt(req, "offset", 0);
-  // SECURITY (2026-10): cap query length to prevent CPU-drain DoS via
+  // cap query length to prevent CPU-drain DoS via
   // contains queries with huge `q` values.
   const q = (getQueryParam(req, "q") ?? "").toLowerCase().trim().slice(0, 100);
   const status = getQueryParam(req, "status");

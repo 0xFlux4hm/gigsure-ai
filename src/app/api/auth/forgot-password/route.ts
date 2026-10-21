@@ -5,7 +5,7 @@
  * If the email is registered, a single-use token (24h) is created and the
  * raw token is logged in dev mode (in prod it would be emailed).
  *
- * SECURITY (2026-10): replaced ad-hoc `forgotStore` Map with the central
+ * replaced ad-hoc `forgotStore` Map with the central
  * `checkRateLimit` rate limiter (which has periodic cleanup). Old code
  * leaked memory indefinitely.
  */
@@ -28,7 +28,7 @@ export const POST = apiRoute(async (req) => {
   const email = normalizeEmail(parsed.data.email);
   if (!validateEmail(email)) return fail("Invalid email", 400);
 
-  // SECURITY (2026-10): use the central rate limiter (has periodic cleanup)
+  // use the central rate limiter (has periodic cleanup)
   // instead of an ad-hoc Map that grows indefinitely.
   const rateResult = await checkRateLimit(
     `forgotpw:email:${email}`,
