@@ -84,10 +84,12 @@ class SMTPEmailProvider implements EmailProvider {
       return { ok: true, messageId: result.messageId };
     } catch (err) {
       // SECURITY (2026-10): never expose the raw error message — it may
-      // contain the SMTP URL with embedded credentials. Log details with
-      // URL redacted server-side, return generic message to caller.
+      // contain the SMTP URL with embedded credentials. Redact both smtp://
+      // AND smtps:// schemes (previously only smtp:// was covered).
       const msg = (err as Error).message ?? "Unknown SMTP error";
-      const redacted = msg.replace(/(smtp:\/\/)[^@]+@/gi, "$1***:***@");
+      const redacted = msg
+        .replace(/(smtps?:\/\/)[^@\s]+@/gi, "$1***:***@")
+        .replace(/([a-zA-Z0-9+.-]+:\/\/)[^@\s]+:[^@\s]+@/g, "$1***:***@");
       console.error("[email] SMTP send failed:", redacted);
       return { ok: false, error: "SMTP send failed" };
     }

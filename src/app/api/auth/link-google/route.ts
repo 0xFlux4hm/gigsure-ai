@@ -32,7 +32,7 @@
  */
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail, ok } from "@/lib/api";
-import { requireUserId } from "@/lib/auth/session";
+import { requireUserId, requireRecentAuth } from "@/lib/auth/session";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { normalizeEmail, validateEmail } from "@/lib/security/validation";
 import { z } from "zod";
@@ -50,10 +50,13 @@ const Schema = z.object({
 });
 
 export const POST = apiRoute(async (req) => {
-  const userId = await requireUserId();
+  // SECURITY (2026-10): require recent reauthentication (sudo mode) for
+  // linking a Google identity. Prevents a stolen session cookie from being
+  // used to add a persistent OAuth backdoor.
+  const userId = await requireRecentAuth(15);
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) return fail("Invalid input", 422, { issues: parsed.error.issues });
+  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid input", 422); }
 
   let googleSub: string;
   let email: string;
@@ -76,9 +79,15 @@ export const POST = apiRoute(async (req) => {
     issuedCodes.delete(parsed.data.code);
   } else {
     // Legacy path: trust client-supplied googleSub + email
-    // SECURITY: only allow when explicitly enabled via env (debugging only).
-    // Demo googleSub values always start with "demo_" — never trust them via
-    // this path because they're trivially forgeable.
+    // SECURITY (2026-10): blocked in production EVEN IF the env var is set
+    // (defense in depth — operator misconfiguration can't enable this path).
+    if (process.env.NODE_ENV === "production") {
+      logSecurityEvent("error", "auth.link_google_legacy_blocked_in_prod", { userId });
+      return fail(
+        "Direct googleSub linking is disabled in production. Use the Google OAuth flow to obtain a code.",
+        400,
+      );
+    }
     if (process.env.GOOGLE_ALLOW_UNVERIFIED_LINK !== "true") {
       logSecurityEvent("warn", "auth.link_google_legacy_blocked", { userId });
       return fail(

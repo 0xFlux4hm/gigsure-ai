@@ -22,6 +22,8 @@ import {
 } from "@/lib/security/validation";
 import { generateToken, hashToken } from "@/lib/security/tokens";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
+import { getClientIp } from "@/lib/auth/session";
 import { sendEmail, verificationEmail } from "@/lib/email/provider";
 import { z } from "zod";
 
@@ -33,10 +35,21 @@ const RegisterSchema = z.object({
 });
 
 export const POST = apiRoute(async (req) => {
+  // SECURITY (2026-10): rate-limit registration to prevent mass account
+  // creation + email-bombing via verification emails.
+  const ip = getClientIp() ?? "unknown";
+  const ipLimit = await checkRateLimit(`register:ip:${ip}`, RATE_LIMITS.REGISTER_PER_IP);
+  if (!ipLimit.ok) {
+    return fail("Too many registrations from this IP. Please try again later.", 429, {
+      retryAfter: Math.ceil((ipLimit.resetAt - Date.now()) / 1000),
+    });
+  }
+
   const body = await parseJsonBody<unknown>(req);
   const parsed = RegisterSchema.safeParse(body);
   if (!parsed.success) {
-    return fail("Invalid registration data", 422, { issues: parsed.error.issues });
+    logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) });
+    return fail("Invalid registration data", 422);
   }
 
   const email = normalizeEmail(parsed.data.email);

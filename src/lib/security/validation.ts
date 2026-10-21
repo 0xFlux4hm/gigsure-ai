@@ -3,11 +3,21 @@
  */
 const SUPPORTED_CURRENCIES = new Set(["NGN", "USD", "GHS", "KES", "ZAR", "GBP", "EUR"]);
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// SECURITY (2026-10): tightened email regex — no more accepting Unicode
+// homoglyphs (Cyrillic а, Greek о) or control characters (NULL, BEL, etc.).
+// Matches the common ASCII subset of RFC 5322 (local part: alphanumeric + !#$%&'*+/=?^_`{|}~-])
+// and a basic domain pattern (alphanumeric + hyphens + dots).
+// Rejects: Unicode chars, control chars, Bidi overrides, homoglyphs.
+const EMAIL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 const DISPLAY_NAME_RE = /^[\p{L}\p{M}\p{Z}\p{N}\p{P}~`&'^_\-+.() ]+$/u;
 
 export function normalizeEmail(email: string): string {
-  return (email ?? "").toString().trim().toLowerCase();
+  return (email ?? "").toString()
+    // SECURITY (2026-10): strip control characters (NULL, BEL, BS, etc.)
+    // that could be used for log injection or DB-string truncation attacks.
+    .replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]/g, "")
+    .trim()
+    .toLowerCase();
 }
 
 export function validateEmail(email: string): boolean {

@@ -34,7 +34,7 @@ export const PATCH = apiRoute(async (req, { params }) => {
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = ActionSchema.safeParse(body);
-  if (!parsed.success) return fail("Invalid action", 422, { issues: parsed.error.issues });
+  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid action", 422); }
 
   const data = parsed.data;
 

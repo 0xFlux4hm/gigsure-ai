@@ -7,13 +7,15 @@
  */
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail } from "@/lib/api";
-import { requireUserId } from "@/lib/auth/session";
+import { requireUserId, getClientIp } from "@/lib/auth/session";
 import { assertPermission, AuthzError } from "@/lib/auth/authorization";
 import { recordAuditEvent } from "@/lib/auth/audit";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import { generateToken, hashToken } from "@/lib/security/tokens";
 import { normalizeEmail, validateEmail } from "@/lib/security/validation";
 import { z } from "zod";
 
+import { logSecurityEvent } from "@/lib/auth/audit";
 const Schema = z.object({
   inviteeEmail: z.string().email().optional(),
   inviteeId: z.string().cuid().optional(),
@@ -43,6 +45,12 @@ export const GET = apiRoute(async (_req, { params }) => {
 
 export const POST = apiRoute(async (req, { params }) => {
   const userId = await requireUserId();
+  // SECURITY (2026-10): rate-limit invitations to prevent email-bombing
+  // victims via the platform's SMTP account.
+  const inviterRL = await checkRateLimit(`invite:user:${userId}`, { limit: 20, windowMs: 60 * 60 * 1000 });
+  if (!inviterRL.ok) {
+    return fail("Too many invitations sent. Please try again later.", 429);
+  }
   const membership = await db.projectMembership.findUnique({
     where: { projectId_userId: { projectId: params.id, userId } },
   });
@@ -51,9 +59,18 @@ export const POST = apiRoute(async (req, { params }) => {
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) return fail("Invalid invitation", 422, { issues: parsed.error.issues });
+  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid invitation", 422); }
 
   const data = parsed.data;
+  // SECURITY (2026-10): also rate-limit per invitee email to prevent one
+  // attacker from email-bombing a specific victim.
+  if (data.inviteeEmail) {
+    const inviteeEmail = normalizeEmail(data.inviteeEmail);
+    const inviteeRL = await checkRateLimit(`invite:email:${inviteeEmail}`, { limit: 5, windowMs: 60 * 60 * 1000 });
+    if (!inviteeRL.ok) {
+      return fail("This email has been invited too many times. Please try again later.", 429);
+    }
+  }
   let inviteeId: string | null = null;
   let inviteeEmail: string | null = null;
   if (data.inviteeId) {

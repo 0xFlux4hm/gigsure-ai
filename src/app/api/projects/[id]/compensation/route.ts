@@ -14,6 +14,7 @@ import { recordAuditEvent } from "@/lib/auth/audit";
 import { validateCurrency, amountToMinor, minorToAmount } from "@/lib/security/validation";
 import { z } from "zod";
 
+import { logSecurityEvent } from "@/lib/auth/audit";
 const AllocationSchema = z.object({
   userId: z.string().cuid(),
   role: z.string().max(80),
@@ -55,7 +56,7 @@ export const POST = apiRoute(async (req, { params }) => {
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) return fail("Invalid compensation data", 422, { issues: parsed.error.issues });
+  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid compensation data", 422); }
 
   const data = parsed.data;
   if (!validateCurrency(data.currency)) return fail("Unsupported currency", 400);

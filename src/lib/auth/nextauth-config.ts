@@ -20,7 +20,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { db } from "@/lib/db";
 import { verifyPassword, getDecoyPasswordHash } from "@/lib/security/password";
-import { normalizeEmail, validateEmail } from "@/lib/security/validation";
+import { normalizeEmail, validateEmail, isSafeRedirect } from "@/lib/security/validation";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 
@@ -48,8 +48,15 @@ export const authOptions: NextAuthOptions = {
     maxAge: 60 * 60 * 24 * 7,
   },
   cookies: {
+    // SECURITY (2026-10): use __Secure- / __Host- prefixes in production.
+    //   __Secure- → browser refuses to set the cookie over HTTP (downgrade defense)
+    //   __Host-   → browser refuses to set the cookie from any subdomain (no Domain attr, Path=/)
+    // NextAuth v4 normally applies these automatically when useSecureCookies=true,
+    // but our explicit override was stripping them. Restore them here.
     sessionToken: {
-      name: `gigsure_session_token`,
+      name: process.env.NODE_ENV === "production"
+        ? "__Secure-gigsure_session_token"
+        : "gigsure_session_token",
       options: {
         httpOnly: true,
         sameSite: "lax",
@@ -58,7 +65,9 @@ export const authOptions: NextAuthOptions = {
       },
     },
     csrfToken: {
-      name: "gigsure_csrf_token",
+      name: process.env.NODE_ENV === "production"
+        ? "__Host-gigsure_csrf_token"
+        : "gigsure_csrf_token",
       options: {
         httpOnly: true,
         sameSite: "lax",
@@ -220,10 +229,13 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // SECURITY (2026-10): use isSafeRedirect (rejects scheme, protocol-relative,
+      // backslash, CRLF, control chars) instead of loose startsWith("/") check.
+      if (isSafeRedirect(url)) return `${baseUrl}${url}`;
       try {
         const u = new URL(url);
-        if (u.origin === baseUrl) return url;
+        // Compare origins via URL objects (handles port equivalence).
+        if (new URL(baseUrl).origin === u.origin) return url;
       } catch {
         // ignore
       }

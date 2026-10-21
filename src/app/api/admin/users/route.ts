@@ -9,11 +9,11 @@
  */
 import { db } from "@/lib/db";
 import { apiRoute, getQueryInt, getQueryParam } from "@/lib/api";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminRateLimited } from "@/lib/auth/session";
 import { recordAuditEvent } from "@/lib/auth/audit";
 
 export const GET = apiRoute(async (req) => {
-  await requireAdmin();
+  await requireAdminRateLimited();
 
   const limit = Math.min(getQueryInt(req, "limit", 50), 200);
   const offset = getQueryInt(req, "offset", 0);

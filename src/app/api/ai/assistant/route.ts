@@ -203,7 +203,7 @@ export const POST = apiRoute(async (req) => {
   }
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) return fail("Invalid request", 422, { issues: parsed.error.issues });
+  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid request", 422); }
 
   const cfg = ASSISTANTS[parsed.data.assistant];
   const sanitizedPrompt = sanitizeForAI(parsed.data.prompt);

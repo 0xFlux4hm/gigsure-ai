@@ -6,6 +6,7 @@ import { recordAuditEvent } from "@/lib/auth/audit";
 import { validateCurrency, amountToMinor, sanitizeDisplayName } from "@/lib/security/validation";
 import { z } from "zod";
 
+import { logSecurityEvent } from "@/lib/auth/audit";
 const CreateSchema = z.object({
   title: z.string().min(3).max(160),
   description: z.string().min(10).max(8000),
@@ -67,7 +68,7 @@ export const POST = apiRoute(async (req) => {
   const userId = await requireUserId();
   const body = await parseJsonBody<unknown>(req);
   const parsed = CreateSchema.safeParse(body);
-  if (!parsed.success) return fail("Invalid project data", 422, { issues: parsed.error.issues });
+  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid project data", 422); }
 
   const data = parsed.data;
   if (!validateCurrency(data.currency)) return fail("Unsupported currency", 400);

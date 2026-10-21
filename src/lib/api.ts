@@ -19,11 +19,25 @@ import { PaymentProviderError } from "@/lib/payments/mock-provider";
 export type ApiHandler<T> = (req: Request, ctx: { params: Record<string, string> }) => Promise<T>;
 
 export function ok<T>(data: T, status = 200) {
-  return NextResponse.json({ ok: true, data }, { status });
+  // SECURITY (2026-10): never cache authenticated API responses —
+  // prevents cross-user PII leaks at CDN edges / intermediate proxies.
+  return NextResponse.json(
+    { ok: true, data },
+    {
+      status,
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" },
+    },
+  );
 }
 
 export function fail(message: string, status = 400, extra?: Record<string, unknown>) {
-  return NextResponse.json({ ok: false, error: message, ...extra }, { status });
+  return NextResponse.json(
+    { ok: false, error: message, ...extra },
+    {
+      status,
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" },
+    },
+  );
 }
 
 export function apiRoute<T>(

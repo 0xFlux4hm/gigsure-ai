@@ -34,8 +34,11 @@ export function InvitationView({ token }: { token?: string }) {
       setLoading(false);
       return;
     }
+    // SECURITY (2026-10): URL-encode the token to prevent path-traversal
+    // via crafted token values (e.g., ?token=../../admin/users).
+    const encToken = encodeURIComponent(token);
     api
-      .get<InvitationInfo>(`/api/invitations/${token}`)
+      .get<InvitationInfo>(`/api/invitations/${encToken}`)
       .then((data) => {
         setInfo(data);
         setError(null);
@@ -51,7 +54,7 @@ export function InvitationView({ token }: { token?: string }) {
     setActing(true);
     setError(null);
     try {
-      const result = await api.post<{ ok: boolean; decision: string; projectId?: string }>("/api/invitations/" + token, {
+      const result = await api.post<{ ok: boolean; decision: string; projectId?: string }>("/api/invitations/" + encodeURIComponent(token), {
         token,
         decision: dec,
       });

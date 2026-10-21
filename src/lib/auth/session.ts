@@ -46,6 +46,10 @@ export async function getAuthenticatedUser() {
  *
  * The env-var fallback lets you bootstrap the first admin without DB access:
  *   ADMIN_EMAILS=founder@example.com,ops@example.com
+ *
+ * SECURITY (2026-10): includes a per-admin rate limit (30/min) to prevent
+ * admin endpoints from being used as DoS amplifiers (e.g. /api/admin/stats
+ * runs 35+ DB queries per request).
  */
 export async function requireAdmin(): Promise<{ userId: string; email: string; displayName: string }> {
   const userId = await requireUserId();
@@ -78,6 +82,27 @@ export async function requireAdmin(): Promise<{ userId: string; email: string; d
   return { userId: user.id, email: user.email, displayName: user.displayName };
 }
 
+/**
+ * Like requireAdmin, but also enforces a per-admin rate limit.
+ * Use this for expensive admin GET endpoints (stats, audit, etc.) to prevent
+ * DoS amplification (e.g. /api/admin/stats runs 35+ queries per request).
+ *
+ * Default: 30 requests per minute per admin.
+ */
+export async function requireAdminRateLimited(
+  limit = 30,
+  windowMs = 60 * 1000,
+): Promise<{ userId: string; email: string; displayName: string }> {
+  const admin = await requireAdmin();
+  // Lazy import to avoid circular dependency
+  const { checkRateLimit } = await import("@/lib/security/rate-limit");
+  const result = await checkRateLimit(`admin:${admin.userId}`, { limit, windowMs });
+  if (!result.ok) {
+    throw new AuthzError("Rate limit exceeded. Please slow down.", 429);
+  }
+  return admin;
+}
+
 /** Returns true if the current user is an admin (no throw). */
 export async function isCurrentUserAdmin(): Promise<boolean> {
   const session = await getSession();
@@ -92,6 +117,32 @@ export async function isCurrentUserAdmin(): Promise<boolean> {
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
   return user.platformRole === "ADMIN" || adminEmails.includes(user.email.toLowerCase());
+}
+
+/**
+ * SECURITY (2026-10): "sudo mode" — requires the session to have been
+ * issued within the last `maxAgeMinutes` minutes. Use this for sensitive
+ * actions like linking/unlinking OAuth identities, changing email, etc.
+ *
+ * Returns the userId if recent auth, otherwise throws AuthnError with
+ * status 401 and a `requireReauth: true` flag in the message.
+ *
+ * Implementation: NextAuth's jwt callback sets `token.issuedAt = Date.now()`
+ * only when a fresh login occurs (not on session refresh). The frontend
+ * should call /api/auth/reauth (TODO) to refresh issuedAt after prompting
+ * for the password.
+ */
+export async function requireRecentAuth(maxAgeMinutes = 15): Promise<string> {
+  const session = await getSession();
+  if (!session?.user?.id) throw new AuthnError();
+  const token = session as unknown as { issuedAt?: number };
+  const issuedAt = token.issuedAt;
+  if (!issuedAt || Date.now() - issuedAt > maxAgeMinutes * 60 * 1000) {
+    const err = new AuthnError("Recent authentication required", 401);
+    (err as Error & { requireReauth?: boolean }).requireReauth = true;
+    throw err;
+  }
+  return session.user.id;
 }
 
 export function getClientIp(): string | null {

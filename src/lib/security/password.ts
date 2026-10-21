@@ -43,7 +43,10 @@ function hashPasswordInternal(plain: string, params: typeof SCRYPT_PARAMS): stri
 }
 
 export function verifyPassword(plain: string, stored: string): boolean {
-  if (!plain || !stored || !stored.startsWith("scrypt:")) return false;
+  // SECURITY (2026-10): cap password length to prevent DoS via huge passwords
+  // (scryptSync runs the full PBKDF2 phase over every byte of `plain`).
+  if (typeof plain !== "string" || plain.length === 0 || plain.length > 1024) return false;
+  if (!stored || !stored.startsWith("scrypt:")) return false;
   const parts = stored.split(":");
   if (parts.length !== 6) return false;
   const N = Number(parts[1]);

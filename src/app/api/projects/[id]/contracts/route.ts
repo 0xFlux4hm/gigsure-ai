@@ -11,6 +11,7 @@ import { assertPermission, AuthzError } from "@/lib/auth/authorization";
 import { recordAuditEvent } from "@/lib/auth/audit";
 import { z } from "zod";
 
+import { logSecurityEvent } from "@/lib/auth/audit";
 const Schema = z.object({
   scopeOfWork: z.string().min(20).max(20000),
   deliverables: z.array(z.string().min(1).max(500)).max(50).default([]),
@@ -48,7 +49,7 @@ export const POST = apiRoute(async (req, { params }) => {
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) return fail("Invalid contract data", 422, { issues: parsed.error.issues });
+  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid contract data", 422); }
 
   const last = await db.contractVersion.findFirst({
     where: { projectId: params.id },
