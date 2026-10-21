@@ -27,6 +27,7 @@ import { NotificationsView } from "@/views/NotificationsView";
 import { InvitationView } from "@/views/InvitationView";
 import { GoogleDemoConsentView } from "@/views/GoogleDemoConsentView";
 import { AdminView } from "@/views/AdminView";
+import { KycView } from "@/views/KycView";
 
 function Router() {
   const { data: session, status } = useSession();
@@ -86,6 +87,7 @@ function Router() {
       {view === "settings-audit" && <SettingsAuditView />}
       {view === "notifications" && <NotificationsView />}
       {view === "admin" && <AdminView />}
+      {view === "kyc" && <KycView />}
     </AppShell>
   );
 }

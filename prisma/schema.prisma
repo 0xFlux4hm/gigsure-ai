@@ -63,6 +63,7 @@ model User {
   fundingInitiated  FundingRecord[]     @relation("FundingInitiator")
   linkedAccounts    LinkedAccount[]
   revokedSessions   RevokedSession[]
+  kycVerifications  KycVerification[]
 }
 
 model UserIdentity {
@@ -624,6 +625,46 @@ model RevokedSession {
   ipAddress String?
   revokedAt DateTime @default(now())
 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// KYC VERIFICATION (2026-10)
+// ---------------------------------------------------------------------------
+// Stores NIN + selfie liveness verification results from Smile ID (or mock).
+// Users must complete KYC before participating in funding transactions.
+// ---------------------------------------------------------------------------
+
+model KycVerification {
+  id              String   @id @default(cuid())
+  userId          String
+  status          String   @default("PENDING") // PENDING | IN_PROGRESS | VERIFIED | REJECTED | EXPIRED
+  provider        String   @default("mock") // "smile_id" | "mock"
+  providerJobId   String?  @unique // Smile ID job ID for polling
+  ninNumber       String   // National Identification Number (hashed for storage)
+  ninNumberLast4  String   // last 4 digits for display (e.g., "****1234")
+  fullName        String   // full name as returned by NIN lookup
+  verificationType String  @default("NIN_WITH_LIVENESS") // "NIN_LOOKUP" | "NIN_WITH_LIVENESS"
+  
+  // Verification results
+  selfieMatch     Boolean?  // did selfie match NIN photo?
+  livenessPassed  Boolean?  // did liveness check pass?
+  confidenceScore Float?   // 0-100, smile ID confidence
+  
+  // Failure details
+  failureReason   String?
+  
+  // Metadata
+  ipAddress       String?
+  userAgent       String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  verifiedAt      DateTime?
+  expiresAt       DateTime? // KYC expires after 1 year
+  
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])

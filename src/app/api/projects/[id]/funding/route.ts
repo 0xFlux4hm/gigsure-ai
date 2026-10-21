@@ -14,6 +14,7 @@ import { requireUserId } from "@/lib/auth/session";
 import { assertPermission, AuthzError } from "@/lib/auth/authorization";
 import { initiateFunding } from "@/lib/payments/mock-provider";
 import { recordAuditEvent } from "@/lib/auth/audit";
+import { isUserKycVerified } from "@/lib/kyc/provider";
 import { z } from "zod";
 
 import { logSecurityEvent } from "@/lib/auth/audit";
@@ -47,6 +48,15 @@ export const POST = apiRoute(async (req, { params }) => {
   });
   if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
   assertPermission(membership, "funding:initiate");
+
+  // SECURITY: require KYC verification before any funding transaction
+  const kycVerified = await isUserKycVerified(userId);
+  if (!kycVerified) {
+    return fail(
+      "KYC verification required before participating in funding transactions. Please complete KYC verification in your account settings.",
+      403,
+    );
+  }
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);

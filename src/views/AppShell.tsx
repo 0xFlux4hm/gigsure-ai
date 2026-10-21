@@ -51,6 +51,7 @@ const PRIMARY_NAV: NavItem[] = [
   { view: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { view: "projects", label: "Projects", icon: FolderKanban },
   { view: "notifications", label: "Notifications", icon: Bell },
+  { view: "kyc", label: "Verify Identity", icon: ShieldCheck },
 ];
 
 const SETTINGS_NAV: NavItem[] = [

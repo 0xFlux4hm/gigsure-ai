@@ -65,6 +65,7 @@ model User {
   fundingInitiated  FundingRecord[]     @relation("FundingInitiator")
   linkedAccounts    LinkedAccount[]
   revokedSessions   RevokedSession[]
+  kycVerifications  KycVerification[]
 }
 
 model UserIdentity {
@@ -582,5 +583,29 @@ model RevokedSession {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+}
+
+model KycVerification {
+  id              String   @id @default(cuid())
+  userId          String
+  status          String   @default("PENDING")
+  provider        String   @default("mock")
+  providerJobId   String?  @unique
+  ninNumber       String
+  ninNumberLast4  String
+  fullName        String
+  verificationType String  @default("NIN_WITH_LIVENESS")
+  selfieMatch     Boolean?
+  livenessPassed  Boolean?
+  confidenceScore Float?
+  failureReason   String?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  verifiedAt      DateTime?
+  expiresAt       DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
 }

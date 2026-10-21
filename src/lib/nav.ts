@@ -34,7 +34,8 @@ export type ViewName =
   | "settings-audit"
   | "notifications"
   | "invitation"
-  | "admin";
+  | "admin"
+  | "kyc";
 
 export interface ViewState {
   view: ViewName;
