@@ -878,44 +878,62 @@ function AuditTab() {
       <Card>
         <CardContent className="p-3 flex gap-2 items-end">
           <div className="flex-1 space-y-1">
-            <Label className="text-xs">Action prefix (e.g. "auth." or "funding.")</Label>
-            <Input value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} placeholder="auth." />
+            <Label className="text-xs">Filter by action</Label>
+            <Input value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} placeholder="e.g. auth, project, payment" />
           </div>
           <div className="flex-1 space-y-1">
-            <Label className="text-xs">Actor ID</Label>
+            <Label className="text-xs">Filter by user ID</Label>
             <Input value={actorFilter} onChange={(e) => setActorFilter(e.target.value)} placeholder="cmv…" />
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="pb-3"><CardTitle className="text-base">Audit events ({total})</CardTitle></CardHeader>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Audit Log ({total})</CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
           {loading ? <LoadingState /> : (
-            <ul className="divide-y max-h-[600px] overflow-y-auto">
-              {events.map((e) => {
-                let meta: Record<string, unknown> = {};
-                try { meta = JSON.parse(e.metadata || "{}"); } catch {}
-                return (
-                  <li key={e.id} className="p-3 text-sm">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <Badge variant="outline" className="text-xs">{e.action}</Badge>
-                      {e.targetType && <Badge variant="secondary" className="text-xs">{e.targetType}</Badge>}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {e.actor?.displayName ?? "system"} ({e.actor?.email ?? "—"}) · {formatDateTime(e.createdAt)}
-                      {e.ipAddress && ` · IP ${e.ipAddress}`}
-                    </div>
-                    {Object.keys(meta).length > 0 && (
-                      <pre className="text-xs text-muted-foreground mt-1 bg-muted/50 rounded p-2 overflow-x-auto">
-                        {JSON.stringify(meta, null, 2)}
-                      </pre>
-                    )}
-                  </li>
-                );
-              })}
-              {events.length === 0 && <li className="p-6 text-center text-muted-foreground">No events.</li>}
-            </ul>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/30 text-xs text-muted-foreground">
+                  <tr>
+                    <th className="text-left p-2">Action</th>
+                    <th className="text-left p-2">User</th>
+                    <th className="text-left p-2">Target</th>
+                    <th className="text-left p-2">IP</th>
+                    <th className="text-left p-2">Timestamp</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.length === 0 && (
+                    <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">No audit events.</td></tr>
+                  )}
+                  {events.map((e) => {
+                    let meta: Record<string, unknown> = {};
+                    try { meta = JSON.parse(e.metadata || "{}"); } catch {}
+                    return (
+                      <tr key={e.id} className="border-t hover:bg-muted/30">
+                        <td className="p-2">
+                          <Badge variant="outline" className="text-xs">{e.action}</Badge>
+                        </td>
+                        <td className="p-2">
+                          <div className="font-medium">{e.actor?.displayName ?? "System"}</div>
+                          <div className="text-xs text-muted-foreground">{e.actor?.email ?? "—"}</div>
+                        </td>
+                        <td className="p-2">
+                          {e.targetType ? (
+                            <Badge variant="secondary" className="text-xs">{e.targetType}</Badge>
+                          ) : "—"}
+                        </td>
+                        <td className="p-2 text-xs text-muted-foreground font-mono">{e.ipAddress ?? "—"}</td>
+                        <td className="p-2 text-xs text-muted-foreground">{formatDateTime(e.createdAt)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>
