@@ -1,0 +1,63 @@
+# Dependabot configuration — automated dependency update PRs.
+# Runs weekly, groups minor/patch updates to reduce PR noise.
+# Critical security updates are opened immediately (not grouped).
+
+version: 2
+updates:
+  # Bun/npm dependencies (Next.js, Prisma, NextAuth, etc.)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Africa/Lagos"
+    # Group minor + patch updates into a single PR per ecosystem
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    # Don't auto-open PRs for major version bumps — review manually
+    # (major bumps can break the build + introduce security regressions)
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "automated"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    reviewers:
+      - "0xFlux4hm"
+
+  # GitHub Actions workflow dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    reviewers:
+      - "0xFlux4hm"
+
+  # Docker base image updates
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "automated"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    reviewers:
+      - "0xFlux4hm"

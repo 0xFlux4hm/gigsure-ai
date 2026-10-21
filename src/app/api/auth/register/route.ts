@@ -37,7 +37,7 @@ const RegisterSchema = z.object({
 export const POST = apiRoute(async (req) => {
   // SECURITY (2026-10): rate-limit registration to prevent mass account
   // creation + email-bombing via verification emails.
-  const ip = getClientIp() ?? "unknown";
+  const ip = await getClientIp();
   const ipLimit = await checkRateLimit(`register:ip:${ip}`, RATE_LIMITS.REGISTER_PER_IP);
   if (!ipLimit.ok) {
     return fail("Too many registrations from this IP. Please try again later.", 429, {
