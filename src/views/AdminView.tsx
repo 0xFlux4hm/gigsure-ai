@@ -15,6 +15,7 @@ import {
   Users,
   FolderKanban,
   Wallet,
+  CreditCard,
   Scale,
   ScrollText,
   Bot,
@@ -29,7 +30,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-type AdminTab = "overview" | "users" | "projects" | "funding" | "disputes" | "audit" | "ai" | "privacy" | "webhooks" | "kyc" | "payments";
+type AdminTab = "overview" | "users" | "projects" | "payments" | "disputes" | "kyc" | "audit" | "ai" | "privacy" | "webhooks";
 
 export function AdminView() {
   const [tab, setTab] = useState<AdminTab>("overview");
@@ -80,27 +81,25 @@ export function AdminView() {
           <TabsTrigger value="overview" className="data-[state=active]:bg-background"><TrendingUp className="h-3.5 w-3.5 mr-1" /> Overview</TabsTrigger>
           <TabsTrigger value="users" className="data-[state=active]:bg-background"><Users className="h-3.5 w-3.5 mr-1" /> Users</TabsTrigger>
           <TabsTrigger value="projects" className="data-[state=active]:bg-background"><FolderKanban className="h-3.5 w-3.5 mr-1" /> Projects</TabsTrigger>
-          <TabsTrigger value="funding" className="data-[state=active]:bg-background"><Wallet className="h-3.5 w-3.5 mr-1" /> Funding</TabsTrigger>
+          <TabsTrigger value="payments" className="data-[state=active]:bg-background"><CreditCard className="h-3.5 w-3.5 mr-1" /> Payments</TabsTrigger>
           <TabsTrigger value="disputes" className="data-[state=active]:bg-background"><Scale className="h-3.5 w-3.5 mr-1" /> Disputes</TabsTrigger>
+          <TabsTrigger value="kyc" className="data-[state=active]:bg-background"><ShieldCheck className="h-3.5 w-3.5 mr-1" /> KYC</TabsTrigger>
           <TabsTrigger value="audit" className="data-[state=active]:bg-background"><ScrollText className="h-3.5 w-3.5 mr-1" /> Audit</TabsTrigger>
           <TabsTrigger value="ai" className="data-[state=active]:bg-background"><Bot className="h-3.5 w-3.5 mr-1" /> AI</TabsTrigger>
           <TabsTrigger value="privacy" className="data-[state=active]:bg-background"><Lock className="h-3.5 w-3.5 mr-1" /> Privacy</TabsTrigger>
           <TabsTrigger value="webhooks" className="data-[state=active]:bg-background"><Webhook className="h-3.5 w-3.5 mr-1" /> Webhooks</TabsTrigger>
-          <TabsTrigger value="kyc" className="data-[state=active]:bg-background"><ShieldCheck className="h-3.5 w-3.5 mr-1" /> KYC</TabsTrigger>
-          <TabsTrigger value="payments" className="data-[state=active]:bg-background"><Wallet className="h-3.5 w-3.5 mr-1" /> Payments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4"><OverviewTab /></TabsContent>
         <TabsContent value="users" className="mt-4"><UsersTab /></TabsContent>
         <TabsContent value="projects" className="mt-4"><ProjectsTab /></TabsContent>
-        <TabsContent value="funding" className="mt-4"><FundingTab /></TabsContent>
+        <TabsContent value="payments" className="mt-4"><PaymentsTab /></TabsContent>
         <TabsContent value="disputes" className="mt-4"><DisputesTab /></TabsContent>
+        <TabsContent value="kyc" className="mt-4"><KycTab /></TabsContent>
         <TabsContent value="audit" className="mt-4"><AuditTab /></TabsContent>
         <TabsContent value="ai" className="mt-4"><AiTab /></TabsContent>
         <TabsContent value="privacy" className="mt-4"><PrivacyTab /></TabsContent>
         <TabsContent value="webhooks" className="mt-4"><WebhooksTab /></TabsContent>
-        <TabsContent value="kyc" className="mt-4"><KycTab /></TabsContent>
-        <TabsContent value="payments" className="mt-4"><PaymentsTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -1531,23 +1530,29 @@ function PaymentsTab() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
 
+  const [fundingRecords, setFundingRecords] = useState<FundingRecord[]>([]);
+
   const load = () => {
     setLoading(true);
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
-    api.get<{
-      transactions: AdminPayment[];
-      total: number;
-      aggregates: typeof aggregates;
-      providers: typeof providers;
-      livePaymentsEnabled: boolean;
-    }>(`/api/admin/payments?${params.toString()}`)
-      .then((r) => {
-        setTransactions(r.transactions);
-        setTotal(r.total);
-        setAggregates(r.aggregates);
-        setProviders(r.providers);
-        setLivePayments(r.livePaymentsEnabled);
+    Promise.all([
+      api.get<{
+        transactions: AdminPayment[];
+        total: number;
+        aggregates: typeof aggregates;
+        providers: typeof providers;
+        livePaymentsEnabled: boolean;
+      }>(`/api/admin/payments?${params.toString()}`),
+      api.get<{ records: FundingRecord[]; total: number }>(`/api/admin/funding?limit=10`),
+    ])
+      .then(([payData, fundData]) => {
+        setTransactions(payData.transactions);
+        setTotal(payData.total);
+        setAggregates(payData.aggregates);
+        setProviders(payData.providers);
+        setLivePayments(payData.livePaymentsEnabled);
+        setFundingRecords(fundData.records ?? []);
       })
       .finally(() => setLoading(false));
   };
