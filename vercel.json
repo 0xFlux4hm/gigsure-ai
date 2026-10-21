@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "cp prisma/schema.postgres.prisma prisma/schema.prisma && bunx prisma generate && next build",
+  "buildCommand": "prisma generate && next build",
   "devCommand": "bun run dev",
-  "installCommand": "bun install --frozen-lockfile",
+  "installCommand": "bun install --frozen-lockfile && bunx prisma generate",
   "outputDirectory": ".next",
   "regions": ["iad1"],
   "functions": {
