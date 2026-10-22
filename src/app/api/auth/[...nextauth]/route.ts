@@ -1,28 +1,29 @@
 import NextAuth from "next-auth";
 import { authOptions } from "@/lib/auth/nextauth-config";
 
-// On Vercel, NEXTAUTH_URL may be hardcoded to an old deployment URL in the
-// environment variables. This causes login to redirect to the wrong domain
-// (the session cookie is set for the current domain, but the redirect goes
-// to NEXTAUTH_URL's domain → user appears logged out → bounces to login).
+// On Vercel, NEXTAUTH_URL is often set as an environment variable to a
+// specific deployment URL. This breaks login because:
+//   1. User visits deployment A (e.g., gigsure-ai-git-main-...vercel.app)
+//   2. Login succeeds, session cookie is set for deployment A's domain
+//   3. NextAuth redirects to NEXTAUTH_URL (deployment B's domain)
+//   4. Session cookie doesn't exist on deployment B → user appears logged out
+//   5. User bounces back to login page
 //
-// Fix: when on Vercel, override NEXTAUTH_URL to the current deployment's
-// URL so the redirect stays on the same domain the user is on.
+// Fix: delete NEXTAUTH_URL at runtime so NextAuth's trustHost:true option
+// auto-detects the host from the request's Host header. This ensures the
+// redirect URL always matches the domain the user is currently browsing.
 //
-// - VERCEL_URL is set automatically by Vercel for every deployment
-//   (format: <project-name>-<hash>-<team>.vercel.app)
-// - VERCEL_ENV is "production" | "preview" | "development"
-//
-// For production deployments, use the canonical production URL if set.
-// For preview deployments, use VERCEL_URL (the current deployment's URL).
+// For production deployments, set NEXTAUTH_URL_PRODUCTION in Vercel env vars
+// to your canonical domain (e.g., https://gigsure-ai.vercel.app) — this is
+// used ONLY for production, not for preview deployments.
 if (process.env.VERCEL) {
   if (process.env.VERCEL_ENV === "production" && process.env.NEXTAUTH_URL_PRODUCTION) {
     process.env.NEXTAUTH_URL = process.env.NEXTAUTH_URL_PRODUCTION;
-  } else if (process.env.VERCEL_URL) {
-    process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`;
+  } else {
+    // For preview deployments, delete NEXTAUTH_URL so trustHost:auto-detects
+    // from the request's Host header (the URL the user is actually on).
+    delete process.env.NEXTAUTH_URL;
   }
-  // If neither condition matches, trustHost:true in the config will
-  // auto-detect from the request headers.
 }
 
 const handler = NextAuth(authOptions);
