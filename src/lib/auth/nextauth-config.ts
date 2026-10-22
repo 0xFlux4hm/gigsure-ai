@@ -339,11 +339,35 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider) {
         token.provider = account.provider;
       }
-      // handle session update trigger from /api/auth/reauth.
-      // When the frontend calls `await update({ sudo: true })` after reauth,
-      // we refresh issuedAt so requireRecentAuth() passes for 15 minutes.
-      if (trigger === "update" && session?.sudo === true) {
-        token.issuedAt = Date.now();
+      // SECURITY: Handle sudo elevation via server-issued one-time token.
+      // When the frontend calls `await update({ sudoToken: "..." })` after
+      // /api/auth/reauth verifies the password, we verify the token
+      // server-side before refreshing issuedAt. This prevents clients from
+      // arbitrarily elevating sudo mode without password verification.
+      if (trigger === "update" && session?.sudoToken) {
+        const { hashToken } = await import("@/lib/security/tokens");
+        const sudoTokenHash = hashToken(session.sudoToken as string);
+
+        // Look up the token in the DB (stored by reauth endpoint)
+        const sudoEntry = await db.emailVerificationToken.findFirst({
+          where: {
+            tokenHash: sudoTokenHash,
+            userId: token.userId as string,
+            expiresAt: { gt: new Date() },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        if (sudoEntry) {
+          // Consume the token (single-use) and refresh issuedAt
+          await db.emailVerificationToken.delete({ where: { id: sudoEntry.id } });
+          token.issuedAt = Date.now();
+        } else {
+          // Invalid or expired token — do NOT elevate
+          logSecurityEvent("warn", "auth.sudo_token_invalid", {
+            userId: token.userId as string,
+          });
+        }
       }
       // if the user has changed their password since
       // this JWT was issued, force re-authentication by returning an empty

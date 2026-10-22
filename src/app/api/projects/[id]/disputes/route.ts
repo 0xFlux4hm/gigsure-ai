@@ -66,6 +66,11 @@ export const POST = apiRoute(async (req, { params }) => {
     if (!milestone || milestone.projectId !== params.id) {
       return fail("Milestone not found in this project", 404);
     }
+    // SECURITY: Don't allow disputes on already-released milestones
+    // (funds have already been paid out — dispute has no enforcement effect)
+    if (milestone.status === "RELEASED" || milestone.status === "CANCELLED") {
+      return fail(`Cannot dispute a milestone in status: ${milestone.status}`, 400);
+    }
   }
 
   // Wrap dispute-create + milestone-update in a single transaction so we

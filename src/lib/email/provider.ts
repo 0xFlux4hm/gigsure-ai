@@ -126,6 +126,8 @@ export async function sendEmail(message: EmailMessage): Promise<{ ok: boolean; m
 
 export function verificationEmail(to: string, verificationUrl: string): EmailMessage {
   const from = process.env.EMAIL_FROM ?? "GigSure AI <noreply@localhost>";
+  // SECURITY: HTML-escape the URL to prevent injection into email body
+  const safeUrl = escapeHtml(verificationUrl);
   return {
     to,
     from,
@@ -136,9 +138,9 @@ export function verificationEmail(to: string, verificationUrl: string): EmailMes
         <h1 style="color: #0F5132;">Welcome to GigSure AI</h1>
         <p>Please verify your email address to complete your registration.</p>
         <p style="margin: 32px 0;">
-          <a href="${verificationUrl}" style="background: #0F5132; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: 600;">Verify my email</a>
+          <a href="${safeUrl}" style="background: #0F5132; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: 600;">Verify my email</a>
         </p>
-        <p style="color: #6b7280; font-size: 14px;">Or copy this link: ${verificationUrl}</p>
+        <p style="color: #6b7280; font-size: 14px;">Or copy this link: ${safeUrl}</p>
         <p style="color: #6b7280; font-size: 14px;">This link expires in 24 hours.</p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
         <p style="color: #6b7280; font-size: 12px;">If you didn't create an account, you can safely ignore this email.</p>
@@ -150,6 +152,8 @@ export function verificationEmail(to: string, verificationUrl: string): EmailMes
 
 export function passwordResetEmail(to: string, resetUrl: string): EmailMessage {
   const from = process.env.EMAIL_FROM ?? "GigSure AI <noreply@localhost>";
+  // SECURITY: HTML-escape the URL to prevent injection into email body
+  const safeUrl = escapeHtml(resetUrl);
   return {
     to,
     from,
@@ -160,9 +164,9 @@ export function passwordResetEmail(to: string, resetUrl: string): EmailMessage {
         <h1 style="color: #0F5132;">Reset your password</h1>
         <p>We received a request to reset your GigSure AI password.</p>
         <p style="margin: 32px 0;">
-          <a href="${resetUrl}" style="background: #0F5132; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: 600;">Reset password</a>
+          <a href="${safeUrl}" style="background: #0F5132; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: 600;">Reset password</a>
         </p>
-        <p style="color: #6b7280; font-size: 14px;">Or copy this link: ${resetUrl}</p>
+        <p style="color: #6b7280; font-size: 14px;">Or copy this link: ${safeUrl}</p>
         <p style="color: #6b7280; font-size: 14px;">This link expires in 1 hour.</p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
         <p style="color: #6b7280; font-size: 12px;">If you didn't request a reset, ignore this email — your password is still safe.</p>

@@ -31,7 +31,19 @@ export async function isTrustedClient(userId: string): Promise<boolean> {
 
   if (fundedProjects.length < 5) return false;
 
-  return true;
+  // SECURITY: Actually check for disputes upheld against this user
+  // (was previously a no-op — the badge description claimed "0 disputes upheld"
+  // but the code never verified it)
+  const upheldDisputes = await db.disputeReview.count({
+    where: {
+      outcome: "UPHOLD_CLAIM",
+      dispute: {
+        openedById: { not: userId },
+      },
+    },
+  });
+
+  return upheldDisputes === 0;
 }
 
 export async function isTopServiceProvider(userId: string): Promise<boolean> {

@@ -26,6 +26,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return new Response("Forbidden", { status: 403 });
   }
 
+  // SECURITY: Verify the task belongs to the project in the URL
+  // (prevents cross-project IDOR via deliverable access)
+  const task = await db.task.findUnique({
+    where: { id: taskId },
+    select: { projectId: true },
+  });
+  if (!task || task.projectId !== projectId) {
+    return new Response("Task not found in this project", { status: 404 });
+  }
+
   const deliverable = await db.deliverable.findUnique({
     where: { id: deliverableId },
     select: {
@@ -45,11 +55,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return new Response("File data not available", { status: 404 });
   }
 
+  // SECURITY: Sanitize filename for Content-Disposition header
+  // (prevents CRLF injection and quote breakout)
+  const safeFilename = (deliverable.filename ?? "file").replace(/["\r\n]/g, "");
+
   return new Response(deliverable.data, {
     status: 200,
     headers: {
       "Content-Type": deliverable.contentType,
-      "Content-Disposition": `attachment; filename="${deliverable.filename}"`,
+      "Content-Disposition": `attachment; filename="${safeFilename}"`,
       "Content-Length": deliverable.data.length.toString(),
       "Cache-Control": "no-store",
     },

@@ -217,6 +217,11 @@ export async function releaseExpense(
   expenseId: string,
   initiatedById: string,
 ): Promise<{ fundingRecordId: string }> {
+  // SECURITY: Use a transaction with conditional update to prevent
+  // race conditions (duplicate payouts from concurrent release requests).
+  // The conditional update atomically checks status=APPROVED and sets
+  // status=RELEASING — if another request already did this, the update
+  // affects 0 rows and we throw.
   const expense = await db.projectExpense.findUnique({
     where: { id: expenseId },
     select: {
@@ -228,14 +233,38 @@ export async function releaseExpense(
       currency: true,
       title: true,
       requestedById: true,
+      fundingRecordId: true,
     },
   });
   if (!expense) throw new Error("Expense not found");
+
+  // If already released, return the existing funding record (idempotent)
+  if (expense.status === "RELEASED" && expense.fundingRecordId) {
+    return { fundingRecordId: expense.fundingRecordId };
+  }
+
   if (expense.status !== "APPROVED") {
     throw new Error(`Cannot release expense in status: ${expense.status}. Client must approve first.`);
   }
 
-  // Create a FundingRecord (type=RELEASE) to represent this expense release
+  // Atomically claim the expense (prevents concurrent release race condition)
+  const claimed = await db.projectExpense.updateMany({
+    where: { id: expenseId, status: "APPROVED" },
+    data: { status: "RELEASED" },
+  });
+  if (claimed.count === 0) {
+    // Another request already claimed it — re-read and return idempotently
+    const refreshed = await db.projectExpense.findUnique({
+      where: { id: expenseId },
+      select: { status: true, fundingRecordId: true },
+    });
+    if (refreshed?.status === "RELEASED" && refreshed.fundingRecordId) {
+      return { fundingRecordId: refreshed.fundingRecordId };
+    }
+    throw new Error("Expense was not in APPROVED status (may have been released by another request)");
+  }
+
+  // Create a FundingRecord (type=RELEASE) with deterministic idempotency key
   const fundingRecord = await createFundingRecord({
     projectId: expense.projectId,
     milestoneId: expense.milestoneId,
@@ -243,13 +272,13 @@ export async function releaseExpense(
     amountMinor: expense.amountMinor,
     currency: expense.currency,
     initiatedById,
+    idempotencyKey: `expense-release-${expenseId}`,
   });
 
   // Link the expense to the funding record
   await db.projectExpense.update({
     where: { id: expenseId },
     data: {
-      status: "RELEASED",
       fundingRecordId: fundingRecord.fundingRecordId,
       releasedAt: new Date(),
     },

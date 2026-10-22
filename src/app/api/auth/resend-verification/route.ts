@@ -71,18 +71,19 @@ export const POST = apiRoute(async (req) => {
         message: "SMTP_URL not set — verification email was not sent.",
       });
     }
-    // In dev: surface the token via log only.
+    // SECURITY: Never log raw tokens — even in dev mode, Vercel preview
+    // deployment logs are visible to all team members.
+    // Log only a truncated hash for debugging.
     if (process.env.NODE_ENV !== "production") {
-      console.info(`[dev] verification token for ${email}: ${rawToken}`);
+      console.info(`[dev] verification token hash for ${email}: ${hashToken(rawToken).slice(0, 16)}...`);
     }
   }
 
   return ok({
     sent: true,
-    emailSent,
-    emailError,
-    message: emailSent
-      ? "A new verification link has been sent. Check your inbox (and spam folder)."
-      : "If the email is registered and unverified, a new link has been sent. If you don't receive it, the email server may not be configured.",
+    // SECURITY: Don't leak emailSent/emailError to client —
+    // return the same response regardless of whether the email was
+    // actually sent (prevents user enumeration).
+    message: "If the email is registered and unverified, a new link has been sent.",
   });
 });

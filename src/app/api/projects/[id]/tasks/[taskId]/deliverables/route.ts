@@ -26,7 +26,7 @@ const ALLOWED_CONTENT_TYPES = [
   "image/jpeg",
   "image/gif",
   "image/webp",
-  "image/svg+xml",
+  // SVG removed — can carry <script> payloads (stored XSS)
   "application/pdf",
   "text/plain",
   "text/csv",
@@ -47,6 +47,15 @@ export const GET = apiRoute(async (_req, { params }) => {
     where: { projectId_userId: { projectId: params.id, userId } },
   });
   if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
+
+  // SECURITY: Verify the task belongs to the project in the URL
+  const task = await db.task.findUnique({
+    where: { id: params.taskId },
+    select: { projectId: true },
+  });
+  if (!task || task.projectId !== params.id) {
+    return { deliverables: [] };
+  }
 
   const deliverables = await db.deliverable.findMany({
     where: { taskId: params.taskId },
@@ -106,12 +115,20 @@ export const POST = apiRoute(async (req, { params }) => {
   // Generate a storage key (for future S3/Blob migration — currently using DB)
   const storageKey = `deliverables/${params.id}/${params.taskId}/${generateToken(16)}`;
 
+  // SECURITY: Sanitize the filename to prevent path traversal and header injection
+  const safeFilename = (file.name || "file")
+    .replace(/["\r\n]/g, "") // Remove quotes, CRLF (header injection)
+    .replace(/[<>]/g, "") // Remove angle brackets (XSS prevention)
+    .replace(/\.\./g, ".") // Collapse path traversal sequences
+    .replace(/[\\/:*?"<>|]/g, "_") // Replace invalid filename chars with underscore
+    .slice(0, 255); // Cap length
+
   // Create the deliverable record
   const deliverable = await db.deliverable.create({
     data: {
       taskId: params.taskId,
       submitterId: userId,
-      filename: file.name,
+      filename: safeFilename,
       contentType,
       sizeBytes: file.size,
       storageKey,

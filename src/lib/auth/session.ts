@@ -135,8 +135,13 @@ export async function isCurrentUserAdmin(): Promise<boolean> {
 export async function requireRecentAuth(maxAgeMinutes = 15): Promise<string> {
   const session = await getSession();
   if (!session?.user?.id) throw new AuthnError();
-  const token = session as unknown as { issuedAt?: number };
-  const issuedAt = token.issuedAt;
+
+  // SECURITY: Read issuedAt from session.user (not top-level session).
+  // The session() callback in nextauth-config.ts writes issuedAt onto
+  // session.user, not onto the top-level session object.
+  const user = session.user as { issuedAt?: number };
+  const issuedAt = user.issuedAt;
+
   if (!issuedAt || Date.now() - issuedAt > maxAgeMinutes * 60 * 1000) {
     const err = new AuthnError("Recent authentication required", 401);
     (err as Error & { requireReauth?: boolean }).requireReauth = true;

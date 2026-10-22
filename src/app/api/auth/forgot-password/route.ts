@@ -66,7 +66,7 @@ export const POST = apiRoute(async (req) => {
       }
     }
     if (process.env.NODE_ENV !== "production") {
-      console.info(`[dev] password reset token for ${email}: ${rawToken}`);
+      console.info(`[dev] password reset token hash for ${email}: ${hashToken(rawToken).slice(0, 16)}...`);
     }
     await recordAuditEvent({
       actorId: user.id,

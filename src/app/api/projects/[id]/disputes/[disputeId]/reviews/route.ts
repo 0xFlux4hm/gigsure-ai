@@ -57,6 +57,14 @@ export const POST = apiRoute(async (req, { params }) => {
     return fail(`Cannot review a ${dispute.status} dispute`, 400);
   }
 
+  // SECURITY: Prevent self-review — the person who opened the dispute
+  // cannot review it. This enforces the four-eyes principle and prevents
+  // abuse where an OWNER opens a dispute then self-reviews with UPHOLD_CLAIM
+  // to trigger auto-suspension against service providers.
+  if (dispute.openedById === userId) {
+    return fail("You cannot review a dispute that you opened", 403);
+  }
+
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
   if (!parsed.success) return fail("Invalid review", 422);

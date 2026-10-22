@@ -10,7 +10,12 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 
 const Schema = z.object({
-  receiptUrl: z.string().url().max(2048),
+  // SECURITY: Only allow http/https URLs — rejects javascript:, data:, etc.
+  receiptUrl: z
+    .string()
+    .url()
+    .max(2048)
+    .refine((url) => /^https?:\/\//i.test(url), "Only http(s) URLs are allowed"),
 });
 
 export const POST = apiRoute(async (req, { params }) => {

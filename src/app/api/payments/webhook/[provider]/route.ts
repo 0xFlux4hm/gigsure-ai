@@ -91,7 +91,29 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
     }
   }
 
-  const providerEventId = payload.provider_event_id ?? `evt_${Date.now()}`;
+  // SECURITY: Validate timestamp for replay protection (5-minute window)
+  if (payload.timestamp) {
+    const ts = Date.parse(payload.timestamp);
+    if (!Number.isFinite(ts)) {
+      logSecurityEvent("warn", "payment.webhook_invalid_timestamp", { provider: providerName });
+      return NextResponse.json({ error: "Invalid timestamp" }, { status: 400 });
+    }
+    const ageMs = Math.abs(Date.now() - ts);
+    if (ageMs > REPLAY_WINDOW_MS) {
+      logSecurityEvent("warn", "payment.webhook_replay_rejected", {
+        provider: providerName,
+        ageMs,
+      });
+      return NextResponse.json({ error: "Payload expired" }, { status: 401 });
+    }
+  }
+
+  // SECURITY: Use deterministic providerEventId to prevent replay attacks.
+  // If the provider doesn't send one, derive it from the reference + event type
+  // so identical replays are deduped (instead of generating unique IDs per request).
+  const providerEventId =
+    payload.provider_event_id ??
+    `${providerName}_${providerReference || "unknown"}_${verification.eventType}_${payload.timestamp ?? Date.now()}`;
   const providerReference =
     verification.providerReference ||
     payload.provider_tx_ref ||

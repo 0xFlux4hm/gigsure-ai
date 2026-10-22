@@ -8,19 +8,12 @@
  */
 import { db } from "@/lib/db";
 import { apiRoute, fail } from "@/lib/api";
-import { requireUserId } from "@/lib/auth/session";
+import { requireAdminRateLimited } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export const GET = apiRoute(async (req) => {
-  const userId = await requireUserId();
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { platformRole: true },
-  });
-  if (user?.platformRole !== "ADMIN") {
-    return fail("Admin access required", 403);
-  }
+  const admin = await requireAdminRateLimited();
 
   const url = new URL(req.url);
   const status = url.searchParams.get("status");

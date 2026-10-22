@@ -49,8 +49,11 @@ export function calculateFee(
   amountMinor: number,
   policy: FeePolicy = CURRENT_FEE_POLICY,
 ): { feeMinor: number; rateBps: number; policyVersion: string } {
-  if (amountMinor < 0) {
-    throw new Error("Amount cannot be negative");
+  if (!Number.isFinite(amountMinor) || amountMinor < 0) {
+    throw new Error("Amount must be a finite non-negative number");
+  }
+  if (amountMinor > Number.MAX_SAFE_INTEGER) {
+    throw new Error("Amount exceeds maximum safe integer");
   }
   if (amountMinor === 0) {
     return { feeMinor: 0, rateBps: policy.bps, policyVersion: policy.version };
@@ -144,11 +147,12 @@ export const PAYOUT_FLAT_FEE_MINOR = Number.isFinite(parsedPayoutFee) && parsedP
 export function calculatePayoutFee(
   payoutAmountMinor: number,
 ): { feeMinor: number; netMinor: number } {
-  if (payoutAmountMinor <= 0) {
+  if (!Number.isFinite(payoutAmountMinor) || payoutAmountMinor <= 0) {
     return { feeMinor: 0, netMinor: 0 };
   }
   // Cap fee at 50% of payout so small payouts aren't eaten entirely by fees
-  const cappedFee = Math.min(PAYOUT_FLAT_FEE_MINOR, Math.floor(payoutAmountMinor / 2));
+  // Enforce a minimum fee of ₦1 (100 kobo) for any positive payout
+  const cappedFee = Math.max(100, Math.min(PAYOUT_FLAT_FEE_MINOR, Math.floor(payoutAmountMinor / 2)));
   return {
     feeMinor: cappedFee,
     netMinor: payoutAmountMinor - cappedFee,

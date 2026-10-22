@@ -15,6 +15,15 @@ export const POST = apiRoute(async (req, { params }) => {
   const parsed = Schema.safeParse(body);
   if (!parsed.success) return fail("Reason is required", 422);
 
+  // SECURITY: Verify the expense belongs to the project in the URL
+  const expense = await db.projectExpense.findUnique({
+    where: { id: params.expenseId },
+    select: { projectId: true },
+  });
+  if (!expense || expense.projectId !== params.id) {
+    return fail("Expense not found in this project", 404);
+  }
+
   try {
     await rejectExpense(params.expenseId, userId, parsed.data.reason);
     return { rejected: true };

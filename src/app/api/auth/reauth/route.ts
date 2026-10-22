@@ -1,30 +1,34 @@
 /**
  * Reauthentication endpoint (sudo mode).
  *
- * Accepts the user's current password, verifies it, and refreshes the
- * JWT's `issuedAt` timestamp so that `requireRecentAuth()` passes for
- * the next 15 minutes.
+ * Accepts the user's current password, verifies it, and issues a one-time
+ * sudo token that the frontend passes back via the session update mechanism.
+ *
+ * SECURITY: The sudo elevation is gated by a server-issued one-time token
+ * (not by a client-supplied boolean). The token is stored in the DB with
+ * a 15-minute expiry and single-use constraint. When the frontend calls
+ * `update({ sudoToken: "..." })`, the jwt callback verifies the token
+ * server-side before refreshing issuedAt.
  *
  * Flow:
  *   1. Frontend calls a sensitive endpoint (e.g., /api/auth/link-google)
  *   2. That endpoint calls requireRecentAuth(15) → throws 401 requireReauth
  *   3. Frontend shows a password prompt
  *   4. User enters password → frontend POSTs to /api/auth/reauth
- *   5. This endpoint verifies the password + updates the session
- *   6. Frontend retries the original sensitive endpoint → now succeeds
- *
- * For OAuth-only accounts (no password), this endpoint returns 400 with
- * a message telling the user to set a password first.
+ *   5. This endpoint verifies the password + issues a one-time sudo token
+ *   6. Frontend calls `await update({ sudoToken: "..." })`
+ *   7. jwt callback verifies the token server-side, refreshes issuedAt
+ *   8. Frontend retries the original sensitive endpoint → now succeeds
  */
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail, ok } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
 import { verifyPassword } from "@/lib/security/password";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
+import { generateToken, hashToken } from "@/lib/security/tokens";
 import { z } from "zod";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth/nextauth-config";
-import { encode } from "next-auth/jwt";
+
+const SUDO_TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
 const Schema = z.object({
   currentPassword: z.string().min(1).max(1024),
@@ -58,27 +62,22 @@ export const POST = apiRoute(async (req) => {
     return fail("Current password is incorrect", 403);
   }
 
-  // Re-encode the JWT with a fresh issuedAt.
-  // NextAuth's jwt callback runs on every session access. By setting
-  // token.issuedAt = Date.now() via the session update mechanism, the
-  // next session check will see a fresh timestamp.
-  //
-  // NextAuth v4 doesn't have a direct "update session" server-side API,
-  // but the client-side useSession() hook can trigger a refresh via
-  // `update()`. On the server, we encode a new JWT and set it as a cookie.
-  //
-  // However, since we're using JWT strategy, the simplest approach is:
-  // return a success response, and the frontend calls
-  // `await update()` from useSession() which triggers a token refresh.
-  // The jwt callback will then set token.issuedAt = Date.now().
-  //
-  // Actually, NextAuth's jwt callback only sets issuedAt when `user` is
-  // present (i.e., on initial sign-in). On refresh, `user` is not present.
-  // So we need a different approach: use the `trigger === "update"` path.
+  // SECURITY: Issue a one-time sudo token (stored hashed in DB).
+  // The frontend passes this token to update(); the jwt callback verifies
+  // it server-side before refreshing issuedAt. This prevents the client
+  // from arbitrarily elevating sudo mode without password verification.
+  const rawSudoToken = generateToken(32);
+  const sudoTokenHash = hashToken(rawSudoToken);
+  const expiresAt = new Date(Date.now() + SUDO_TOKEN_EXPIRY_MS);
 
-  // The frontend should call `await update({ sudo: true })` after this
-  // endpoint returns success. The jwt callback will detect the trigger
-  // and refresh issuedAt.
+  // Store the token hash (single-use, 15-minute expiry)
+  await db.emailVerificationToken.create({
+    data: {
+      userId,
+      tokenHash: sudoTokenHash,
+      expiresAt,
+    },
+  });
 
   await recordAuditEvent({
     actorId: userId,
@@ -89,8 +88,8 @@ export const POST = apiRoute(async (req) => {
 
   return ok({
     reauthenticated: true,
+    sudoToken: rawSudoToken,
     message: "Sudo mode active for 15 minutes. Retry your action.",
-    // Tell the frontend to refresh the session
     refreshSession: true,
   });
 });

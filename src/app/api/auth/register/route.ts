@@ -166,15 +166,15 @@ export const POST = apiRoute(async (req) => {
 
   return ok({
     created: true,
-    userId: user.user.id,
+    // SECURITY: Don't expose userId to client (prevents IDOR targeting)
+    // Don't expose emailError to client (info disclosure)
     emailSent,
-    emailError,
     // Only surface the URL in dev — in production, the link is in the email only
     verificationUrl: isProd ? null : verificationUrl,
     message: emailSent
-      ? "Account created! We sent a verification link to your email. Check your inbox (and spam folder)."
+      ? "Account created! We sent a verification link to your email."
       : isProd
-      ? "Account created, but we couldn't send the verification email. Click \"Resend verification email\" below to try again."
+      ? "Account created. Please verify your email to complete registration."
       : "Account created. Click the verification link to verify your email.",
   });
 });

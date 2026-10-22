@@ -82,21 +82,25 @@ export const POST = apiRoute(async (_req, { params }) => {
     }
 
     if (newStatus !== fromStatus) {
-      await db.payout.update({
-        where: { id },
-        data: {
-          status: newStatus,
-          settledAt,
-          failedAt,
-          failureReason,
-        },
-      });
-
-      // If milestone-bound, advance milestone state.
-      if (payout.milestoneId && newStatus === "SUCCEEDED") {
-        await db.milestone.update({
-          where: { id: payout.milestoneId },
-          data: { status: "RELEASED" },
+      // SECURITY: Use markPayoutSucceeded/markPayoutFailed instead of direct
+      // milestone update — these functions enforce the all-payouts-settled
+      // check before advancing the milestone to RELEASED.
+      if (newStatus === "SUCCEEDED") {
+        const { markPayoutSucceeded } = await import("@/lib/payments/payout-service");
+        await markPayoutSucceeded(id, settledAt ?? new Date(), result.providerReference);
+      } else if (newStatus === "FAILED") {
+        const { markPayoutFailed } = await import("@/lib/payments/payout-service");
+        await markPayoutFailed(id, failureReason ?? "Provider reported failure");
+      } else {
+        // For other statuses (PENDING, etc), just update the payout record
+        await db.payout.update({
+          where: { id },
+          data: {
+            status: newStatus,
+            settledAt,
+            failedAt,
+            failureReason,
+          },
         });
       }
 

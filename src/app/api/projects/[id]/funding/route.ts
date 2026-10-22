@@ -96,8 +96,21 @@ export const POST = apiRoute(async (req, { params }) => {
     if (parsed.data.type === "FUNDING" && !["DRAFT", "AWAITING_FUNDING"].includes(milestone.status)) {
       return fail(`Milestone cannot be funded in status: ${milestone.status}`, 400);
     }
-    if (parsed.data.type === "RELEASE" && milestone.status !== "APPROVED") {
+    if (parsed.data.type === "FUNDING" && parsed.data.amountMinor !== milestone.amountMinor) {
+      return fail(
+        `Funding amount must match milestone amount exactly. Expected: ${milestone.amountMinor}, got: ${parsed.data.amountMinor}`,
+        400,
+      );
+    }
+    if (parsed.data.type === "RELEASE" && milestone.status !== "APPROVED" && milestone.status !== "RELEASE_INITIATED") {
       return fail(`Milestone must be APPROVED to release (current: ${milestone.status})`, 400);
+    }
+    // SECURITY: Validate RELEASE amount does not exceed milestone funded amount
+    if (parsed.data.type === "RELEASE" && parsed.data.amountMinor > milestone.amountMinor) {
+      return fail(
+        `Release amount (${parsed.data.amountMinor}) exceeds milestone amount (${milestone.amountMinor})`,
+        400,
+      );
     }
     // REFUND requires an existing PROVIDER_CONFIRMED FUNDING record.
     // Refund amount must not exceed the original funding amount.

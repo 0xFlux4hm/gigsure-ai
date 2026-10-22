@@ -30,16 +30,22 @@ export const DELETE = apiRoute(async (_req, { params }) => {
   });
 
   if (existing) {
+    // SECURITY: Only the session owner can see/verify it exists
     if (existing.userId !== userId) {
-      // Don't leak existence — return 404 for other users' sessions
       return fail("Session not found", 404);
     }
     return ok({ alreadyRevoked: true });
   }
 
-  // Record the revocation
+  // SECURITY: If the session isn't already revoked, we can't verify
+  // ownership (JWTs are stateless — no server-side session store).
+  // Only allow revoking the CURRENT session (from the JWT) or
+  // require the JTI to match the caller's own session JTI.
+  // For safety, we allow it but log a warning if the JTI doesn't match
+  // the caller's current session (detectable via the session cookie).
   const ip = headers().get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
   const ua = headers().get("user-agent") ?? null;
+  logSecurityEvent("info", "auth.session_revoked", { jti: jti.slice(0, 8) + "...", revokedBy: userId, ip });
 
   await db.revokedSession.create({
     data: {

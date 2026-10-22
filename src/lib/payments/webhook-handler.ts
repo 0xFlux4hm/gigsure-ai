@@ -89,6 +89,58 @@ export async function confirmFundingRecord(
     return { processed: false, reason: "funding_record_not_found" };
   }
 
+  // SECURITY: Validate webhook amount matches funding record amount
+  // (prevents underpayment fraud — paying ₦1 for a ₦1M milestone)
+  if (input.amountMinor > 0 && input.amountMinor !== record.amountMinor) {
+    logSecurityEvent("warn", "webhook.amount_mismatch", {
+      fundingRecordId: record.id,
+      expected: record.amountMinor,
+      received: input.amountMinor,
+    });
+    // Mark as DISPUTED instead of confirming
+    await db.$transaction([
+      db.webhookEvent.create({
+        data: {
+          provider: input.provider,
+          providerEventId: input.providerEventId,
+          eventType: input.eventType,
+          signatureValid: input.signatureValid,
+          payload: input.rawPayload,
+          fundingRecordId: record.id,
+          paymentTransactionId: input.paymentTransactionId,
+          processedAt: new Date(),
+        },
+      }),
+      db.fundingRecord.update({
+        where: { id: record.id },
+        data: {
+          status: "DISPUTED",
+          failureReason: `Amount mismatch: expected ${record.amountMinor}, received ${input.amountMinor}`,
+        },
+      }),
+    ]);
+    return { processed: false, reason: "amount_mismatch" };
+  }
+
+  // SECURITY: Enforce state machine transitions — don't allow reverting
+  // a PROVIDER_CONFIRMED record back to INITIATED or FAILED
+  const validTransitions: Record<string, Set<string>> = {
+    INITIATED: new Set(["PROVIDER_CONFIRMED", "FAILED", "CANCELLED", "DISPUTED"]),
+    PROVIDER_CONFIRMED: new Set(["DISPUTED"]),
+    FAILED: new Set(["DISPUTED"]),
+    CANCELLED: new Set([]),
+    DISPUTED: new Set(["PROVIDER_CONFIRMED", "FAILED"]),
+  };
+  const allowed = validTransitions[record.status];
+  if (allowed && !allowed.has(input.status)) {
+    logSecurityEvent("warn", "webhook.invalid_transition", {
+      fundingRecordId: record.id,
+      from: record.status,
+      to: input.status,
+    });
+    return { processed: false, reason: "invalid_transition" };
+  }
+
   // Atomic update: record webhook + update funding status in one transaction
   await db.$transaction([
     db.webhookEvent.create({

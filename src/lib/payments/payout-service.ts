@@ -349,6 +349,24 @@ export async function markPayoutSucceeded(
   if (!payout) return;
   if (payout.status === "SUCCEEDED") return; // idempotent
 
+  // SECURITY: Enforce state machine — don't allow FAILED → SUCCEEDED
+  // (prevents resurrection of failed payouts via stale/forged webhooks)
+  const PAYOUT_VALID_TRANSITIONS: Record<string, Set<string>> = {
+    PENDING: new Set(["SUCCEEDED", "FAILED", "REVERSED"]),
+    SUCCEEDED: new Set(["REVERSED"]),
+    FAILED: new Set(["REVERSED"]), // FAILED can only be reversed, not resurrected
+    REVERSED: new Set([]),
+  };
+  const allowed = PAYOUT_VALID_TRANSITIONS[payout.status];
+  if (allowed && !allowed.has("SUCCEEDED")) {
+    logSecurityEvent("warn", "payout.invalid_transition", {
+      payoutId,
+      from: payout.status,
+      to: "SUCCEEDED",
+    });
+    return; // Block invalid transition
+  }
+
   await db.payout.update({
     where: { id: payoutId },
     data: {
