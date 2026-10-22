@@ -38,6 +38,9 @@ export const POST = apiRoute(async (req) => {
     where: { emailNormalized: email },
     select: { id: true, emailVerifiedAt: true },
   });
+  let emailSent = false;
+  let emailError: string | undefined;
+
   if (user && !user.emailVerifiedAt) {
     const rawToken = generateToken();
     await db.emailVerificationToken.create({
@@ -51,14 +54,22 @@ export const POST = apiRoute(async (req) => {
     // Send verification email
     const baseUrl = resolveBaseUrl(req);
     const verificationUrl = `${baseUrl}/?view=verify-email&token=${rawToken}`;
-    if (process.env.NODE_ENV === "production" || process.env.SMTP_URL) {
+    if (process.env.SMTP_URL) {
       const result = await sendEmail(verificationEmail(email, verificationUrl));
-      if (!result.ok) {
+      if (result.ok) {
+        emailSent = true;
+      } else {
+        emailError = result.error;
         logSecurityEvent("error", "email.verification_resend_failed", {
           userId: user.id,
           error: result.error,
         });
       }
+    } else {
+      logSecurityEvent("warn", "email.smtp_not_configured", {
+        userId: user.id,
+        message: "SMTP_URL not set — verification email was not sent.",
+      });
     }
     // In dev: surface the token via log only.
     if (process.env.NODE_ENV !== "production") {
@@ -68,6 +79,10 @@ export const POST = apiRoute(async (req) => {
 
   return ok({
     sent: true,
-    message: "If the email is registered and unverified, a new link has been sent.",
+    emailSent,
+    emailError,
+    message: emailSent
+      ? "A new verification link has been sent. Check your inbox (and spam folder)."
+      : "If the email is registered and unverified, a new link has been sent. If you don't receive it, the email server may not be configured.",
   });
 });

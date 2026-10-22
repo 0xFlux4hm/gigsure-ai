@@ -220,7 +220,7 @@ function LoginForm() {
     });
     setLoading(false);
     if (res?.error) {
-      setError("Invalid email or password. Please try again.");
+      setError("Invalid email or password. If you haven't verified your email yet, we just sent you a new verification link — check your inbox.");
       return;
     }
     if (res?.ok) {
@@ -319,7 +319,7 @@ function RegisterForm() {
     }
     setLoading(true);
     try {
-      const res = await api.post<{ verificationUrl?: string; message?: string; created?: boolean }>("/api/auth/register", {
+      const res = await api.post<{ verificationUrl?: string; message?: string; created?: boolean; emailSent?: boolean; emailError?: string }>("/api/auth/register", {
         email,
         displayName,
         password,
@@ -339,12 +339,20 @@ function RegisterForm() {
           window.location.href = signInResult.url ?? "/?view=dashboard";
         } else {
           // Auto-login failed — email verification is required before login.
-          // Show the verification link if we got one (dev mode), otherwise
-          // instruct the user to check their email.
-          setError(
-            "Account created! We sent a verification link to your email. " +
-            "Click the link in the email to verify your account, then sign in."
-          );
+          // Show a clear message about whether the email was actually sent.
+          if (res.emailSent === false) {
+            setError(
+              "Account created, but the verification email could not be sent. " +
+              "This usually means the email server isn't configured yet. " +
+              "Click \"Resend it\" below to try again, or contact support."
+            );
+          } else {
+            setError(
+              "Account created! We sent a verification link to your email. " +
+              "Click the link in the email to verify your account, then sign in. " +
+              "Check your spam folder if you don't see it."
+            );
+          }
         }
       }
     } catch (err) {

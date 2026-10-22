@@ -135,16 +135,31 @@ export const POST = apiRoute(async (req) => {
   const baseUrl = resolveBaseUrl(req);
   const verificationUrl = `${baseUrl}/?view=verify-email&token=${user.rawToken}`;
 
-  // Send verification email (production: SMTP; dev: logged to console)
-  if (process.env.NODE_ENV === "production" || process.env.SMTP_URL) {
+  // Send verification email. Track whether it actually went out so we can
+  // tell the user — previously we returned "Check your email" even when SMTP
+  // wasn't configured and the email was just logged to the server console.
+  let emailSent = false;
+  let emailError: string | undefined;
+
+  if (process.env.SMTP_URL) {
     const result = await sendEmail(verificationEmail(email, verificationUrl));
-    if (!result.ok) {
+    if (result.ok) {
+      emailSent = true;
+    } else {
+      emailError = result.error;
       logSecurityEvent("error", "email.verification_send_failed", {
         userId: user.user.id,
         error: result.error,
       });
       // Don't fail registration — user can request resend via /api/auth/resend-verification
     }
+  } else {
+    // SMTP_URL not set — email is logged to console only (dev mode).
+    // In production this means emails aren't being delivered.
+    logSecurityEvent("warn", "email.smtp_not_configured", {
+      userId: user.user.id,
+      message: "SMTP_URL env var is not set — verification email was not sent. Set SMTP_URL to enable email delivery.",
+    });
   }
 
   const isProd = process.env.NODE_ENV === "production";
@@ -152,10 +167,14 @@ export const POST = apiRoute(async (req) => {
   return ok({
     created: true,
     userId: user.user.id,
+    emailSent,
+    emailError,
     // Only surface the URL in dev — in production, the link is in the email only
     verificationUrl: isProd ? null : verificationUrl,
-    message: isProd
-      ? "Account created. Check your email for a verification link."
+    message: emailSent
+      ? "Account created! We sent a verification link to your email. Check your inbox (and spam folder)."
+      : isProd
+      ? "Account created, but we couldn't send the verification email. Click \"Resend verification email\" below to try again."
       : "Account created. Click the verification link to verify your email.",
   });
 });

@@ -23,6 +23,8 @@ import { verifyPassword, getDecoyPasswordHash } from "@/lib/security/password";
 import { normalizeEmail, validateEmail, sanitizeDisplayName, isSafeRedirect } from "@/lib/security/validation";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
+import { generateToken, hashToken } from "@/lib/security/tokens";
+import { resolveBaseUrl } from "@/lib/auth/base-url";
 
 const hasGoogleCreds =
   !!process.env.GOOGLE_CLIENT_ID &&
@@ -144,6 +146,35 @@ export const authOptions: NextAuthOptions = {
             userId: user.id,
             email,
           });
+
+          // AUTO-RESEND: automatically send a new verification email so the
+          // user doesn't have to find the "Resend it" link manually. This
+          // addresses the common UX issue where users register, don't receive
+          // the email (or lose it), try to login, see "Invalid email or
+          // password", and don't know what to do next.
+          try {
+            const rawToken = generateToken();
+            await db.emailVerificationToken.create({
+              data: {
+                userId: user.id,
+                tokenHash: hashToken(rawToken),
+                expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+              },
+            });
+            if (process.env.SMTP_URL) {
+              const baseUrl = resolveBaseUrl(req as unknown as Request);
+              const verificationUrl = `${baseUrl}/?view=verify-email&token=${rawToken}`;
+              const { sendEmail, verificationEmail } = await import("@/lib/email/provider");
+              await sendEmail(verificationEmail(email, verificationUrl));
+            }
+          } catch (err) {
+            // Don't fail login because of resend failure — just log it
+            logSecurityEvent("error", "auth.auto_resend_failed", {
+              userId: user.id,
+              message: (err as Error)?.message,
+            });
+          }
+
           return null;
         }
         await db.user.update({
