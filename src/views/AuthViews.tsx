@@ -279,16 +279,6 @@ function LoginForm() {
         >
           Forgot password?
         </button>
-        <p className="text-xs text-muted-foreground text-center px-4">
-          Didn&apos;t get a verification email?{" "}
-          <button
-            type="button"
-            className="text-primary hover:underline"
-            onClick={() => navigate({ view: "resend-verification" })}
-          >
-            Resend it
-          </button>
-        </p>
       </CardContent>
       <CardFooter className="flex-col gap-2 text-sm text-muted-foreground">
         <p>Don&apos;t have an account?</p>
@@ -343,14 +333,12 @@ function RegisterForm() {
           if (res.emailSent === false) {
             setError(
               "Account created, but the verification email could not be sent. " +
-              "This usually means the email server isn't configured yet. " +
-              "Click \"Resend it\" below to try again, or contact support."
+              "Please contact support."
             );
           } else {
             setError(
               "Account created! We sent a verification link to your email. " +
-              "Click the link in the email to verify your account, then sign in. " +
-              "Check your spam folder if you don't see it."
+              "Click the link in the email to verify your account, then sign in."
             );
           }
         }
