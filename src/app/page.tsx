@@ -16,6 +16,7 @@ import { ProjectCompensationView } from "@/views/ProjectCompensationView";
 import { ProjectMilestonesView } from "@/views/ProjectMilestonesView";
 import { ProjectFundingView } from "@/views/ProjectFundingView";
 import { ProjectExpensesView } from "@/views/ProjectExpensesView";
+import { ProjectFeedbackView } from "@/views/ProjectFeedbackView";
 import { ProjectDisputesView } from "@/views/ProjectDisputesView";
 import { ProjectDisputeDetailView } from "@/views/ProjectDisputeDetailView";
 import { ProjectAiView } from "@/views/ProjectAiView";
@@ -76,6 +77,7 @@ function Router() {
       {view === "project-milestones" && projectId && <ProjectMilestonesView projectId={projectId} />}
       {view === "project-funding" && projectId && <ProjectFundingView projectId={projectId} />}
       {view === "project-expenses" && projectId && <ProjectExpensesView projectId={projectId} />}
+      {view === "project-feedback" && projectId && <ProjectFeedbackView projectId={projectId} />}
       {view === "project-disputes" && projectId && <ProjectDisputesView projectId={projectId} />}
       {view === "project-dispute-detail" && projectId && disputeId && (
         <ProjectDisputeDetailView projectId={projectId} disputeId={disputeId} />

@@ -70,6 +70,8 @@ model User {
   payoutsInitiated Payout[]            @relation("PayoutInitiator")
   expensesRequested ProjectExpense[]   @relation("ExpenseRequester")
   expensesApproved  ProjectExpense[]   @relation("ExpenseApprover")
+  feedbackGiven      ProjectFeedback[]  @relation("FeedbackReviewer")
+  feedbackReceived   ProjectFeedback[]  @relation("FeedbackReviewee")
 }
 
 model UserIdentity {
@@ -216,6 +218,7 @@ model Project {
   payouts          Payout[]
   virtualAccounts  VirtualAccount[]
   expenses         ProjectExpense[]
+  feedback         ProjectFeedback[]
 
   @@index([ownerId])
   @@index([clientId])
@@ -975,5 +978,41 @@ model VirtualAccount {
   @@index([projectId])
   @@index([milestoneId])
   @@index([accountNumber])
+}
+
+// ---------------------------------------------------------------------------
+// FEEDBACK / RATINGS — peer reviews after milestone release or project completion
+// ---------------------------------------------------------------------------
+
+model ProjectFeedback {
+  // One user reviews another user on a specific project.
+  // Constraints: one review per (reviewerId, revieweeId, projectId) — enforced
+  // by @@unique below. Only allowed after the project is COMPLETED or the
+  // milestone being reviewed is RELEASED.
+  id              String   @id @default(cuid())
+  projectId       String
+  reviewerId      String   // who wrote the review
+  revieweeId      String   // who is being reviewed
+
+  rating          Int      // 1-5 stars
+  wouldRecommend  Boolean  @default(true)
+  onTime          Int?     // 1-5: delivered on time?
+  onBudget        Int?     // 1-5: stayed within budget?
+  communication   Int?     // 1-5: communication quality?
+  quality         Int?     // 1-5: work quality?
+
+  comment         String?  // optional text review
+  isPublic        Boolean  @default(true) // visible on reviewee's profile
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reviewer        User     @relation("FeedbackReviewer", fields: [reviewerId], references: [id])
+  reviewee        User     @relation("FeedbackReviewee", fields: [revieweeId], references: [id])
+
+  @@unique([projectId, reviewerId, revieweeId]) // one review per pair per project
+  @@index([revieweeId])
+  @@index([projectId])
 }
 

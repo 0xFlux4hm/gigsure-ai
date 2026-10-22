@@ -32,6 +32,7 @@ import {
   Lock,
   ShieldAlert,
   Receipt,
+  Star,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
@@ -75,6 +76,7 @@ const PROJECT_NAV: NavItem[] = [
   { view: "project-funding", label: "Funding", icon: Wallet, requiresProject: true },
   { view: "project-expenses", label: "Expenses", icon: Receipt, requiresProject: true },
   { view: "project-disputes", label: "Disputes", icon: Scale, requiresProject: true },
+  { view: "project-feedback", label: "Feedback", icon: Star, requiresProject: true },
   { view: "project-ai", label: "AI assistants", icon: Bot, requiresProject: true },
 ];
 

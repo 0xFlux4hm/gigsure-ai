@@ -121,11 +121,24 @@ export async function confirmFundingRecord(
   ) {
     const milestone = await db.milestone.findUnique({
       where: { id: record.milestoneId },
+      select: { id: true, status: true, title: true, amountMinor: true, currency: true },
     });
     if (milestone && milestone.status === "AWAITING_FUNDING") {
       await db.milestone.update({
         where: { id: milestone.id },
         data: { status: "FUNDED" },
+      });
+
+      // Notify project members that the milestone is funded
+      const { notifyProjectMembers } = await import("@/lib/notifications");
+      const amount = (milestone.amountMinor / 100).toLocaleString("en-NG", {
+        style: "currency",
+        currency: milestone.currency,
+      });
+      await notifyProjectMembers(record.projectId, record.initiatedById, {
+        type: "MILESTONE_FUNDED",
+        title: "Milestone funded",
+        body: `"${milestone.title}" is now funded with ${amount}. Work can begin.`,
       });
     }
   }

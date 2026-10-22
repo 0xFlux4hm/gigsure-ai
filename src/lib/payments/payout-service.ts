@@ -372,6 +372,50 @@ export async function markPayoutSucceeded(
         targetId: payout.milestoneId,
         metadata: { reason: "all_payouts_settled" },
       });
+
+      // Notify project members that the milestone is released
+      const milestone = await db.milestone.findUnique({
+        where: { id: payout.milestoneId },
+        select: { title: true, amountMinor: true, currency: true },
+      });
+      if (milestone) {
+        const { notifyProjectMembers } = await import("@/lib/notifications");
+        await notifyProjectMembers(payout.projectId, null, {
+          type: "MILESTONE_RELEASED",
+          title: "Milestone released",
+          body: `"${milestone.title}" has been released. Funds have been paid out to the service provider(s).`,
+        });
+      }
+
+      // Check if ALL milestones on the project are now RELEASED → auto-complete the project
+      const totalMilestones = await db.milestone.count({
+        where: { projectId: payout.projectId },
+      });
+      const releasedMilestones = await db.milestone.count({
+        where: { projectId: payout.projectId, status: "RELEASED" },
+      });
+      if (totalMilestones > 0 && totalMilestones === releasedMilestones) {
+        await db.project.update({
+          where: { id: payout.projectId },
+          data: { status: "COMPLETED" },
+        });
+        await recordAuditEvent({
+          actorId: undefined,
+          projectId: payout.projectId,
+          action: "project.completed",
+          targetType: "Project",
+          targetId: payout.projectId,
+          metadata: { reason: "all_milestones_released", milestoneCount: totalMilestones },
+        });
+
+        // Notify all project members that the project is complete
+        const { notifyProjectMembers } = await import("@/lib/notifications");
+        await notifyProjectMembers(payout.projectId, null, {
+          type: "PROJECT_COMPLETED",
+          title: "Project completed! 🎉",
+          body: "All milestones have been released and payouts completed. Thank you for using GigSure AI.",
+        });
+      }
     }
   }
 }

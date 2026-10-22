@@ -28,6 +28,7 @@ export type ViewName =
   | "project-expenses"
   | "project-disputes"
   | "project-dispute-detail"
+  | "project-feedback"
   | "project-ai"
   | "settings-profile"
   | "settings-security"

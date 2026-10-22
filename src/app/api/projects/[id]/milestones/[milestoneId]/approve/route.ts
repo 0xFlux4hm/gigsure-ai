@@ -68,5 +68,22 @@ export const POST = apiRoute(async (req, { params }) => {
     targetId: milestoneId,
     metadata: { note: parsed.data.note },
   });
+
+  // Notify project members about the approval/changes-requested
+  const { notifyProjectMembers } = await import("@/lib/notifications");
+  if (newStatus === "APPROVED") {
+    await notifyProjectMembers(projectId, userId, {
+      type: "MILESTONE_APPROVED",
+      title: "Milestone approved",
+      body: `"${milestone.title}" has been approved. The client can now release the funds.`,
+    });
+  } else if (newStatus === "CHANGES_REQUESTED") {
+    await notifyProjectMembers(projectId, userId, {
+      type: "MILESTONE_CHANGES_REQUESTED",
+      title: "Changes requested",
+      body: `Changes have been requested for "${milestone.title}".${parsed.data.note ? ` Note: ${parsed.data.note}` : ""}`,
+    });
+  }
+
   return { status: newStatus };
 });

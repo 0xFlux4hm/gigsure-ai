@@ -42,5 +42,14 @@ export const POST = apiRoute(async (_req, { params }) => {
     targetType: "Milestone",
     targetId: milestoneId,
   });
+
+  // Notify the client/owner that the milestone is submitted for review
+  const { notifyProjectMembers } = await import("@/lib/notifications");
+  await notifyProjectMembers(projectId, userId, {
+    type: "MILESTONE_SUBMITTED",
+    title: "Milestone submitted for review",
+    body: `"${milestone.title}" has been submitted. Please review and approve or request changes.`,
+  });
+
   return { submitted: true };
 });
