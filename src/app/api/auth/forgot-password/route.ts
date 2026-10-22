@@ -16,6 +16,7 @@ import { generateToken, hashToken } from "@/lib/security/tokens";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { sendEmail, passwordResetEmail } from "@/lib/email/provider";
+import { resolveBaseUrl } from "@/lib/auth/base-url";
 import { z } from "zod";
 
 const Schema = z.object({ email: z.string().min(5).max(254) });
@@ -53,7 +54,7 @@ export const POST = apiRoute(async (req) => {
     });
 
     // Send the password reset email
-    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+    const baseUrl = resolveBaseUrl(req);
     const resetUrl = `${baseUrl}/?view=reset-password&token=${rawToken}`;
     if (process.env.NODE_ENV === "production" || process.env.SMTP_URL) {
       const result = await sendEmail(passwordResetEmail(email, resetUrl));

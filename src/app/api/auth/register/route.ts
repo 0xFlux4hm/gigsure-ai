@@ -25,6 +25,7 @@ import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/auth/session";
 import { sendEmail, verificationEmail } from "@/lib/email/provider";
+import { resolveBaseUrl } from "@/lib/auth/base-url";
 import { z } from "zod";
 
 const RegisterSchema = z.object({
@@ -131,7 +132,7 @@ export const POST = apiRoute(async (req) => {
 
   // Always construct the verification URL — in production we email it,
   // in dev we ALSO return it in the response so the developer can click through.
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const baseUrl = resolveBaseUrl(req);
   const verificationUrl = `${baseUrl}/?view=verify-email&token=${user.rawToken}`;
 
   // Send verification email (production: SMTP; dev: logged to console)

@@ -9,6 +9,7 @@ import { apiRoute, parseJsonBody, fail, ok } from "@/lib/api";
 import { normalizeEmail, validateEmail } from "@/lib/security/validation";
 import { generateToken, hashToken } from "@/lib/security/tokens";
 import { sendEmail, verificationEmail } from "@/lib/email/provider";
+import { resolveBaseUrl } from "@/lib/auth/base-url";
 import { logSecurityEvent } from "@/lib/auth/audit";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { z } from "zod";
@@ -48,7 +49,7 @@ export const POST = apiRoute(async (req) => {
     });
 
     // Send verification email
-    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+    const baseUrl = resolveBaseUrl(req);
     const verificationUrl = `${baseUrl}/?view=verify-email&token=${rawToken}`;
     if (process.env.NODE_ENV === "production" || process.env.SMTP_URL) {
       const result = await sendEmail(verificationEmail(email, verificationUrl));
