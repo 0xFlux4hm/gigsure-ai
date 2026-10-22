@@ -15,6 +15,7 @@ export type AuditContext = {
   projectId?: string | null;
   fundingRecordId?: string | null;
   payoutId?: string | null;
+  expenseId?: string | null;
   ipAddress?: string | null;
   action: string;
   targetType?: string;
@@ -92,6 +93,7 @@ function computeEventHash(
     projectId: string | null;
     fundingRecordId: string | null;
     payoutId: string | null;
+    expenseId: string | null;
     action: string;
     targetType: string | null;
     targetId: string | null;
@@ -126,6 +128,7 @@ export async function recordAuditEvent(ctx: AuditContext): Promise<void> {
       projectId: ctx.projectId ?? null,
       fundingRecordId: ctx.fundingRecordId ?? null,
       payoutId: ctx.payoutId ?? null,
+      expenseId: ctx.expenseId ?? null,
       action: ctx.action,
       targetType: ctx.targetType ?? null,
       targetId: ctx.targetId ?? null,

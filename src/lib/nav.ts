@@ -25,6 +25,7 @@ export type ViewName =
   | "project-compensation"
   | "project-milestones"
   | "project-funding"
+  | "project-expenses"
   | "project-disputes"
   | "project-dispute-detail"
   | "project-ai"

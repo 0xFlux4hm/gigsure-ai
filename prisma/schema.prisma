@@ -68,6 +68,8 @@ model User {
   bankDetails      BankDetail[]
   payoutsReceived  Payout[]            @relation("PayoutPayee")
   payoutsInitiated Payout[]            @relation("PayoutInitiator")
+  expensesRequested ProjectExpense[]   @relation("ExpenseRequester")
+  expensesApproved  ProjectExpense[]   @relation("ExpenseApprover")
 }
 
 model UserIdentity {
@@ -213,6 +215,7 @@ model Project {
   paymentTransactions PaymentTransaction[]
   payouts          Payout[]
   virtualAccounts  VirtualAccount[]
+  expenses         ProjectExpense[]
 
   @@index([ownerId])
   @@index([clientId])
@@ -413,6 +416,7 @@ model Milestone {
   paymentTransactions PaymentTransaction[]
   payouts        Payout[]
   virtualAccounts VirtualAccount[]
+  expenses       ProjectExpense[]
 
   @@index([projectId])
 }
@@ -439,9 +443,61 @@ model FundingRecord {
   initiatedBy   User            @relation("FundingInitiator", fields: [initiatedById], references: [id])
   webhookEvents WebhookEvent[]
   auditEvents   AuditEvent[]
+  expenses      ProjectExpense[]
 
   @@index([projectId])
   @@index([milestoneId])
+}
+
+// ---------------------------------------------------------------------------
+// PROJECT EXPENSES — service provider requests funds from already-funded milestone
+// ---------------------------------------------------------------------------
+
+model ProjectExpense {
+  // Service provider requests a partial release of milestone funds for
+  // project-related expenses (domain, hosting, software licenses, etc.).
+  // The milestone must already be FUNDED — the money is already held in
+  // GigSure Payment Protection. The expense request is a request to release
+  // a portion of those funds to the service provider before the milestone
+  // is completed.
+  id              String   @id @default(cuid())
+  projectId       String
+  milestoneId     String
+  requestedById   String   // service provider who needs the money
+  approvedById    String?  // client who approved (null until approved)
+
+  title           String   // e.g., "Domain and hosting"
+  description     String?  // breakdown of what the money is for
+  category        String   // DOMAIN_HOSTING | SOFTWARE_LICENSE | STOCK_ASSETS | THIRD_PARTY_SERVICES | HARDWARE | OTHER
+  amountMinor     Int      // amount requested
+  currency        String   @default("NGN")
+
+  // State machine: REQUESTED → APPROVED → RELEASED | REJECTED | DISPUTED
+  status          String   @default("REQUESTED")
+  rejectionReason String?
+  receiptUrl      String?  // uploaded by service provider after spending (proof of purchase)
+  receiptUploadedAt DateTime?
+
+  // Links to the funding record created when the expense is released
+  fundingRecordId String?  @unique
+  payoutId        String?  // link to the Payout record when money is sent
+
+  createdAt       DateTime @default(now())
+  approvedAt      DateTime?
+  releasedAt      DateTime?
+  updatedAt       DateTime @updatedAt
+
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestone       Milestone        @relation(fields: [milestoneId], references: [id])
+  requestedBy     User             @relation("ExpenseRequester", fields: [requestedById], references: [id])
+  approvedBy      User?            @relation("ExpenseApprover", fields: [approvedById], references: [id])
+  fundingRecord   FundingRecord?   @relation(fields: [fundingRecordId], references: [id])
+  auditEvents     AuditEvent[]
+
+  @@index([projectId])
+  @@index([milestoneId])
+  @@index([requestedById])
+  @@index([status])
 }
 
 // ---------------------------------------------------------------------------
@@ -545,6 +601,7 @@ model AuditEvent {
   projectId  String?
   fundingRecordId String?
   payoutId        String?
+  expenseId       String?
   action     String
   targetType String?
   targetId   String?
@@ -563,6 +620,7 @@ model AuditEvent {
   project      Project?       @relation(fields: [projectId], references: [id])
   fundingRecord FundingRecord? @relation(fields: [fundingRecordId], references: [id])
   payout       Payout?        @relation(fields: [payoutId], references: [id])
+  expense      ProjectExpense? @relation(fields: [expenseId], references: [id])
 
   @@index([actorId])
   @@index([projectId])
