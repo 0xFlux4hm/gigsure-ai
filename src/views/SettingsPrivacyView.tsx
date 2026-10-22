@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api } from "@/lib/client-api";
-import { Loader2, Download, Trash2, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Loader2, Download, Trash2, AlertTriangle, ShieldCheck, FileText, CheckCircle2 } from "lucide-react";
+import { exportPrivacyDataPDF } from "@/lib/pdf/export";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +23,7 @@ import {
 
 export function SettingsPrivacyView() {
   const [exporting, setExporting] = useState(false);
-  const [exportData, setExportData] = useState<unknown>(null);
+  const [exportSuccess, setExportSuccess] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
   const [confirmPhrase, setConfirmPhrase] = useState("");
@@ -33,10 +34,12 @@ export function SettingsPrivacyView() {
   const doExport = async () => {
     setExporting(true);
     setExportError(null);
-    setExportData(null);
+    setExportSuccess(false);
     try {
       const res = await api.post<{ data: unknown }>("/api/privacy/export");
-      setExportData(res.data);
+      // Generate and download a PDF instead of showing raw JSON
+      exportPrivacyDataPDF(res.data as Parameters<typeof exportPrivacyDataPDF>[0]);
+      setExportSuccess(true);
     } catch (err) {
       setExportError((err as Error).message);
     } finally {
@@ -71,31 +74,27 @@ export function SettingsPrivacyView() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Data export</CardTitle>
-          <CardDescription>Receive a JSON snapshot of your eligible personal information.</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="h-4 w-4" /> Data export (PDF)
+          </CardTitle>
+          <CardDescription>
+            Download a PDF document containing all personal data we hold about your account,
+            in compliance with the Nigeria Data Protection Regulation (NDPR).
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Button onClick={doExport} disabled={exporting}>
             {exporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
-            Generate export
+            Download my data (PDF)
           </Button>
           {exportError && <div className="text-sm text-destructive">{exportError}</div>}
-          {exportData && (
-            <div className="space-y-2">
-              <Alert>
-                <AlertDescription className="text-sm">
-                  Export generated. This is your data. Other users&apos; private
-                  fields are excluded. In production this would be delivered via
-                  a signed, expiring download URL.
-                </AlertDescription>
-              </Alert>
-              <details>
-                <summary className="text-sm cursor-pointer">View JSON</summary>
-                <pre className="text-xs bg-muted p-3 rounded mt-2 max-h-96 overflow-auto">
-                  {JSON.stringify(exportData, null, 2)}
-                </pre>
-              </details>
-            </div>
+          {exportSuccess && (
+            <Alert>
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                PDF downloaded successfully. Check your downloads folder for the file.
+              </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>

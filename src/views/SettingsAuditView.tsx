@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { api, formatDateTime } from "@/lib/client-api";
-import { Loader2, ScrollText } from "lucide-react";
+import { Loader2, ScrollText, Download } from "lucide-react";
+import { exportAuditLogPDF } from "@/lib/pdf/export";
 
 type Event = {
   id: string;
@@ -24,6 +26,10 @@ export function SettingsAuditView() {
     api.get<{ events: Event[] }>("/api/audit?limit=100").then((r) => setEvents(r.events)).finally(() => setLoading(false));
   }, []);
 
+  const handleExportPDF = () => {
+    exportAuditLogPDF(events as unknown as Array<Record<string, unknown>>);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -34,11 +40,19 @@ export function SettingsAuditView() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <ScrollText className="h-6 w-6 text-primary" /> Audit log
-        </h1>
-        <p className="text-muted-foreground text-sm">Security-relevant actions taken on your account.</p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <ScrollText className="h-6 w-6 text-primary" /> Audit log
+          </h1>
+          <p className="text-muted-foreground text-sm">Security-relevant actions taken on your account.</p>
+        </div>
+        {events.length > 0 && (
+          <Button variant="outline" onClick={handleExportPDF}>
+            <Download className="h-4 w-4 mr-2" />
+            Export PDF
+          </Button>
+        )}
       </div>
 
       <Card>

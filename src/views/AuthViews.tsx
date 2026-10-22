@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNav } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api } from "@/lib/client-api";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { ShieldCheck, Loader2, Lock, FileCheck, Wallet, Scale, Bot } from "lucide-react";
 
 /**
  * Check if Google OAuth is configured by fetching the auth providers list.
@@ -27,31 +28,127 @@ function useGoogleAuthAvailable(): boolean {
   return available;
 }
 
+const PILLARS = [
+  { icon: FileCheck, title: "Verifiable contracts", desc: "Versioned scope, milestones, and terms." },
+  { icon: Wallet, title: "Escrow-backed funding", desc: "Platform holds funds until milestones are met." },
+  { icon: Scale, title: "Dispute resolution", desc: "Structured review process with evidence." },
+  { icon: Bot, title: "AI assistants", desc: "7 advisory assistants for contracts, risk, and progress." },
+];
+
 export function AuthViews() {
   const { view, token, navigate } = useNav();
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header className="border-b">
-        <div className="container mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
-          <button onClick={() => navigate({ view: "landing" })} className="flex items-center gap-2">
-            <img src="/images/logo.png" alt="GigSure AI logo" className="h-7 w-7 object-contain" />
-            <span className="font-semibold text-lg">GigSure<span className="text-primary"> AI</span></span>
+      {/* Top bar */}
+      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto max-w-7xl px-4 h-16 flex items-center justify-between">
+          <button onClick={() => navigate({ view: "landing" })} className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
+              G
+            </div>
+            <span className="font-bold text-lg tracking-tight">GigSure<span className="text-primary"> AI</span></span>
           </button>
-          <Button variant="ghost" onClick={() => navigate({ view: "landing" })}>← Back</Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate({ view: "landing" })} className="text-muted-foreground">
+            ← Back to home
+          </Button>
         </div>
       </header>
 
-      <main className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          {view === "login" && <LoginForm />}
-          {view === "register" && <RegisterForm />}
-          {view === "verify-email" && <VerifyEmailForm token={token} />}
-          {view === "forgot-password" && <ForgotPasswordForm />}
-          {view === "reset-password" && <ResetPasswordForm token={token} />}
-          {view === "resend-verification" && <ResendVerificationForm />}
-        </div>
+      {/* Split-screen layout */}
+      <main className="flex-1 grid lg:grid-cols-2">
+        {/* Left: Branded hero panel (hidden on mobile) */}
+        <aside className="hidden lg:flex flex-col justify-between p-12 xl:p-16 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground relative overflow-hidden">
+          {/* Decorative grid pattern */}
+          <div
+            className="absolute inset-0 opacity-10"
+            style={{
+              backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
+              backgroundSize: "32px 32px",
+            }}
+          />
+
+          <div className="relative z-10">
+            <h2 className="text-3xl xl:text-4xl font-bold tracking-tight leading-tight mb-3">
+              Work with confidence.
+              <br />
+              Get paid with trust.
+            </h2>
+            <p className="text-primary-foreground/80 text-lg max-w-md">
+              The Nigerian freelance collaboration platform with escrow-backed
+              payments, verified contracts, and AI-assisted project management.
+            </p>
+          </div>
+
+          {/* Pillars grid */}
+          <div className="relative z-10 grid grid-cols-2 gap-5 my-8">
+            {PILLARS.map((p) => (
+              <div key={p.title} className="space-y-2">
+                <div className="h-10 w-10 rounded-lg bg-primary-foreground/15 flex items-center justify-center">
+                  <p.icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-sm">{p.title}</div>
+                  <div className="text-xs text-primary-foreground/70 leading-relaxed">{p.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Trust badges */}
+          <div className="relative z-10 space-y-3">
+            <div className="flex items-center gap-2 text-sm text-primary-foreground/90">
+              <ShieldCheck className="h-4 w-4" />
+              <span>NDPR-compliant · Bank-grade encryption · Smile ID KYC</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-primary-foreground/60">
+              <span>Powered by Monnify &amp; OPay</span>
+            </div>
+          </div>
+        </aside>
+
+        {/* Right: Form area */}
+        <section className="flex items-center justify-center p-6 sm:p-8 lg:p-12 relative">
+          {/* Subtle background pattern */}
+          <div
+            className="absolute inset-0 opacity-[0.03] pointer-events-none"
+            style={{
+              backgroundImage: "radial-gradient(circle at 1px 1px, var(--foreground) 1px, transparent 0)",
+              backgroundSize: "24px 24px",
+            }}
+          />
+
+          <div className="w-full max-w-md relative z-10">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={view}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+              >
+                {view === "login" && <LoginForm />}
+                {view === "register" && <RegisterForm />}
+                {view === "verify-email" && <VerifyEmailForm token={token} />}
+                {view === "forgot-password" && <ForgotPasswordForm />}
+                {view === "reset-password" && <ResetPasswordForm token={token} />}
+                {view === "resend-verification" && <ResendVerificationForm />}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </section>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t py-4 px-4">
+        <div className="container mx-auto max-w-7xl flex items-center justify-between text-xs text-muted-foreground">
+          <span>© {new Date().getFullYear()} GigSure AI</span>
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Encrypted</span>
+            <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> NDPR-compliant</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

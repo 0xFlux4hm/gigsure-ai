@@ -274,7 +274,7 @@ export function SettingsPayoutsView() {
                     id="accountName"
                     value={formState.accountName}
                     onChange={(e) => setFormState((s) => ({ ...s, accountName: e.target.value }))}
-                    placeholder="e.g., AHMED MUHAMMAD WAMMI"
+                    placeholder="e.g., Adaeze Okafor"
                     required
                   />
                 </div>

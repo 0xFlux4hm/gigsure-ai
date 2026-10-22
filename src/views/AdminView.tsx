@@ -31,7 +31,9 @@ import {
   TrendingUp,
   Banknote,
   RefreshCw,
+  Download,
 } from "lucide-react";
+import { exportAdminPDF } from "@/lib/pdf/export";
 
 type AdminTab = "overview" | "users" | "projects" | "payments" | "payouts" | "disputes" | "kyc" | "audit" | "ai" | "privacy" | "webhooks" | "gateway";
 
@@ -1620,6 +1622,30 @@ function PayoutsTab() {
               </Select>
               <Button variant="outline" size="sm" onClick={load}>
                 <RefreshCw className="h-3 w-3 mr-1" /> Refresh
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  exportAdminPDF({
+                    title: "Payouts Report",
+                    subtitle: `${data.payouts.length} payouts · ${new Date().toLocaleDateString("en-NG")}`,
+                    columns: ["Payee", "Email", "Project", "Amount", "Provider", "Bank", "Account #", "Status", "Initiated"],
+                    rows: data.payouts.map((p) => [
+                      p.payee.displayName,
+                      p.payee.email,
+                      p.projectTitle,
+                      formatMinor(p.netMinor, p.currency),
+                      p.provider,
+                      p.payeeBankName,
+                      p.payeeAccountNumber,
+                      p.status,
+                      formatDateTime(p.initiatedAt),
+                    ]),
+                  });
+                }}
+              >
+                <Download className="h-3 w-3 mr-1" /> PDF
               </Button>
             </div>
           </CardTitle>
