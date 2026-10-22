@@ -332,6 +332,7 @@ model Deliverable {
   contentType String
   sizeBytes   Int
   storageKey  String   // private storage key, never publicly accessible
+  data        Bytes?   // file content stored directly in DB (for small files, no external storage needed)
   status      String   @default("SUBMITTED") // SUBMITTED | UNDER_REVIEW | APPROVED | CHANGES_REQUESTED | REJECTED
   reviewerId  String?
   reviewNote  String?

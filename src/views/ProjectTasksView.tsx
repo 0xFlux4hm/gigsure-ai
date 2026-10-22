@@ -10,7 +10,17 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { api, formatDate } from "@/lib/client-api";
-import { Plus, Loader2, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Loader2, ChevronDown, ChevronRight, Upload, Download, Trash2, Paperclip } from "lucide-react";
+
+type Deliverable = {
+  id: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  status: string;
+  submittedAt: string;
+  submitter: { id: string; displayName: string };
+};
 
 type Task = {
   id: string;
@@ -21,7 +31,7 @@ type Task = {
   dueDate: string | null;
   assignee: { id: string; displayName: string } | null;
   milestone: { id: string; title: string } | null;
-  deliverables: Array<{ id: string; filename: string; status: string }>;
+  deliverables: Deliverable[];
 };
 
 const COLUMNS = [
@@ -59,6 +69,45 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
     } catch (err) {
       alert((err as Error).message);
     }
+  };
+
+  const uploadDeliverable = async (taskId: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/tasks/${taskId}/deliverables`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data?.error || "Upload failed");
+      }
+      load();
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  };
+
+  const deleteDeliverable = async (taskId: string, deliverableId: string) => {
+    if (!confirm("Delete this deliverable?")) return;
+    try {
+      await api.del(`/api/projects/${projectId}/tasks/${taskId}/deliverables/${deliverableId}`);
+      load();
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  };
+
+  const downloadDeliverable = (taskId: string, deliverableId: string, filename: string) => {
+    window.open(`/api/projects/${projectId}/tasks/${taskId}/deliverables/${deliverableId}`, "_blank");
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   const toggleExpand = (id: string) => {
@@ -128,12 +177,45 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
                             {t.description && <p className="text-muted-foreground">{t.description}</p>}
                             {t.deliverables.length > 0 && (
                               <div>
-                                <div className="text-muted-foreground">Deliverables:</div>
-                                <ul className="list-disc list-inside">
-                                  {t.deliverables.map((d) => <li key={d.id}>{d.filename} <Badge variant="outline" className="text-[10px] ml-1">{d.status}</Badge></li>)}
+                                <div className="text-muted-foreground mb-1 flex items-center gap-1"><Paperclip className="h-3 w-3" /> Deliverables:</div>
+                                <ul className="space-y-1">
+                                  {t.deliverables.map((d) => (
+                                    <li key={d.id} className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => downloadDeliverable(t.id, d.id, d.filename)}
+                                        className="text-primary hover:underline flex items-center gap-1 truncate"
+                                      >
+                                        <Download className="h-3 w-3 shrink-0" />
+                                        <span className="truncate">{d.filename}</span>
+                                      </button>
+                                      <span className="text-muted-foreground text-[10px] shrink-0">{formatFileSize(d.sizeBytes)}</span>
+                                      <Badge variant="outline" className="text-[10px] shrink-0">{d.status}</Badge>
+                                      <button
+                                        onClick={() => deleteDeliverable(t.id, d.id)}
+                                        className="text-destructive hover:text-destructive/80 shrink-0"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </button>
+                                    </li>
+                                  ))}
                                 </ul>
                               </div>
                             )}
+                            {/* Upload button */}
+                            <label className="inline-flex items-center gap-1 cursor-pointer text-primary hover:underline">
+                              <Upload className="h-3 w-3" />
+                              <span>Upload deliverable</span>
+                              <input
+                                type="file"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) uploadDeliverable(t.id, file);
+                                  e.target.value = "";
+                                }}
+                                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.json,.csv,.txt"
+                              />
+                            </label>
                             <div className="flex items-center gap-1 flex-wrap">
                               <Badge variant="outline" className="text-[10px]">{t.priority}</Badge>
                               {(NEXT_STATUS[t.status] ?? []).map((next) => (
