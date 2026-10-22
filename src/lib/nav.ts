@@ -14,6 +14,7 @@ export type ViewName =
   | "verify-email"
   | "forgot-password"
   | "reset-password"
+  | "resend-verification"
   | "google-demo-consent"
   | "dashboard"
   | "projects"

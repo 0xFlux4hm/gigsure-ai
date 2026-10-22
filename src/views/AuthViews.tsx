@@ -49,6 +49,7 @@ export function AuthViews() {
           {view === "verify-email" && <VerifyEmailForm token={token} />}
           {view === "forgot-password" && <ForgotPasswordForm />}
           {view === "reset-password" && <ResetPasswordForm token={token} />}
+          {view === "resend-verification" && <ResendVerificationForm />}
         </div>
       </main>
     </div>
@@ -181,6 +182,16 @@ function LoginForm() {
         >
           Forgot password?
         </button>
+        <p className="text-xs text-muted-foreground text-center px-4">
+          Didn&apos;t get a verification email?{" "}
+          <button
+            type="button"
+            className="text-primary hover:underline"
+            onClick={() => navigate({ view: "resend-verification" })}
+          >
+            Resend it
+          </button>
+        </p>
       </CardContent>
       <CardFooter className="flex-col gap-2 text-sm text-muted-foreground">
         <p>Don&apos;t have an account?</p>
@@ -229,9 +240,14 @@ function RegisterForm() {
         if (signInResult?.ok) {
           // Redirect to dashboard on successful auto-login
           window.location.href = signInResult.url ?? "/?view=dashboard";
-        } else if (signInResult?.error) {
-          // Auto-login failed — likely needs email verification
-          setError("Account created! Please check your email for a verification link, then sign in.");
+        } else {
+          // Auto-login failed — email verification is required before login.
+          // Show the verification link if we got one (dev mode), otherwise
+          // instruct the user to check their email.
+          setError(
+            "Account created! We sent a verification link to your email. " +
+            "Click the link in the email to verify your account, then sign in."
+          );
         }
       }
     } catch (err) {
@@ -428,8 +444,7 @@ function ForgotPasswordForm() {
         {sent ? (
           <Alert>
             <AlertDescription>
-              If the email is registered, a reset link has been sent. In dev mode,
-              check the server log for the token.
+              If the email is registered, a reset link has been sent. Check your inbox.
             </AlertDescription>
           </Alert>
         ) : (
@@ -439,6 +454,7 @@ function ForgotPasswordForm() {
               <Input
                 id="email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -457,8 +473,80 @@ function ForgotPasswordForm() {
           </form>
         )}
       </CardContent>
-      <CardFooter>
-        <Button variant="ghost" className="w-full" onClick={() => navigate({ view: "login" })}>
+      <CardFooter className="flex-col gap-2 text-sm text-muted-foreground">
+        <Button variant="outline" className="w-full" onClick={() => navigate({ view: "login" })}>
+          Back to sign in
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+function ResendVerificationForm() {
+  const { navigate } = useNav();
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      await api.post("/api/auth/resend-verification", { email });
+      setSent(true);
+    } catch (err) {
+      setError((err as Error).message ?? "Request failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Resend verification email</CardTitle>
+        <CardDescription>
+          Enter your email and we&apos;ll send a new verification link.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {sent ? (
+          <Alert>
+            <AlertDescription>
+              If the email is registered and not yet verified, a new verification link has been sent.
+              Check your inbox (and spam folder).
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <form onSubmit={submit} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Resend verification email
+            </Button>
+          </form>
+        )}
+      </CardContent>
+      <CardFooter className="flex-col gap-2 text-sm text-muted-foreground">
+        <Button variant="outline" className="w-full" onClick={() => navigate({ view: "login" })}>
           Back to sign in
         </Button>
       </CardFooter>

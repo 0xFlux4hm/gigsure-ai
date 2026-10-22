@@ -136,6 +136,16 @@ export const authOptions: NextAuthOptions = {
           });
           return null;
         }
+        // Require email verification before login (security).
+        // Without this, anyone can register with someone else's email
+        // and gain immediate access to the platform.
+        if (!user.emailVerifiedAt) {
+          logSecurityEvent("warn", "auth.login_blocked_email_not_verified", {
+            userId: user.id,
+            email,
+          });
+          return null;
+        }
         await db.user.update({
           where: { id: user.id },
           data: { lastLoginAt: new Date() },
