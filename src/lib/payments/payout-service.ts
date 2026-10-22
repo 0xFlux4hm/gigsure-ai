@@ -21,6 +21,7 @@ import { getProvider, getDefaultProvider } from "@/lib/payments/registry";
 import type { PaymentProvider } from "@/lib/payments/provider-interface";
 import { generateProviderTxRef, generateIdempotencyKey } from "@/lib/security/tokens";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
+import { calculatePayoutFee } from "@/lib/payments/fee-calculator";
 
 export type PayoutRecipient = {
   userId: string;
@@ -222,6 +223,9 @@ export async function initiatePayoutsForRelease(
 
     // Snapshot the bank details into the payout (immutable — even if the
     // worker later changes their bank account, this payout's destination is locked).
+    // Calculate payout flat fee (₦50 default, capped at 50% of payout)
+    const { feeMinor: payoutFee, netMinor: payoutNet } = calculatePayoutFee(recipient.amountMinor);
+
     const payoutRecord = await db.payout.create({
       data: {
         payoutReference,
@@ -231,8 +235,8 @@ export async function initiatePayoutsForRelease(
         initiatedById: input.initiatedById,
         provider: provider.name,
         amountMinor: recipient.amountMinor,
-        feeMinor: 0,
-        netMinor: recipient.amountMinor,
+        feeMinor: payoutFee,
+        netMinor: payoutNet,
         currency: input.currency,
         bankDetailId: bankDetail.id,
         payeeAccountName: bankDetail.accountName,
@@ -244,11 +248,11 @@ export async function initiatePayoutsForRelease(
       },
     });
 
-    // Call provider to disburse.
+    // Call provider to disburse the NET amount (after fee deduction).
     try {
       const result = await provider.initiateTransfer({
         payoutReference,
-        amountMinor: recipient.amountMinor,
+        amountMinor: payoutNet,
         currency: input.currency,
         recipient: {
           accountName: bankDetail.accountName,

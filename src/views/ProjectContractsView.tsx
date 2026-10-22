@@ -9,7 +9,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { api, formatDateTime } from "@/lib/client-api";
-import { Plus, Loader2, CheckCircle2, History } from "lucide-react";
+import { Plus, Loader2, CheckCircle2, History, GitCompare } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Version = {
   id: string;
@@ -31,6 +38,9 @@ export function ProjectContractsView({ projectId }: { projectId: string }) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareA, setCompareA] = useState<string>("");
+  const [compareB, setCompareB] = useState<string>("");
   const [members, setMembers] = useState<Array<{ user: { id: string; displayName: string }; role: string }>>([]);
 
   const load = () => {
@@ -67,15 +77,84 @@ export function ProjectContractsView({ projectId }: { projectId: string }) {
           <h1 className="text-2xl font-bold">Contracts</h1>
           <p className="text-muted-foreground text-sm">Versioned. Accepted terms are preserved.</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> New version</Button>
-          </DialogTrigger>
-          <NewContractDialog
-            projectId={projectId}
-            onCreated={() => { setOpen(false); load(); }}
-          />
-        </Dialog>
+        <div className="flex items-center gap-2">
+          {versions.length >= 2 && (
+            <Dialog open={compareOpen} onOpenChange={setCompareOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline"><GitCompare className="mr-2 h-4 w-4" /> Compare</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl">
+                <DialogHeader><DialogTitle>Compare contract versions</DialogTitle></DialogHeader>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <Label className="text-xs">Version A</Label>
+                    <Select value={compareA} onValueChange={setCompareA}>
+                      <SelectTrigger><SelectValue placeholder="Select version" /></SelectTrigger>
+                      <SelectContent>
+                        {versions.map((v) => <SelectItem key={v.id} value={v.id}>Version {v.versionNumber}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Version B</Label>
+                    <Select value={compareB} onValueChange={setCompareB}>
+                      <SelectTrigger><SelectValue placeholder="Select version" /></SelectTrigger>
+                      <SelectContent>
+                        {versions.map((v) => <SelectItem key={v.id} value={v.id}>Version {v.versionNumber}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {compareA && compareB && compareA !== compareB && (
+                  <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                    {(() => {
+                      const a = versions.find((v) => v.id === compareA);
+                      const b = versions.find((v) => v.id === compareB);
+                      if (!a || !b) return null;
+                      const fields = [
+                        { label: "Scope of work", aVal: a.scopeOfWork, bVal: b.scopeOfWork },
+                        { label: "Deliverables", aVal: a.deliverables, bVal: b.deliverables },
+                        { label: "Deadlines", aVal: a.deadlines || "—", bVal: b.deadlines || "—" },
+                        { label: "Payment schedule", aVal: a.paymentSchedule || "—", bVal: b.paymentSchedule || "—" },
+                        { label: "Milestone conditions", aVal: a.milestoneConditions || "—", bVal: b.milestoneConditions || "—" },
+                        { label: "Revision rules", aVal: a.revisionRules || "—", bVal: b.revisionRules || "—" },
+                        { label: "Cancellation terms", aVal: a.cancellationTerms || "—", bVal: b.cancellationTerms || "—" },
+                        { label: "Dispute procedures", aVal: a.disputeProcedures || "—", bVal: b.disputeProcedures || "—" },
+                      ];
+                      return fields.map((f) => {
+                        const changed = f.aVal !== f.bVal;
+                        return (
+                          <div key={f.label} className={`grid grid-cols-2 gap-2 p-2 rounded ${changed ? "bg-amber-500/10 border border-amber-500/30" : ""}`}>
+                            <div>
+                              <div className="text-xs text-muted-foreground mb-1">{f.label}</div>
+                              <div className="text-sm whitespace-pre-wrap">{f.aVal || "—"}</div>
+                            </div>
+                            <div className={changed ? "border-l-2 border-amber-500 pl-2" : "border-l pl-2"}>
+                              <div className="text-xs text-muted-foreground mb-1">{f.label}</div>
+                              <div className="text-sm whitespace-pre-wrap">{f.bVal || "—"}</div>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
+                {compareA && compareB && compareA === compareB && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Select two different versions to compare.</p>
+                )}
+              </DialogContent>
+            </Dialog>
+          )}
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="mr-2 h-4 w-4" /> New version</Button>
+            </DialogTrigger>
+            <NewContractDialog
+              projectId={projectId}
+              onCreated={() => { setOpen(false); load(); }}
+            />
+          </Dialog>
+        </div>
       </div>
 
       {versions.length === 0 ? (

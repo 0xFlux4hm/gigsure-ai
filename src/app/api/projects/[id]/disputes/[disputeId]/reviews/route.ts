@@ -84,6 +84,35 @@ export const POST = apiRoute(async (req, { params }) => {
     await db.dispute.update({ where: { id: disputeId }, data: { status: "ESCALATED" } });
   }
 
+  // If outcome is UPHOLD_CLAIM, check auto-suspend policy on the
+  // dispute subject (the service provider whose work was disputed).
+  if (parsed.data.outcome === "UPHOLD_CLAIM" && dispute.milestoneId) {
+    try {
+      // Find the service provider on this milestone's project
+      const milestone = await db.milestone.findUnique({
+        where: { id: dispute.milestoneId },
+        select: { projectId: true },
+      });
+      if (milestone) {
+        const providers = await db.projectMembership.findMany({
+          where: {
+            projectId: milestone.projectId,
+            role: "COLLABORATOR",
+            revokedAt: null,
+          },
+          select: { userId: true },
+        });
+        const { checkAutoSuspend } = await import("@/lib/trust/suspension-policy");
+        for (const provider of providers) {
+          await checkAutoSuspend(provider.userId);
+        }
+      }
+    } catch (err) {
+      // Don't fail the review if auto-suspend check fails
+      console.error("[dispute-review] auto-suspend check failed", err);
+    }
+  }
+
   await recordAuditEvent({
     actorId: userId,
     projectId,

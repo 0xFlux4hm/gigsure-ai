@@ -5,8 +5,9 @@ import { useNav } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api, formatDate, timeAgo, formatMinor } from "@/lib/client-api";
-import { FolderKanban, Plus, ArrowRight, Loader2 } from "lucide-react";
+import { FolderKanban, Plus, ArrowRight, Loader2, Wallet, ShieldCheck, Building2, Bell, Scale, CheckCircle2, AlertTriangle } from "lucide-react";
 
 type DashboardData = {
   projects: Array<{
@@ -21,13 +22,32 @@ type DashboardData = {
   }>;
 };
 
+type Stats = {
+  activeProjects: number;
+  completedProjects: number;
+  pendingMilestones: number;
+  pendingPayouts: number;
+  totalEarningsMinor: number;
+  unreadNotifications: number;
+  openDisputes: number;
+  kycVerified: boolean;
+  bankAccountAdded: boolean;
+};
+
 export function DashboardView() {
   const { navigate } = useNav();
   const [data, setData] = useState<DashboardData | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get<DashboardData>("/api/projects?limit=5").then(setData).finally(() => setLoading(false));
+    Promise.all([
+      api.get<DashboardData>("/api/projects?limit=5"),
+      api.get<Stats>("/api/dashboard").catch(() => null),
+    ]).then(([d, s]) => {
+      setData(d);
+      setStats(s);
+    }).finally(() => setLoading(false));
   }, []);
 
   return (
@@ -42,13 +62,83 @@ export function DashboardView() {
         </Button>
       </div>
 
+      {/* Account setup alerts */}
+      {stats && !stats.kycVerified && (
+        <Alert className="border-amber-500/40 bg-amber-500/10">
+          <ShieldCheck className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-sm text-amber-700 dark:text-amber-400">
+            <strong>KYC verification required.</strong> Complete identity verification (NIN + selfie) to fund milestones and receive payouts.
+            <Button size="sm" variant="outline" className="ml-3" onClick={() => navigate({ view: "kyc" })}>
+              Verify now
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      {stats && !stats.bankAccountAdded && (
+        <Alert className="border-amber-500/40 bg-amber-500/10">
+          <Building2 className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-sm text-amber-700 dark:text-amber-400">
+            <strong>Add a bank account.</strong> You need a bank account to receive payouts.
+            <Button size="sm" variant="outline" className="ml-3" onClick={() => navigate({ view: "settings-payouts" })}>
+              Add bank account
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Active projects" value={data?.projects.length ?? 0} />
-        <StatCard label="Open tasks" value={data?.projects.reduce((s, p) => s + p._count.tasks, 0) ?? 0} />
-        <StatCard label="Open disputes" value={data?.projects.reduce((s, p) => s + p._count.disputes, 0) ?? 0} />
-        <StatCard label="Total milestones" value={data?.projects.reduce((s, p) => s + p._count.milestones, 0) ?? 0} />
+        <StatCard
+          label="Active projects"
+          value={stats?.activeProjects ?? 0}
+          sub={stats ? `${stats.completedProjects} completed` : undefined}
+          icon={FolderKanban}
+        />
+        <StatCard
+          label="Pending milestones"
+          value={stats?.pendingMilestones ?? 0}
+          icon={CheckCircle2}
+        />
+        <StatCard
+          label="Total earnings"
+          value={stats ? formatMinor(stats.totalEarningsMinor, "NGN") : "₦0"}
+          isText
+          icon={Wallet}
+        />
+        <StatCard
+          label="Pending payouts"
+          value={stats?.pendingPayouts ?? 0}
+          icon={Wallet}
+          accent={stats && stats.pendingPayouts > 0 ? "warning" : "default"}
+        />
       </div>
 
+      {/* Secondary stats */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <StatCard
+          label="Open disputes"
+          value={stats?.openDisputes ?? 0}
+          icon={Scale}
+          accent={stats && stats.openDisputes > 0 ? "destructive" : "default"}
+          onClick={() => navigate({ view: "projects" })}
+        />
+        <StatCard
+          label="Unread notifications"
+          value={stats?.unreadNotifications ?? 0}
+          icon={Bell}
+          onClick={() => navigate({ view: "notifications" })}
+        />
+        <StatCard
+          label="Account status"
+          value={stats?.kycVerified ? "Verified" : "Pending KYC"}
+          isText
+          icon={ShieldCheck}
+          accent={stats?.kycVerified ? "success" : "warning"}
+          onClick={() => navigate({ view: "kyc" })}
+        />
+      </div>
+
+      {/* Recent projects */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -103,12 +193,42 @@ export function DashboardView() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  isText,
+  accent = "default",
+  onClick,
+}: {
+  label: string;
+  value: number | string;
+  sub?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  isText?: boolean;
+  accent?: "default" | "warning" | "destructive" | "success";
+  onClick?: () => void;
+}) {
+  const accentClasses = {
+    default: "text-primary bg-primary/10",
+    warning: "text-amber-600 bg-amber-500/10",
+    destructive: "text-destructive bg-destructive/10",
+    success: "text-emerald-600 bg-emerald-500/10",
+  };
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="text-2xl font-bold">{value}</div>
-        <div className="text-xs text-muted-foreground">{label}</div>
+    <Card className={onClick ? "cursor-pointer hover:shadow-md transition-shadow" : ""} >
+      <CardContent className="p-4" onClick={onClick}>
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-2xl font-bold">{value}</div>
+            <div className="text-xs text-muted-foreground">{label}</div>
+            {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
+          </div>
+          <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${accentClasses[accent]}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

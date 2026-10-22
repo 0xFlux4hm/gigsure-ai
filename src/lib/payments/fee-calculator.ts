@@ -115,3 +115,42 @@ export function validateFeeCalculation(
   const { feeMinor } = calculateFee(amountMinor, policy);
   return feeMinor === expectedFeeMinor;
 }
+
+// ---------------------------------------------------------------------------
+// PAYOUT FLAT FEE — outbound transfer fee (platform → service provider bank)
+// ---------------------------------------------------------------------------
+
+/**
+ * Payout flat fee in minor units (kobo).
+ * Default: ₦50 = 5000 kobo per outbound transfer.
+ * Configurable via PAYOUT_FLAT_FEE_MINOR env var.
+ */
+const parsedPayoutFee = parseInt(process.env.PAYOUT_FLAT_FEE_MINOR ?? "5000", 10);
+export const PAYOUT_FLAT_FEE_MINOR = Number.isFinite(parsedPayoutFee) && parsedPayoutFee >= 0
+  ? parsedPayoutFee
+  : 5000; // ₦50 default
+
+/**
+ * Calculate the payout flat fee for an outbound transfer.
+ *
+ * The fee is a flat amount per transfer (not percentage-based), deducted
+ * from the service provider's payout. For very small payouts, the fee
+ * is capped at 50% of the payout amount so the provider always receives
+ * at least half.
+ *
+ * @param payoutAmountMinor - the gross payout amount before fee
+ * @returns { feeMinor, netMinor } — fee deducted + net amount provider receives
+ */
+export function calculatePayoutFee(
+  payoutAmountMinor: number,
+): { feeMinor: number; netMinor: number } {
+  if (payoutAmountMinor <= 0) {
+    return { feeMinor: 0, netMinor: 0 };
+  }
+  // Cap fee at 50% of payout so small payouts aren't eaten entirely by fees
+  const cappedFee = Math.min(PAYOUT_FLAT_FEE_MINOR, Math.floor(payoutAmountMinor / 2));
+  return {
+    feeMinor: cappedFee,
+    netMinor: payoutAmountMinor - cappedFee,
+  };
+}

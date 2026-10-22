@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/client-api";
-import { Loader2, Check } from "lucide-react";
+import { useNav } from "@/lib/nav";
+import { Loader2, Check, X, ShieldCheck, Mail, Building2, User } from "lucide-react";
 
 type Profile = {
   headline: string | null;
@@ -34,12 +35,20 @@ export function SettingsProfileView() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [completion, setCompletion] = useState<{
+    emailVerified: boolean;
+    kycVerified: boolean;
+    bankAccountAdded: boolean;
+    profileFilled: boolean;
+  }>({ emailVerified: false, kycVerified: false, bankAccountAdded: false, profileFilled: false });
+  const { navigate } = useNav();
 
   useEffect(() => {
     Promise.all([
-      api.get<{ displayName: string }>("/api/me"),
+      api.get<{ displayName: string; emailVerifiedAt?: string }>("/api/me"),
       api.get<Profile>("/api/profile"),
-    ]).then(([u, p]) => {
+      api.get<{ kycVerified: boolean; bankAccountAdded: boolean }>("/api/dashboard").catch(() => ({ kycVerified: false, bankAccountAdded: false })),
+    ]).then(([u, p, d]) => {
       setDisplayName(u.displayName);
       // Handle case where profile doesn't exist yet
       setProfile({
@@ -56,6 +65,12 @@ export function SettingsProfileView() {
         availability: p?.availability ?? "OPEN",
         preferredCategories: p?.preferredCategories ?? "[]",
         profileVisibility: p?.profileVisibility ?? "PRIVATE",
+      });
+      setCompletion({
+        emailVerified: !!u.emailVerifiedAt,
+        kycVerified: d.kycVerified,
+        bankAccountAdded: d.bankAccountAdded,
+        profileFilled: !!(p?.headline && p?.skills && p?.skills !== "[]"),
       });
     }).finally(() => setLoading(false));
   }, []);
@@ -95,6 +110,46 @@ export function SettingsProfileView() {
         <h1 className="text-2xl font-bold">Profile</h1>
         <p className="text-muted-foreground text-sm">Public-facing info. All fields optional except display name.</p>
       </div>
+
+      {/* Profile completion card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Account Setup Progress</CardTitle>
+          <CardDescription>
+            Complete these steps to unlock all platform features.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <CompletionItem
+              done={completion.emailVerified}
+              icon={Mail}
+              label="Email verified"
+              actionLabel="Resend"
+              onAction={() => navigate({ view: "resend-verification" })}
+            />
+            <CompletionItem
+              done={completion.kycVerified}
+              icon={ShieldCheck}
+              label="KYC verified (NIN + selfie)"
+              actionLabel="Verify"
+              onAction={() => navigate({ view: "kyc" })}
+            />
+            <CompletionItem
+              done={completion.bankAccountAdded}
+              icon={Building2}
+              label="Bank account added"
+              actionLabel="Add"
+              onAction={() => navigate({ view: "settings-payouts" })}
+            />
+            <CompletionItem
+              done={completion.profileFilled}
+              icon={User}
+              label="Profile completed (headline + skills)"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Basic info</CardTitle></CardHeader>
@@ -226,6 +281,34 @@ export function SettingsProfileView() {
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+function CompletionItem({
+  done,
+  icon: Icon,
+  label,
+  actionLabel,
+  onAction,
+}: {
+  done: boolean;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+      <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${done ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+        {done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4 text-muted-foreground" />}
+      </div>
+      <span className={`text-sm flex-1 ${done ? "text-foreground" : "text-muted-foreground"}`}>{label}</span>
+      {!done && actionLabel && onAction && (
+        <Button size="sm" variant="outline" onClick={onAction}>
+          {actionLabel}
+        </Button>
+      )}
     </div>
   );
 }

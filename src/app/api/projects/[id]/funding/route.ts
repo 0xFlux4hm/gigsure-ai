@@ -141,10 +141,21 @@ export const POST = apiRoute(async (req, { params }) => {
   });
 
   // For RELEASE records, the project owner is initiating the release of an
-  // already-approved milestone. The FundingRecord is confirmed immediately
-  // (no payment-provider roundtrip needed for the release step — the funds
-  // are already in escrow). The downstream payout to the worker happens via
-  // initiatePayoutsForRelease() inside confirmFundingRecord().
+  // already-approved milestone. Set milestone to RELEASE_INITIATED before the
+  // payout is processed. The payout-service will advance it to RELEASED when
+  // all payouts succeed.
+  if (parsed.data.type === "RELEASE" && parsed.data.milestoneId) {
+    try {
+      await db.milestone.update({
+        where: { id: parsed.data.milestoneId },
+        data: { status: "RELEASE_INITIATED" },
+      });
+    } catch {
+      // non-critical — confirmFundingRecord will still trigger payouts
+    }
+  }
+
+  // For RELEASE records, call confirmFundingRecord synchronously to trigger payouts.
   if (parsed.data.type === "RELEASE") {
     try {
       await confirmFundingRecord({
@@ -164,8 +175,6 @@ export const POST = apiRoute(async (req, { params }) => {
       });
     } catch (err) {
       // Log the failure — the release is recorded but payout failed.
-      // The FundingRecord stays in INITIATED; admin can re-trigger from
-      // the Payouts dashboard.
       logSecurityEvent("error", "funding.release_confirm_failed", {
         fundingRecordId: result.fundingRecordId,
         message: (err as Error)?.message,

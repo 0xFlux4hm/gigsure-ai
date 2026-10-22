@@ -40,12 +40,17 @@ type ProjectDetail = {
 export function ProjectDetailView({ projectId }: { projectId: string }) {
   const { navigate } = useNav();
   const [project, setProject] = useState<ProjectDetail | null>(null);
+  const [milestones, setMilestones] = useState<Array<{ status: string; amountMinor: number }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get<ProjectDetail>(`/api/projects/${projectId}`)
-      .then(setProject)
-      .finally(() => setLoading(false));
+    Promise.all([
+      api.get<ProjectDetail>(`/api/projects/${projectId}`),
+      api.get<{ milestones: Array<{ status: string; amountMinor: number }> }>(`/api/projects/${projectId}/milestones`).catch(() => ({ milestones: [] })),
+    ]).then(([p, m]) => {
+      setProject(p);
+      setMilestones(m.milestones ?? []);
+    }).finally(() => setLoading(false));
   }, [projectId]);
 
   if (loading) {
@@ -94,6 +99,27 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
         <StatCard label="Start date" value={formatDate(project.startDate)} />
         <StatCard label="Due date" value={formatDate(project.dueDate)} />
       </div>
+
+      {/* Progress bars */}
+      {milestones.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <ProgressCard
+            label="Milestone progress"
+            value={milestones.filter((m) => m.status === "RELEASED").length}
+            total={milestones.length}
+            color="bg-primary"
+            subLabel={`${milestones.filter((m) => m.status === "RELEASED").length} of ${milestones.length} released`}
+          />
+          <ProgressCard
+            label="Funding deployed"
+            value={milestones.filter((m) => ["FUNDED", "SUBMITTED", "APPROVED", "RELEASE_INITIATED", "RELEASED"].includes(m.status)).reduce((s, m) => s + m.amountMinor, 0)}
+            total={milestones.reduce((s, m) => s + m.amountMinor, 0)}
+            color="bg-emerald-500"
+            subLabel={`${formatMinor(milestones.filter((m) => ["FUNDED", "SUBMITTED", "APPROVED", "RELEASE_INITIATED", "RELEASED"].includes(m.status)).reduce((s, m) => s + m.amountMinor, 0), project.currency)} of ${formatMinor(milestones.reduce((s, m) => s + m.amountMinor, 0), project.currency)}`}
+            isMoney
+          />
+        </div>
+      )}
 
       <div>
         <h2 className="text-lg font-semibold mb-3">Project sections</h2>
@@ -166,6 +192,38 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
       <CardContent className="p-4">
         <div className="text-xs text-muted-foreground">{label}</div>
         <div className="text-lg font-semibold mt-1 truncate">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProgressCard({
+  label,
+  value,
+  total,
+  color,
+  subLabel,
+  isMoney,
+}: {
+  label: string;
+  value: number;
+  total: number;
+  color: string;
+  subLabel: string;
+  isMoney?: boolean;
+}) {
+  const pct = total > 0 ? Math.min(100, Math.round((value / total) * 100)) : 0;
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-muted-foreground">{label}</span>
+          <span className="text-xs font-medium">{pct}%</span>
+        </div>
+        <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+          <div className={`h-full ${color} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+        </div>
+        <div className="text-xs text-muted-foreground mt-2">{subLabel}</div>
       </CardContent>
     </Card>
   );
