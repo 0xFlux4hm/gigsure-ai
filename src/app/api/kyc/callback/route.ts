@@ -96,11 +96,13 @@ export async function POST(req: Request) {
   const signature = payload.signature ?? "";
   const timestamp = payload.timestamp ?? "";
 
-  // SECURITY: Fail-closed — only skip signature verification when explicitly
-  // in sandbox mode AND no API key is configured. Default (unset env var)
-  // is to REQUIRE the signature.
+  // SECURITY: Fail-closed — ONLY skip signature verification when explicitly
+  // in sandbox mode AND an explicit env var KYC_ALLOW_UNSIGNED_SANDBOX=true
+  // is set. Default behavior (even in sandbox) is to REQUIRE the signature.
+  // This prevents KYC bypass when SMILE_ID_API_KEY is accidentally unset.
   const isExplicitSandbox = process.env.SMILE_ID_ENVIRONMENT === "sandbox";
-  const isSandboxWithoutKey = isExplicitSandbox && !smileIdApiKey;
+  const allowUnsignedSandbox = process.env.KYC_ALLOW_UNSIGNED_SANDBOX === "true";
+  const isSandboxWithoutKey = isExplicitSandbox && !smileIdApiKey && allowUnsignedSandbox;
 
   if (!isSandboxWithoutKey) {
     if (!smileIdApiKey) {

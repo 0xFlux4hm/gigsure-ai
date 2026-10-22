@@ -381,6 +381,10 @@ model CompensationAllocation {
 
   agreement CompensationAgreement @relation(fields: [compensationAgreementId], references: [id], onDelete: Cascade)
 
+  // SECURITY: Prevent duplicate allocations per user per agreement
+  // (was missing — allowed OWNER to add the same worker twice with
+  // different roles, causing double-payouts via resolvePayoutRecipients)
+  @@unique([compensationAgreementId, userId])
   @@index([compensationAgreementId])
   @@index([userId])
 }

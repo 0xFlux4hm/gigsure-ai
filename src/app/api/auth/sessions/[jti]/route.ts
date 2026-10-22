@@ -11,7 +11,7 @@
  */
 import { db } from "@/lib/db";
 import { apiRoute, fail, ok } from "@/lib/api";
-import { requireUserId } from "@/lib/auth/session";
+import { requireUserId, getSession } from "@/lib/auth/session";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { headers } from "next/headers";
 
@@ -22,6 +22,11 @@ export const DELETE = apiRoute(async (_req, { params }) => {
   if (!jti || jti.length < 8 || jti.length > 128) {
     return fail("Invalid session ID", 400);
   }
+
+  // SECURITY: Get the caller's current session JTI to verify ownership.
+  // Only the session owner can revoke their own sessions.
+  const session = await getSession();
+  const callerJti = (session?.user as { jti?: string })?.jti;
 
   // Check if already revoked (idempotent)
   const existing = await db.revokedSession.findUnique({
@@ -37,15 +42,27 @@ export const DELETE = apiRoute(async (_req, { params }) => {
     return ok({ alreadyRevoked: true });
   }
 
-  // SECURITY: If the session isn't already revoked, we can't verify
-  // ownership (JWTs are stateless — no server-side session store).
-  // Only allow revoking the CURRENT session (from the JWT) or
-  // require the JTI to match the caller's own session JTI.
-  // For safety, we allow it but log a warning if the JTI doesn't match
-  // the caller's current session (detectable via the session cookie).
+  // SECURITY: If the session isn't already revoked, verify the JTI
+  // belongs to the caller. Since we use JWT (stateless), we can only
+  // verify the caller's CURRENT session JTI. For revoking OTHER sessions
+  // (e.g., "sign out my lost phone"), the caller would need to know the
+  // JTI of that session — which they can't discover without an
+  // ActiveSession table (a known limitation).
+  //
+  // For now: only allow revoking the CURRENT session's JTI.
+  // This prevents the IDOR where any user can revoke any other user's
+  // session by guessing or extracting a JTI.
+  if (callerJti && jti !== callerJti) {
+    logSecurityEvent("warn", "auth.session_revocation_denied", {
+      userId,
+      attemptedJti: jti.slice(0, 8) + "...",
+      callerJti: callerJti.slice(0, 8) + "...",
+    });
+    return fail("You can only revoke your own current session", 403);
+  }
+
   const ip = headers().get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
   const ua = headers().get("user-agent") ?? null;
-  logSecurityEvent("info", "auth.session_revoked", { jti: jti.slice(0, 8) + "...", revokedBy: userId, ip });
 
   await db.revokedSession.create({
     data: {

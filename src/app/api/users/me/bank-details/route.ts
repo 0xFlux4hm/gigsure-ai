@@ -96,14 +96,26 @@ export const POST = apiRoute(async (req) => {
     if (provider.resolveAccountName) {
       const enquiry = await provider.resolveAccountName({ accountNumber, bankCode });
       if (enquiry.valid && enquiry.accountName) {
-        // Compare with the user-supplied account name (case-insensitive, trimmed).
-        // We accept partial matches because bank-returned names often include
-        // suffixes like "MR" / "MRS" / account type tags.
         const normalizedExpected = accountName.toLowerCase().trim();
         const normalizedReturned = enquiry.accountName.toLowerCase().trim();
-        isVerified =
-          normalizedReturned.includes(normalizedExpected) ||
-          normalizedExpected.includes(normalizedReturned);
+
+        // SECURITY: Reject empty/whitespace-only bank-returned names
+        // (previously: "".includes(anything) = true → always verified)
+        if (normalizedReturned.length < 2 || normalizedExpected.length < 2) {
+          isVerified = false;
+        } else {
+          // SECURITY: Use stricter matching — require the shorter name to be
+          // a substring of the longer one, with minimum 3-char overlap.
+          // This prevents "A" matching "JOHN SMITH" via includes("A").
+          const shorter = normalizedExpected.length <= normalizedReturned.length
+            ? normalizedExpected
+            : normalizedReturned;
+          const longer = normalizedExpected.length <= normalizedReturned.length
+            ? normalizedReturned
+            : normalizedExpected;
+          // Require the shorter name to be at least 3 chars and be a substring
+          isVerified = shorter.length >= 3 && longer.includes(shorter);
+        }
         enquiryRef = enquiry.enquiryReference;
       }
     }

@@ -31,15 +31,19 @@ export function resolveBaseUrl(req?: Request): string {
 
   // 3. Auto-detect from the request's Host header — but ONLY if it matches
   // the allowlist (configured via ALLOWED_HOSTS env var, comma-separated).
-  // This prevents host header injection where an attacker sends a malicious
-  // Host/X-Forwarded-Host header to redirect email links to evil.com.
+  // SECURITY: Prefer the Host header over X-Forwarded-Host to prevent
+  // host header injection via X-Forwarded-Host spoofing (an attacker
+  // can control X-Forwarded-Host but not Host on Vercel/Cloudflare).
   if (req) {
+    const hostHeader = req.headers.get("host");
     const forwardedHost = req.headers.get("x-forwarded-host");
     const forwardedProto = req.headers.get("x-forwarded-proto") ?? "https";
-    const host = forwardedHost ?? req.headers.get("host");
 
-    if (host && isAllowedHost(host)) {
-      return `${forwardedProto}://${host}`;
+    // Prefer Host header (set by the web server, not the client)
+    const effectiveHost = hostHeader ?? forwardedHost;
+
+    if (effectiveHost && isAllowedHost(effectiveHost)) {
+      return `${forwardedProto}://${effectiveHost}`;
     }
   }
 

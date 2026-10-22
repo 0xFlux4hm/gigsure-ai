@@ -92,20 +92,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   }
 
   // SECURITY: Validate timestamp for replay protection (5-minute window)
-  if (payload.timestamp) {
-    const ts = Date.parse(payload.timestamp);
-    if (!Number.isFinite(ts)) {
-      logSecurityEvent("warn", "payment.webhook_invalid_timestamp", { provider: providerName });
-      return NextResponse.json({ error: "Invalid timestamp" }, { status: 400 });
-    }
-    const ageMs = Math.abs(Date.now() - ts);
-    if (ageMs > REPLAY_WINDOW_MS) {
-      logSecurityEvent("warn", "payment.webhook_replay_rejected", {
-        provider: providerName,
-        ageMs,
-      });
-      return NextResponse.json({ error: "Payload expired" }, { status: 401 });
-    }
+  // Timestamp is REQUIRED — reject webhooks without it
+  if (!payload.timestamp) {
+    logSecurityEvent("warn", "payment.webhook_missing_timestamp", { provider: providerName });
+    return NextResponse.json({ error: "Missing timestamp" }, { status: 400 });
+  }
+  const ts = Date.parse(payload.timestamp);
+  if (!Number.isFinite(ts)) {
+    logSecurityEvent("warn", "payment.webhook_invalid_timestamp", { provider: providerName });
+    return NextResponse.json({ error: "Invalid timestamp" }, { status: 400 });
+  }
+  const ageMs = Math.abs(Date.now() - ts);
+  if (ageMs > REPLAY_WINDOW_MS) {
+    logSecurityEvent("warn", "payment.webhook_replay_rejected", {
+      provider: providerName,
+      ageMs,
+    });
+    return NextResponse.json({ error: "Payload expired" }, { status: 401 });
   }
 
   // SECURITY: Use deterministic providerEventId to prevent replay attacks.

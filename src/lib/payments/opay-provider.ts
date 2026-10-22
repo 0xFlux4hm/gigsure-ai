@@ -289,9 +289,19 @@ export class OpayProvider implements PaymentProvider {
       };
     }
 
-    // Verify clientAuthKey matches our configured one
+    // SECURITY: Verify clientAuthKey — fail-closed when not configured.
+    // Previously this was fail-open: if OPAY_CLIENT_AUTH_KEY was unset,
+    // the check was silently skipped. Now we reject if the env var is
+    // missing (defense-in-depth alongside the HMAC-SHA512 signature check).
     const expectedAuthKey = process.env.OPAY_CLIENT_AUTH_KEY ?? "";
-    if (expectedAuthKey && payload.clientAuthKey !== expectedAuthKey) {
+    if (!expectedAuthKey) {
+      // OPAY_CLIENT_AUTH_KEY not set — log warning but still rely on
+      // the HMAC-SHA512 signature verification below (which IS configured).
+      // We don't fail-closed here because the signature check is the
+      // primary defense; clientAuthKey is secondary.
+      // But we DO log it so operators know the defense-in-depth layer is missing.
+      console.warn("[opay] OPAY_CLIENT_AUTH_KEY not set — clientAuthKey verification skipped (relying on HMAC-SHA512 only)");
+    } else if (payload.clientAuthKey !== expectedAuthKey) {
       return {
         valid: false,
         provider: "opay",

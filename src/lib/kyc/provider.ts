@@ -32,6 +32,7 @@ export type KycProvider = "smile_id" | "mock";
 export interface KycInitiateInput {
   userId: string;
   ninNumber: string;
+  selfieBase64?: string; // SECURITY: required for real biometric verification
   ipAddress?: string | null;
   userAgent?: string | null;
 }
@@ -290,10 +291,15 @@ export async function initiateKyc(input: KycInitiateInput): Promise<KycInitiateR
 
   // Call the provider to start the job
   try {
-    const callbackUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/api/kyc/callback`;
+    // SECURITY: Use resolveBaseUrl instead of process.env.NEXTAUTH_URL
+    // (which is deleted on Vercel previews, causing the callback URL to
+    // point to localhost — breaking KYC on preview deployments)
+    const { resolveBaseUrl } = await import("@/lib/auth/base-url");
+    const callbackUrl = `${resolveBaseUrl()}/api/kyc/callback`;
     const result = await provider.initiateNinVerification({
       ninNumber: input.ninNumber,
       userId: input.userId,
+      selfieBase64: input.selfieBase64, // SECURITY: pass selfie to provider
       callbackUrl,
     });
 

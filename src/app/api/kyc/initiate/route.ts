@@ -19,7 +19,9 @@ import { headers } from "next/headers";
 
 const Schema = z.object({
   ninNumber: z.string().min(11).max(11).regex(/^\d{11}$/, "NIN must be exactly 11 digits"),
-  selfieBase64: z.string().min(100).max(5 * 1024 * 1024).optional(), // max 5MB selfie
+  // SECURITY: selfie is REQUIRED — without it, no liveness check is performed
+  // and KYC verification is just NIN number lookup (not biometric verification)
+  selfieBase64: z.string().min(100).max(5 * 1024 * 1024), // max 5MB selfie, REQUIRED
 });
 
 export const POST = apiRoute(async (req) => {
@@ -30,7 +32,7 @@ export const POST = apiRoute(async (req) => {
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid input. NIN must be exactly 11 digits.", 422); }
+  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid input. NIN must be exactly 11 digits and selfie is required.", 422); }
 
   // Check if user already has a valid KYC
   const alreadyVerified = await isUserKycVerified(userId);
@@ -52,6 +54,7 @@ export const POST = apiRoute(async (req) => {
   const result = await initiateKyc({
     userId,
     ninNumber: parsed.data.ninNumber,
+    selfieBase64: parsed.data.selfieBase64, // SECURITY: now passed through to provider
     ipAddress: ip,
     userAgent,
   });

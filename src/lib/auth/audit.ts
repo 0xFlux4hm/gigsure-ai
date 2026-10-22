@@ -108,42 +108,47 @@ function computeEventHash(
 
 export async function recordAuditEvent(ctx: AuditContext): Promise<void> {
   try {
-    // redact before persistence — defense-in-depth so a future
-    // caller that forgets to sanitise doesn't leak secrets to the audit log.
+    // redact before persistence + cap length
     const safeMetadata = ctx.metadata ? redactSensitive(ctx.metadata) : undefined;
-    const metadataStr = JSON.stringify(safeMetadata ?? {});
+    const metadataStr = JSON.stringify(safeMetadata ?? {}).slice(0, 8192);
     const createdAt = new Date();
 
-    // fetch the previous event's hash to build the chain.
-    // We use findFirst ordered by createdAt desc — this is O(log n) via the
-    // index on createdAt (added by Prisma's default).
-    const previousEvent = await db.auditEvent.findFirst({
-      orderBy: { createdAt: "desc" },
-      select: { eventHash: true },
-    });
-    const previousHash = previousEvent?.eventHash ?? "genesis";
+    // SECURITY: Use a transaction to hold the advisory lock for the
+    // duration of the read+write. Without a transaction, $executeRaw
+    // auto-commits and the lock is released instantly (no serialization).
+    await db.$transaction(async (tx) => {
+      // Acquire transaction-scoped advisory lock (auto-released on commit/rollback)
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(7271828364)`;
 
-    const eventData = {
-      actorId: ctx.actorId ?? null,
-      projectId: ctx.projectId ?? null,
-      fundingRecordId: ctx.fundingRecordId ?? null,
-      payoutId: ctx.payoutId ?? null,
-      expenseId: ctx.expenseId ?? null,
-      action: ctx.action,
-      targetType: ctx.targetType ?? null,
-      targetId: ctx.targetId ?? null,
-      metadata: metadataStr,
-      ipAddress: ctx.ipAddress ?? null,
-      createdAt,
-    };
-    const eventHash = computeEventHash(previousHash, eventData);
+      // Fetch previous event's hash (within the locked transaction)
+      const previousEvent = await tx.auditEvent.findFirst({
+        orderBy: { createdAt: "desc" },
+        select: { eventHash: true },
+      });
+      const previousHash = previousEvent?.eventHash ?? "genesis";
 
-    await db.auditEvent.create({
-      data: {
-        ...eventData,
-        previousHash,
-        eventHash,
-      },
+      const eventData = {
+        actorId: ctx.actorId ?? null,
+        projectId: ctx.projectId ?? null,
+        fundingRecordId: ctx.fundingRecordId ?? null,
+        payoutId: ctx.payoutId ?? null,
+        expenseId: ctx.expenseId ?? null,
+        action: ctx.action,
+        targetType: ctx.targetType ?? null,
+        targetId: ctx.targetId ?? null,
+        metadata: metadataStr,
+        ipAddress: ctx.ipAddress ?? null,
+        createdAt,
+      };
+      const eventHash = computeEventHash(previousHash, eventData);
+
+      await tx.auditEvent.create({
+        data: {
+          ...eventData,
+          previousHash,
+          eventHash,
+        },
+      });
     });
   } catch (err) {
     // Audit must never break the request, but we MUST log the failure.
@@ -167,4 +172,81 @@ export function logSecurityEvent(
   if (level === "info") console.info(line);
   else if (level === "warn") console.warn(line);
   else console.error(line);
+}
+
+/**
+ * Verify the integrity of the audit hash chain.
+ * Recomputes every eventHash from genesis and checks it matches the stored value.
+ * Returns the number of broken links (0 = chain is intact).
+ *
+ * SECURITY: This function should be called periodically (e.g., daily cron) to
+ * detect tampering. If any eventHash doesn't match, the chain has been
+ * compromised and an alert should be raised.
+ */
+export async function verifyAuditChain(): Promise<{
+  totalEvents: number;
+  brokenLinks: number;
+  firstBrokenEventId?: string;
+}> {
+  const events = await db.auditEvent.findMany({
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      actorId: true,
+      projectId: true,
+      fundingRecordId: true,
+      payoutId: true,
+      expenseId: true,
+      action: true,
+      targetType: true,
+      targetId: true,
+      metadata: true,
+      ipAddress: true,
+      createdAt: true,
+      previousHash: true,
+      eventHash: true,
+    },
+    take: 10000, // verify the most recent 10k events
+  });
+
+  let brokenLinks = 0;
+  let firstBrokenEventId: string | undefined;
+  let expectedPreviousHash = "genesis";
+
+  for (const event of events) {
+    // Check the previousHash links correctly
+    if (event.previousHash !== expectedPreviousHash) {
+      brokenLinks++;
+      if (!firstBrokenEventId) firstBrokenEventId = event.id;
+    }
+
+    // Recompute the eventHash
+    const eventData = {
+      actorId: event.actorId,
+      projectId: event.projectId,
+      fundingRecordId: event.fundingRecordId,
+      payoutId: event.payoutId,
+      expenseId: event.expenseId,
+      action: event.action,
+      targetType: event.targetType,
+      targetId: event.targetId,
+      metadata: event.metadata,
+      ipAddress: event.ipAddress,
+      createdAt: event.createdAt,
+    };
+    const recomputedHash = computeEventHash(expectedPreviousHash, eventData);
+
+    if (recomputedHash !== event.eventHash) {
+      brokenLinks++;
+      if (!firstBrokenEventId) firstBrokenEventId = event.id;
+    }
+
+    expectedPreviousHash = event.eventHash ?? "";
+  }
+
+  return {
+    totalEvents: events.length,
+    brokenLinks,
+    firstBrokenEventId,
+  };
 }

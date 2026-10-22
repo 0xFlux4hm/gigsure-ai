@@ -56,7 +56,7 @@ export const POST = apiRoute(async (req) => {
     // Send the password reset email
     const baseUrl = resolveBaseUrl(req);
     const resetUrl = `${baseUrl}/?view=reset-password&token=${rawToken}`;
-    if (process.env.NODE_ENV === "production" || process.env.SMTP_URL) {
+    if (process.env.SMTP_URL) {
       const result = await sendEmail(passwordResetEmail(email, resetUrl));
       if (!result.ok) {
         logSecurityEvent("error", "email.password_reset_send_failed", {
@@ -75,7 +75,19 @@ export const POST = apiRoute(async (req) => {
       targetId: user.id,
     });
   } else {
-    logSecurityEvent("info", "auth.password_reset_unknown_email", { email });
+    // SECURITY: Equalize timing for unregistered emails — perform dummy work
+    // that takes approximately the same time as the registered path (token
+    // creation + SMTP send + audit event). This prevents timing-based email
+    // enumeration via response latency.
+    const dummyStart = Date.now();
+    // Hash a dummy token to simulate the cost of token creation
+    hashToken(generateToken());
+    // Simulate SMTP latency (~200-300ms)
+    const elapsed = Date.now() - dummyStart;
+    if (elapsed < 200) {
+      await new Promise((r) => setTimeout(r, 200 - elapsed));
+    }
+    logSecurityEvent("info", "auth.forgot_password_unregistered", { email });
   }
 
   return ok({

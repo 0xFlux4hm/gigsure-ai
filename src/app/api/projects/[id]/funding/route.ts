@@ -102,7 +102,7 @@ export const POST = apiRoute(async (req, { params }) => {
         400,
       );
     }
-    if (parsed.data.type === "RELEASE" && milestone.status !== "APPROVED" && milestone.status !== "RELEASE_INITIATED") {
+    if (parsed.data.type === "RELEASE" && milestone.status !== "APPROVED") {
       return fail(`Milestone must be APPROVED to release (current: ${milestone.status})`, 400);
     }
     // SECURITY: Validate RELEASE amount does not exceed milestone funded amount
@@ -140,9 +140,38 @@ export const POST = apiRoute(async (req, { params }) => {
     }
   }
 
-  // Create the funding record (idempotent). No provider simulation — the
-  // FundingRecord is created in INITIATED status and waits for a real
-  // provider webhook to confirm it.
+  // For RELEASE records, the project owner is initiating the release of an
+  // already-approved milestone. Set milestone to RELEASE_INITIATED BEFORE
+  // creating any funding records. Use an ATOMIC conditional update to prevent
+  // the concurrent-RELEASE race condition (double-spend payouts).
+  // The conditional update (WHERE status = 'APPROVED') ensures only ONE
+  // request can claim the milestone — concurrent requests get count=0.
+  if (parsed.data.type === "RELEASE" && parsed.data.milestoneId) {
+    const claimed = await db.milestone.updateMany({
+      where: { id: parsed.data.milestoneId, status: "APPROVED" },
+      data: { status: "RELEASE_INITIATED" },
+    });
+    if (claimed.count === 0) {
+      // Milestone was not APPROVED (already being released by another request,
+      // or status changed). Check if it's already RELEASE_INITIATED (idempotent retry).
+      const currentMilestone = await db.milestone.findUnique({
+        where: { id: parsed.data.milestoneId },
+        select: { status: true },
+      });
+      if (currentMilestone?.status === "RELEASE_INITIATED" || currentMilestone?.status === "RELEASED") {
+        return fail("Milestone is already being released or has been released.", 409);
+      }
+      return fail(`Milestone must be APPROVED to release (current: ${currentMilestone?.status})`, 400);
+    }
+  }
+
+  // Create the funding record (idempotent). For RELEASE, use a milestone-scoped
+  // idempotency key so concurrent/retried requests collapse to the same record.
+  const idempotencyKey = parsed.data.idempotencyKey ??
+    (parsed.data.type === "RELEASE" && parsed.data.milestoneId
+      ? `release-milestone-${parsed.data.milestoneId}`
+      : undefined);
+
   const result = await createFundingRecord({
     projectId: params.id,
     milestoneId: parsed.data.milestoneId ?? null,
@@ -150,23 +179,8 @@ export const POST = apiRoute(async (req, { params }) => {
     amountMinor: parsed.data.amountMinor,
     currency: project.currency,
     initiatedById: userId,
-    idempotencyKey: parsed.data.idempotencyKey,
+    idempotencyKey,
   });
-
-  // For RELEASE records, the project owner is initiating the release of an
-  // already-approved milestone. Set milestone to RELEASE_INITIATED before the
-  // payout is processed. The payout-service will advance it to RELEASED when
-  // all payouts succeed.
-  if (parsed.data.type === "RELEASE" && parsed.data.milestoneId) {
-    try {
-      await db.milestone.update({
-        where: { id: parsed.data.milestoneId },
-        data: { status: "RELEASE_INITIATED" },
-      });
-    } catch {
-      // non-critical — confirmFundingRecord will still trigger payouts
-    }
-  }
 
   // For RELEASE records, call confirmFundingRecord synchronously to trigger payouts.
   if (parsed.data.type === "RELEASE") {
