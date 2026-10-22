@@ -220,7 +220,7 @@ function LoginForm() {
     });
     setLoading(false);
     if (res?.error) {
-      setError("Invalid email or password. If you haven't verified your email yet, we just sent you a new verification link — check your inbox.");
+      setError("Invalid email or password. Please try again.");
       return;
     }
     if (res?.ok) {
