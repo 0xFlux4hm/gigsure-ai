@@ -30,7 +30,7 @@ function useGoogleAuthAvailable(): boolean {
 
 const PILLARS = [
   { icon: FileCheck, title: "Verifiable contracts", desc: "Versioned scope, milestones, and terms." },
-  { icon: Wallet, title: "Escrow-backed funding", desc: "Platform holds funds until milestones are met." },
+  { icon: Wallet, title: "GigSure Payment Protection", desc: "Platform holds funds until milestones are met." },
   { icon: Scale, title: "Dispute resolution", desc: "Structured review process with evidence." },
   { icon: Bot, title: "AI assistants", desc: "7 advisory assistants for contracts, risk, and progress." },
 ];
@@ -75,8 +75,9 @@ export function AuthViews() {
               Get paid with trust.
             </h2>
             <p className="text-primary-foreground/80 text-lg max-w-md">
-              The Nigerian freelance collaboration platform with escrow-backed
-              payments, verified contracts, and AI-assisted project management.
+              The Nigerian service-provider collaboration platform with GigSure
+              Payment Protection, verified contracts, and AI-assisted project
+              management.
             </p>
           </div>
 

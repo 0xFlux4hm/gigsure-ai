@@ -105,7 +105,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
       <div>
         <h1 className="text-2xl font-bold">Funding &amp; payments</h1>
         <p className="text-muted-foreground text-sm">
-          Fund your project by bank transfer to a dedicated virtual account. The platform holds the funds in escrow until milestones are completed.
+          Fund your project by bank transfer to a dedicated virtual account. The platform holds the funds under GigSure Payment Protection until milestones are completed.
         </p>
       </div>
 
@@ -223,7 +223,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
                   <ol className="list-decimal list-inside space-y-0.5">
                     <li>Open your bank app or dial your bank&apos;s USSD code.</li>
                     <li>Transfer money to the account number above.</li>
-                    <li>Funds land in the platform&apos;s escrow within seconds.</li>
+                    <li>Funds land in GigSure Payment Protection within seconds.</li>
                     <li>Once confirmed, the milestone status updates to <strong>Funded</strong>.</li>
                   </ol>
                 </div>

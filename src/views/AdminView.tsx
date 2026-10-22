@@ -1821,7 +1821,7 @@ function PaymentsTab() {
             <div className="font-semibold mt-0.5 text-primary">{formatMinor(aggregates.totalFeeMinor, "NGN")}</div>
           </CardContent></Card>
           <Card><CardContent className="p-3">
-            <div className="text-xs text-muted-foreground">Net to Freelancers</div>
+            <div className="text-xs text-muted-foreground">Net to Service Providers</div>
             <div className="font-semibold mt-0.5">{formatMinor(aggregates.totalNetMinor, "NGN")}</div>
           </CardContent></Card>
           <Card><CardContent className="p-3">

@@ -26,7 +26,7 @@ const FEATURES = [
     icon: Users,
     image: "/images/feature-team.png",
     title: "Secure Collaboration",
-    body: "Invite collaborators with cryptographically secure, expiring tokens. Roles enforced on the backend.",
+    body: "Invite service providers with cryptographically secure, expiring tokens. Roles enforced on the backend.",
   },
   {
     icon: Wallet,
@@ -57,7 +57,7 @@ const FEATURES = [
 const STEPS = [
   { step: 1, title: "Sign in", body: "Continue with Google or register with email + password." },
   { step: 2, title: "Create a project", body: "Document client requirements, set budget and milestones." },
-  { step: 3, title: "Invite collaborators", body: "Secure, expiring invitation tokens. Project-specific roles." },
+  { step: 3, title: "Invite service providers", body: "Secure, expiring invitation tokens. Project-specific roles." },
   { step: 4, title: "Draft contracts", body: "Versioned. Accepted terms are preserved. Audit trail recorded." },
   { step: 5, title: "Fund milestones", body: "Idempotent webhooks with signature verification." },
   { step: 6, title: "Resolve disputes", body: "Evidence uploads, reviewer notes, advisory AI summaries." },
@@ -95,7 +95,7 @@ export function LandingView() {
           <div className="container mx-auto max-w-6xl px-4 py-16 md:py-24 grid md:grid-cols-2 gap-10 items-center">
             <div className="text-center md:text-left">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-6">
-                <span className="h-2 w-2 rounded-full bg-primary" /> Built for the Nigerian freelance market
+                <span className="h-2 w-2 rounded-full bg-primary" /> Built for the Nigerian service provider market
               </div>
               <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
                 Work with confidence.
@@ -127,7 +127,7 @@ export function LandingView() {
               <div className="relative rounded-2xl overflow-hidden border shadow-xl bg-background">
                 <img
                   src="/images/hero.png"
-                  alt="Nigerian freelance team collaborating on a digital project"
+                  alt="Nigerian service provider team collaborating on a digital project"
                   className="w-full h-auto"
                   loading="eager"
                 />
@@ -139,7 +139,7 @@ export function LandingView() {
         {/* Features grid */}
         <section className="container mx-auto max-w-6xl px-4 py-12 md:py-20">
           <h2 className="text-3xl font-semibold text-center mb-3">What GigSure AI gives you</h2>
-          <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">Six pillars of trust, collaboration, and accountability — engineered for freelancers and clients in Nigeria.</p>
+          <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">Six pillars of trust, collaboration, and accountability — engineered for service providers and clients in Nigeria.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map((f) => (
               <Card key={f.title} className="overflow-hidden hover:shadow-lg transition-shadow group">
@@ -188,7 +188,7 @@ export function LandingView() {
         <div className="container mx-auto max-w-6xl px-4 text-sm text-muted-foreground flex flex-col md:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <img src="/images/logo.png" alt="GigSure AI logo" className="h-6 w-6 object-contain" />
-            <span>© {new Date().getFullYear()} GigSure AI. Built for the Nigerian freelance market.</span>
+            <span>© {new Date().getFullYear()} GigSure AI. Built for the Nigerian service provider market.</span>
           </div>
           <span>Work with confidence. Get paid with trust.</span>
         </div>

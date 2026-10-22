@@ -69,7 +69,7 @@ export function ProjectCompensationView({ projectId }: { projectId: string }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Compensation agreements</h1>
-          <p className="text-muted-foreground text-sm">Internal allocations among collaborators. Versioned. Each recipient must accept their own.</p>
+          <p className="text-muted-foreground text-sm">Internal allocations among service providers. Versioned. Each recipient must accept their own.</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> New agreement</Button></DialogTrigger>
@@ -82,7 +82,7 @@ export function ProjectCompensationView({ projectId }: { projectId: string }) {
           <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
           <div className="text-sm text-muted-foreground">
             A compensation agreement defines how a project&apos;s distributable
-            budget is split among collaborators. It is <strong>not</strong> a
+            budget is split among service providers. It is <strong>not</strong> a
             payment. It does not transfer funds. A compensation allocation is
             advisory — actual transfers require a verified provider arrangement.
           </div>

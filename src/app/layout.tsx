@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "GigSure AI — Work with confidence. Get paid with trust.",
-  description: "GigSure AI is a secure, AI-assisted project collaboration and payment-coordination platform for freelancers, clients, and independent professionals. Built for the Nigerian freelance market.",
-  keywords: ["GigSure AI", "freelance", "Nigeria", "project collaboration", "milestone funding", "contracts", "AI assistants"],
+  description: "GigSure AI is a secure, AI-assisted project collaboration and payment-coordination platform for service providers, clients, and independent professionals. Built for the Nigerian service provider market.",
+  keywords: ["GigSure AI", "service provider", "Nigeria", "project collaboration", "milestone funding", "contracts", "AI assistants", "payment protection"],
   authors: [{ name: "GigSure AI" }],
   icons: {
     icon: [
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "GigSure AI — Work with confidence. Get paid with trust.",
-    description: "A secure, AI-assisted project collaboration and payment-coordination platform for the Nigerian freelance market.",
+    description: "A secure, AI-assisted project collaboration and payment-coordination platform for the Nigerian service provider market.",
     siteName: "GigSure AI",
     type: "website",
     images: [{ url: "/images/og-image.png", width: 1344, height: 768, alt: "GigSure AI" }],

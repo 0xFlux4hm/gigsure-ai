@@ -175,11 +175,11 @@ function InviteDialog({ projectId, onCreated }: { projectId: string; onCreated: 
 
   return (
     <DialogContent>
-      <DialogHeader><DialogTitle>Invite collaborator</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>Invite Service Provider</DialogTitle></DialogHeader>
       <div className="space-y-3 py-2">
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" value={inviteeEmail} onChange={(e) => setInviteeEmail(e.target.value)} placeholder="collaborator@example.com" />
+          <Input id="email" type="email" value={inviteeEmail} onChange={(e) => setInviteeEmail(e.target.value)} placeholder="service-provider@example.com" />
           <p className="text-xs text-muted-foreground">If they don&apos;t have an account, they can register first.</p>
         </div>
         <div className="space-y-1.5">
@@ -187,7 +187,7 @@ function InviteDialog({ projectId, onCreated }: { projectId: string; onCreated: 
           <Select value={role} onValueChange={setRole}>
             <SelectTrigger id="role"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="COLLABORATOR">Collaborator — submit deliverables, accept compensation</SelectItem>
+              <SelectItem value="COLLABORATOR">Service Provider — submit deliverables, accept compensation</SelectItem>
               <SelectItem value="TEAM_LEAD">Team Lead — assign tasks, review deliverables</SelectItem>
               <SelectItem value="REVIEWER">Reviewer — review disputes only</SelectItem>
             </SelectContent>

@@ -230,7 +230,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
             amountMinor: transaction.netMinor,
             currency: transaction.currency,
             accountType: "PROJECT_LIABILITY",
-            description: `Payment confirmed — net to freelancer: ${transaction.netMinor} ${transaction.currency}`,
+            description: `Payment confirmed — net to service provider: ${transaction.netMinor} ${transaction.currency}`,
           },
         });
       }

@@ -24,7 +24,7 @@ const ASSISTANTS = {
     name: "Team Planner",
     description: "Suggests roles and collaboration structures for a project.",
     systemPrompt:
-      "You are GigSure's Team Planner. Suggest project roles (collaborator types) and a collaboration structure based on the project description. Output as a concise structured list. Be specific and practical. Do not invent credentials, prices, or contact details.",
+      "You are GigSure's Team Planner. Suggest project roles (service provider types) and a collaboration structure based on the project description. Output as a concise structured list. Be specific and practical. Do not invent credentials, prices, or contact details.",
   },
   TASK_PLANNER: {
     name: "Task Planner",
@@ -289,7 +289,7 @@ function generateFallback(assistant: AssistantKey, context: string): string {
   // Deterministic fallback so the feature still produces *some* value when AI is down.
   switch (assistant) {
     case "TEAM_PLANNER":
-      return "AI provider unavailable. Deterministic fallback: suggest one project owner, one collaborator per skill area, and a reviewer for disputes. Link to your project's contracts page for the canonical role definitions.";
+      return "AI provider unavailable. Deterministic fallback: suggest one project owner, one service provider per skill area, and a reviewer for disputes. Link to your project's contracts page for the canonical role definitions.";
     case "TASK_PLANNER":
       return "AI provider unavailable. Deterministic fallback: break the project scope into the milestones already recorded, then create one task per milestone deliverable. Assign dependencies in chronological order.";
     case "CONTRACT":
