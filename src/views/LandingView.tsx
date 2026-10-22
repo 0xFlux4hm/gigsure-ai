@@ -182,37 +182,6 @@ export function LandingView() {
             ))}
           </ol>
         </section>
-
-        {/* Trust & transparency */}
-        <section className="container mx-auto max-w-6xl px-4 py-12 md:py-20 border-t">
-          <Card className="bg-muted/30">
-            <CardContent className="p-6 md:p-10">
-              <div className="grid md:grid-cols-2 gap-8 items-center">
-                <div>
-                  <h2 className="text-2xl font-semibold mb-3">Built on trust and transparency</h2>
-                  <p className="text-muted-foreground mb-4">
-                    GigSure AI is a project collaboration and payment-coordination
-                    platform designed for the Nigerian freelance market. We provide
-                    the tools to manage contracts, track milestones, coordinate
-                    payments, and resolve disputes — all in one secure workspace.
-                  </p>
-                  <p className="text-muted-foreground text-sm">
-                    Payment processing is handled through licensed providers.
-                    GigSure AI does not hold or custody client funds.
-                    All financial operations are governed by verified provider
-                    arrangements and applicable Nigerian regulations.
-                  </p>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Bank-grade security with scrypt password hashing</div>
-                  <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> KYC verification with NIN + liveness check</div>
-                  <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Role-based access control on every endpoint</div>
-                  <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Audit trail with tamper-evident hash chain</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
       </main>
 
       <footer className="border-t py-8 mt-auto">
