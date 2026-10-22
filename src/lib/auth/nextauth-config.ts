@@ -31,6 +31,12 @@ const hasGoogleCreds =
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
+  // trustHost: true lets NextAuth auto-detect the host from the request URL.
+  // This is critical on Vercel where each preview deployment gets a different
+  // URL. Without this, NextAuth falls back to NEXTAUTH_URL which may be
+  // hardcoded to an old deployment, causing login to redirect to the wrong
+  // domain and the session cookie to be lost.
+  trustHost: true,
   session: {
     strategy: "jwt",
     maxAge: 60 * 60 * 24 * 7, // 7 days
