@@ -96,9 +96,11 @@ export async function POST(req: Request) {
   const signature = payload.signature ?? "";
   const timestamp = payload.timestamp ?? "";
 
-  // In sandbox mode without API key configured, allow through with a warning.
-  // In production, REQUIRE the signature.
-  const isSandboxWithoutKey = process.env.SMILE_ID_ENVIRONMENT !== "production" && !smileIdApiKey;
+  // SECURITY: Fail-closed — only skip signature verification when explicitly
+  // in sandbox mode AND no API key is configured. Default (unset env var)
+  // is to REQUIRE the signature.
+  const isExplicitSandbox = process.env.SMILE_ID_ENVIRONMENT === "sandbox";
+  const isSandboxWithoutKey = isExplicitSandbox && !smileIdApiKey;
 
   if (!isSandboxWithoutKey) {
     if (!smileIdApiKey) {

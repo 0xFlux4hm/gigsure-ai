@@ -128,6 +128,11 @@ export const GET = apiRoute(async (req, { params }) => {
   });
   if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
 
+  // SECURITY: Only members with funding:initiate permission (OWNER) can
+  // view virtual account details — including existing accounts.
+  // This prevents COLLABORATOR/REVIEWER from seeing the funding account number.
+  assertPermission(membership, "funding:initiate");
+
   // Find existing ACTIVE virtual account on this project.
   const existing = await db.virtualAccount.findFirst({
     where: {
