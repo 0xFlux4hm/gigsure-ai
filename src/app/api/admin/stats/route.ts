@@ -6,7 +6,6 @@
 import { db } from "@/lib/db";
 import { apiRoute, getQueryInt } from "@/lib/api";
 import { requireAdminRateLimited } from "@/lib/auth/session";
-import { formatMinor } from "@/lib/security/validation";
 
 export const GET = apiRoute(async (req) => {
   const admin = await requireAdminRateLimited();
