@@ -89,9 +89,10 @@ export async function confirmFundingRecord(
     return { processed: false, reason: "funding_record_not_found" };
   }
 
-  // SECURITY: Validate webhook amount matches funding record amount
+  // SECURITY: Validate webhook amount matches funding record amount exactly
   // (prevents underpayment fraud — paying ₦1 for a ₦1M milestone)
-  if (input.amountMinor > 0 && input.amountMinor !== record.amountMinor) {
+  // Also catches zero-amount webhooks that should never confirm a non-zero record.
+  if (input.amountMinor !== record.amountMinor) {
     logSecurityEvent("warn", "webhook.amount_mismatch", {
       fundingRecordId: record.id,
       expected: record.amountMinor,

@@ -150,11 +150,20 @@ export function calculatePayoutFee(
   if (!Number.isFinite(payoutAmountMinor) || payoutAmountMinor <= 0) {
     return { feeMinor: 0, netMinor: 0 };
   }
-  // Cap fee at 50% of payout so small payouts aren't eaten entirely by fees
-  // Enforce a minimum fee of ₦1 (100 kobo) for any positive payout
-  const cappedFee = Math.max(100, Math.min(PAYOUT_FLAT_FEE_MINOR, Math.floor(payoutAmountMinor / 2)));
+  // Cap fee at 50% of payout so small payouts aren't eaten entirely by fees.
+  // Then enforce a minimum fee of ₦1 (100 kobo) for any payout ≥ ₦2.
+  // For payouts < ₦2 (200 kobo), waive the minimum (too small to charge fee).
+  const halfAmount = Math.floor(payoutAmountMinor / 2);
+  let fee: number;
+  if (payoutAmountMinor < 200) {
+    // Very small payout — charge 50% (no minimum)
+    fee = halfAmount;
+  } else {
+    // Apply minimum ₦1 floor, then 50% cap, then flat fee cap
+    fee = Math.max(100, Math.min(PAYOUT_FLAT_FEE_MINOR, halfAmount));
+  }
   return {
-    feeMinor: cappedFee,
-    netMinor: payoutAmountMinor - cappedFee,
+    feeMinor: fee,
+    netMinor: payoutAmountMinor - fee,
   };
 }

@@ -37,7 +37,7 @@ export const POST = apiRoute(async (req, { params }) => {
   // verify dispute belongs to the project in the URL.
   const dispute = await db.dispute.findUnique({
     where: { id: disputeId },
-    select: { id: true, projectId: true, status: true },
+    select: { id: true, projectId: true, status: true, openedById: true, milestoneId: true },
   });
   if (!dispute || dispute.projectId !== projectId) {
     return fail("Dispute not found in this project", 404);

@@ -153,7 +153,7 @@ export const POST = apiRoute(async (req, { params }) => {
     metadata: {
       taskId: params.taskId,
       taskTitle: task.title,
-      filename: file.name,
+      filename: safeFilename, // use sanitized name in audit log too
       contentType,
       sizeBytes: file.size,
     },

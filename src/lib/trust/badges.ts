@@ -31,14 +31,31 @@ export async function isTrustedClient(userId: string): Promise<boolean> {
 
   if (fundedProjects.length < 5) return false;
 
-  // SECURITY: Actually check for disputes upheld against this user
-  // (was previously a no-op — the badge description claimed "0 disputes upheld"
-  // but the code never verified it)
+  // SECURITY: Check for disputes upheld against THIS user specifically.
+  // A dispute is "against" this user if they opened it (client disputing
+  // their own work — unlikely) OR if they're the service provider on the
+  // disputed milestone's project and the dispute was opened by someone else.
+  // We check: disputes where userId opened the dispute AND it was upheld
+  // against them (REJECT_CLAIM means the dispute was frivolous).
+  // Actually: disputes upheld against the user means disputes where the
+  // user is the "defendant" — i.e., someone else opened a dispute about
+  // this user's work and it was upheld.
+  // For clients: disputes opened against projects they own/funded.
+  const userProjects = await db.projectMembership.findMany({
+    where: { userId, role: { in: ["OWNER", "CLIENT"] } },
+    select: { projectId: true },
+  });
+  const userProjectIds = userProjects.map((m) => m.projectId);
+
+  if (userProjectIds.length === 0) return false;
+
+  // Count upheld disputes on the user's projects (opened by others)
   const upheldDisputes = await db.disputeReview.count({
     where: {
       outcome: "UPHOLD_CLAIM",
       dispute: {
         openedById: { not: userId },
+        projectId: { in: userProjectIds },
       },
     },
   });
