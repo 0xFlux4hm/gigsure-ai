@@ -20,7 +20,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { db } from "@/lib/db";
 import { verifyPassword, getDecoyPasswordHash } from "@/lib/security/password";
-import { normalizeEmail, validateEmail, isSafeRedirect } from "@/lib/security/validation";
+import { normalizeEmail, validateEmail, sanitizeDisplayName, isSafeRedirect } from "@/lib/security/validation";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 
@@ -168,7 +168,121 @@ export const authOptions: NextAuthOptions = {
       : null,
   ].filter(Boolean) as NextAuthOptions["providers"],
   callbacks: {
-    async signIn(_user, _account, _profile) {
+    async signIn({ user, account, profile }) {
+      // For Google OAuth: auto-create the user if they don't exist yet.
+      // This is the "first-time Google sign-in" flow — when a user clicks
+      // "Continue with Google" for the first time, we create their account
+      // automatically using their Google profile data.
+      if (account?.provider === "google" && account.providerAccountId) {
+        const email = normalizeEmail(user.email ?? "");
+        if (!validateEmail(email)) {
+          logSecurityEvent("warn", "auth.google_invalid_email", { email });
+          return false;
+        }
+
+        // Check if a UserIdentity already exists for this Google account
+        const existingIdentity = await db.userIdentity.findUnique({
+          where: {
+            provider_providerSubject: {
+              provider: "google",
+              providerSubject: account.providerAccountId,
+            },
+          },
+          include: { user: true },
+        });
+
+        if (existingIdentity) {
+          // Returning Google user — check their account is active
+          if (existingIdentity.user.accountStatus !== "ACTIVE") {
+            logSecurityEvent("warn", "auth.google_blocked_account", {
+              userId: existingIdentity.userId,
+              status: existingIdentity.user.accountStatus,
+            });
+            return false;
+          }
+          // Update lastAuthenticatedAt
+          await db.userIdentity.update({
+            where: { id: existingIdentity.id },
+            data: { lastAuthenticatedAt: new Date() },
+          });
+          // Inject the user ID so the jwt callback can use it
+          user.id = existingIdentity.userId;
+          return true;
+        }
+
+        // New Google user — check if an account with this email already exists
+        const existingUser = await db.user.findUnique({
+          where: { emailNormalized: email },
+          select: { id: true, accountStatus: true },
+        });
+
+        if (existingUser) {
+          // Account exists with this email but has no Google identity linked.
+          // Per the account-linking policy, we NEVER auto-merge.
+          // Redirect the user to the account-linking flow.
+          logSecurityEvent("warn", "auth.google_email_exists_not_linked", { email });
+          // Return false to block sign-in — user must link via settings
+          // after logging in with their existing credentials.
+          return `/api/auth/error?error=AccountExistsNotLinked`;
+        }
+
+        // Create a new user account from the Google profile
+        const displayName = sanitizeDisplayName(
+          profile?.name ?? user.name ?? user.email?.split("@")[0] ?? "Google User"
+        );
+
+        try {
+          const newUser = await db.$transaction(async (tx) => {
+            const u = await tx.user.create({
+              data: {
+                email,
+                emailNormalized: email,
+                displayName: displayName || "Google User",
+                passwordHash: null, // no password — Google OAuth only
+                emailVerifiedAt: new Date(), // Google verified the email
+                accountStatus: "ACTIVE",
+              },
+            });
+            await tx.userIdentity.create({
+              data: {
+                userId: u.id,
+                provider: "google",
+                providerSubject: account.providerAccountId,
+                lastAuthenticatedAt: new Date(),
+              },
+            });
+            await tx.userProfile.create({
+              data: {
+                userId: u.id,
+                skills: "[]",
+                portfolioLinks: "[]",
+                preferredCategories: "[]",
+              },
+            });
+            await tx.userPreferences.create({
+              data: { userId: u.id },
+            });
+            return u;
+          });
+
+          // Inject the new user ID so the jwt callback can use it
+          user.id = newUser.id;
+
+          await recordAuditEvent({
+            actorId: newUser.id,
+            action: "auth.google_register",
+            targetType: "User",
+            targetId: newUser.id,
+            metadata: { provider: "google", email },
+          });
+        } catch (err) {
+          logSecurityEvent("error", "auth.google_user_creation_failed", {
+            email,
+            message: (err as Error)?.message,
+          });
+          return false;
+        }
+      }
       return true;
     },
     async jwt({ token, user, account, trigger, session }) {

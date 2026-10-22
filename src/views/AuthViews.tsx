@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useNav } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,22 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api } from "@/lib/client-api";
 import { ShieldCheck, Loader2 } from "lucide-react";
+
+/**
+ * Check if Google OAuth is configured by fetching the auth providers list.
+ * Returns true only if the "google" provider is registered.
+ */
+function useGoogleAuthAvailable(): boolean {
+  const [available, setAvailable] = useState(false);
+  useEffect(() => {
+    api.get<Record<string, { id: string }>>("/api/auth/providers")
+      .then((providers) => {
+        setAvailable(!!providers?.google);
+      })
+      .catch(() => setAvailable(false));
+  }, []);
+  return available;
+}
 
 export function AuthViews() {
   const { view, token, navigate } = useNav();
@@ -41,6 +57,11 @@ export function AuthViews() {
 
 function GoogleButton({ label = "Continue with Google" }: { label?: string }) {
   const [loading, setLoading] = useState(false);
+  const googleAvailable = useGoogleAuthAvailable();
+
+  // Don't render the Google button if Google OAuth isn't configured.
+  // This prevents users from clicking a button that will just show an error.
+  if (!googleAvailable) return null;
 
   return (
     <Button
@@ -62,6 +83,23 @@ function GoogleButton({ label = "Continue with Google" }: { label?: string }) {
       )}
       {label}
     </Button>
+  );
+}
+
+/**
+ * Divider that only shows when Google OAuth is available.
+ * When Google isn't configured, this returns null so the form
+ * doesn't have a dangling "or" divider.
+ */
+function GoogleDivider() {
+  const googleAvailable = useGoogleAuthAvailable();
+  if (!googleAvailable) return null;
+  return (
+    <div className="flex items-center gap-3">
+      <div className="h-px flex-1 bg-border" />
+      <span className="text-xs text-muted-foreground">or</span>
+      <div className="h-px flex-1 bg-border" />
+    </div>
   );
 }
 
@@ -100,11 +138,7 @@ function LoginForm() {
       </CardHeader>
       <CardContent className="space-y-4">
         <GoogleButton />
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-xs text-muted-foreground">or</span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
+        <GoogleDivider />
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
@@ -185,8 +219,20 @@ function RegisterForm() {
       });
       if (res.verificationUrl) setVerifyUrl(res.verificationUrl);
       if (res.created) {
-        // Auto-login after registration
-        await signIn("credentials", { email, password, redirect: false });
+        // Auto-login after registration, then redirect to dashboard
+        const signInResult = await signIn("credentials", {
+          email,
+          password,
+          redirect: false,
+          callbackUrl: "/?view=dashboard",
+        });
+        if (signInResult?.ok) {
+          // Redirect to dashboard on successful auto-login
+          window.location.href = signInResult.url ?? "/?view=dashboard";
+        } else if (signInResult?.error) {
+          // Auto-login failed — likely needs email verification
+          setError("Account created! Please check your email for a verification link, then sign in.");
+        }
       }
     } catch (err) {
       setError((err as Error).message ?? "Registration failed");
@@ -205,11 +251,7 @@ function RegisterForm() {
       </CardHeader>
       <CardContent className="space-y-4">
         <GoogleButton label="Sign up with Google" />
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-xs text-muted-foreground">or</span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
+        <GoogleDivider />
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="displayName">Display name</Label>
