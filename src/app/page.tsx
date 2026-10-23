@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { SessionProvider, useSession } from "next-auth/react";
 import { useNav, type ViewName } from "@/lib/nav";
 import { LandingView } from "@/views/LandingView";
+import { GoogleRegistrationView } from "@/views/GoogleRegistrationView";
 import { AuthViews } from "@/views/AuthViews";
 import { AppShell } from "@/views/AppShell";
 import { DashboardView } from "@/views/DashboardView";
@@ -62,6 +63,22 @@ function Router() {
       navigate({ view: "login" });
     }
     return null;
+  }
+
+  // SECURITY: Detect PENDING_REGISTRATION users (new Google sign-ups)
+  // and redirect them to the registration completion page.
+  // They cannot access any other view until they accept Terms of Service.
+  const accountStatus = (session.user as { accountStatus?: string }).accountStatus;
+  if (accountStatus === "PENDING_REGISTRATION" && view !== "google-registration") {
+    if (typeof window !== "undefined") {
+      navigate({ view: "google-registration" });
+    }
+    return null;
+  }
+
+  // Google registration view is shown OUTSIDE the AppShell (full-screen)
+  if (view === "google-registration") {
+    return <GoogleRegistrationView />;
   }
 
   // Authenticated views — wrap in AppShell

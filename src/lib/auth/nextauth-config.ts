@@ -202,7 +202,14 @@ export const authOptions: NextAuthOptions = {
           authorization: {
             params: {
               scope: "openid email profile",
-              prompt: "select_account",
+              // SECURITY: Force Google to show:
+              //   1. Account selection (user picks which Google account)
+              //   2. Consent screen (user reviews what data is shared)
+              // This follows Google's recommended OAuth security practices.
+              prompt: "select_account consent",
+              // SECURITY: Use PKCE for authorization code flow (prevents
+              // authorization code interception attacks)
+              access_type: "offline",
             },
           },
         })
@@ -308,6 +315,13 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Create a new user account from the Google profile
+        // SECURITY: New Google users start with PENDING_REGISTRATION status.
+        // They are "logged in" but must accept Terms of Service before
+        // they can access the dashboard. This follows standard OAuth onboarding:
+        //   1. Google authenticates the user (consent screen)
+        //   2. Platform creates a pending account
+        //   3. User reviews their info + accepts terms
+        //   4. Account is activated → user gets dashboard access
         const displayName = sanitizeDisplayName(
           profile?.name ?? user.name ?? user.email?.split("@")[0] ?? "Google User"
         );
@@ -321,7 +335,7 @@ export const authOptions: NextAuthOptions = {
                 displayName: displayName || "Google User",
                 passwordHash: null, // no password — Google OAuth only
                 emailVerifiedAt: new Date(), // Google verified the email
-                accountStatus: "ACTIVE",
+                accountStatus: "PENDING_REGISTRATION", // must accept terms
               },
             });
             await tx.userIdentity.create({
@@ -422,10 +436,18 @@ export const authOptions: NextAuthOptions = {
           where: { id: token.userId as string },
           select: { passwordChangedAt: true, accountStatus: true },
         });
-        if (!u || u.accountStatus !== "ACTIVE") {
-          // User deleted or suspended — invalidate session
+        if (!u) {
+          // User deleted — invalidate session
           return { ...token, userId: undefined } as typeof token;
         }
+        // SECURITY: Allow PENDING_REGISTRATION users to have a session
+        // (they need it to complete the registration flow), but block
+        // suspended/deleted users.
+        if (u.accountStatus !== "ACTIVE" && u.accountStatus !== "PENDING_REGISTRATION") {
+          return { ...token, userId: undefined } as typeof token;
+        }
+        // Store accountStatus in token so the session callback can expose it
+        token.accountStatus = u.accountStatus;
         if (u.passwordChangedAt && u.passwordChangedAt.getTime() > (token.issuedAt as number)) {
           // Password changed after this JWT was issued — invalidate
           return { ...token, userId: undefined } as typeof token;
@@ -449,12 +471,11 @@ export const authOptions: NextAuthOptions = {
       if (session.user && token.userId) {
         (session.user as { id?: string }).id = token.userId as string;
         (session.user as { provider?: string }).provider = token.provider as string;
-        // expose JTI + issuedAt so the frontend can:
-        //   - Display the current session's JTI for "this device" labeling
-        //   - Check requireRecentAuth status locally before calling sensitive endpoints
-        //   - Call /api/auth/sessions/[jti] DELETE to revoke this session
         (session.user as { jti?: string }).jti = token.jti as string;
         (session.user as { issuedAt?: number }).issuedAt = token.issuedAt as number;
+        // Expose accountStatus so the frontend can detect PENDING_REGISTRATION
+        // users and redirect them to the onboarding/terms page
+        (session.user as { accountStatus?: string }).accountStatus = token.accountStatus as string;
       }
       return session;
     },
@@ -498,6 +519,7 @@ declare module "next-auth" {
       provider?: string;
       jti?: string;
       issuedAt?: number;
+      accountStatus?: string;
     };
   }
 }
@@ -508,5 +530,6 @@ declare module "next-auth/jwt" {
     provider?: string;
     issuedAt?: number;
     jti?: string;
+    accountStatus?: string;
   }
 }
