@@ -94,8 +94,15 @@ export function SettingsSecurityView() {
     setError(null);
     setOk(null);
     try {
-      await api.post("/api/auth/change-password", { currentPassword, newPassword });
-      setOk("Password changed. Please sign in again with your new password.");
+      if (passwordIdentity) {
+        // Existing password user — change password
+        await api.post("/api/auth/change-password", { currentPassword, newPassword });
+        setOk("Password changed. Please sign in again with your new password.");
+      } else {
+        // Google-only user — set password for the first time
+        await api.post("/api/auth/set-password", { newPassword });
+        setOk("Password set successfully! You can now sign in with email + password.");
+      }
       setCurrentPassword("");
       setNewPassword("");
       setTimeout(() => {
@@ -148,9 +155,10 @@ export function SettingsSecurityView() {
 
   // Open Google OAuth consent in a popup
   const openGoogleLinkPopup = () => {
+    // Use the configured Google client ID from the auth providers endpoint
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
     if (!clientId) {
-      setError("Google OAuth is not configured.");
+      setError("Google OAuth is not configured. Please contact support.");
       return;
     }
 
@@ -169,7 +177,11 @@ export function SettingsSecurityView() {
       `&prompt=${prompt}`;
 
     const popup = window.open(authUrl, "google-link", "width=500,height=600,scrollbars=yes");
-    setLinkPopup(popup);
+    if (popup) {
+      setLinkPopup(popup);
+    } else {
+      setError("Popup was blocked. Please allow popups for this site.");
+    }
   };
 
   const performUnlink = async (providerSubject: string) => {

@@ -1,26 +1,31 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
-function LinkCallbackContent() {
-  const searchParams = useSearchParams();
-  const code = searchParams.get("code");
-  const error = searchParams.get("error");
+export default function GoogleLinkCallback() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
+    const error = url.searchParams.get("error");
+
     if (error) {
       setStatus("error");
-      setMessage(`Google error: ${error}`);
+      setMessage(`Google authorization failed: ${error}`);
+      // Notify parent window
+      window.opener?.postMessage({ type: "google-linked", success: false, error }, "*");
+      setTimeout(() => window.close(), 3000);
       return;
     }
 
     if (!code) {
       setStatus("error");
       setMessage("No authorization code received from Google.");
+      window.opener?.postMessage({ type: "google-linked", success: false, error: "no_code" }, "*");
+      setTimeout(() => window.close(), 3000);
       return;
     }
 
@@ -35,72 +40,48 @@ function LinkCallbackContent() {
         const data = await res.json();
         if (res.ok && data.ok) {
           setStatus("success");
-          setMessage(data.data?.message ?? "Google account linked successfully.");
-
-          // Notify parent window and close popup after 2 seconds
-          setTimeout(() => {
-            if (window.opener) {
-              window.opener.postMessage({ type: "google-linked", success: true }, "*");
-              window.close();
-            } else {
-              window.location.href = "/?view=settings-security";
-            }
-          }, 2000);
+          setMessage("Google account linked successfully!");
+          window.opener?.postMessage({ type: "google-linked", success: true }, "*");
+          setTimeout(() => window.close(), 2000);
         } else {
           setStatus("error");
-          setMessage(data.error ?? "Failed to link Google account.");
+          setMessage(data.error || "Failed to link Google account.");
+          window.opener?.postMessage({ type: "google-linked", success: false, error: data.error }, "*");
+          setTimeout(() => window.close(), 5000);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         setStatus("error");
-        setMessage("Network error. Please try again.");
+        setMessage(err.message || "Network error.");
+        window.opener?.postMessage({ type: "google-linked", success: false, error: err.message }, "*");
+        setTimeout(() => window.close(), 5000);
       });
-  }, [code, error]);
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-4 text-center">
+      <div className="text-center space-y-4">
         {status === "loading" && (
           <>
-            <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-            <h2 className="text-lg font-semibold">Linking your Google account…</h2>
-            <p className="text-sm text-muted-foreground">Verifying your Google identity.</p>
+            <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
+            <p className="text-muted-foreground">Linking your Google account…</p>
           </>
         )}
         {status === "success" && (
           <>
-            <div className="h-16 w-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="h-8 w-8 text-emerald-600" />
-            </div>
-            <h2 className="text-lg font-semibold">Google account linked!</h2>
-            <p className="text-sm text-muted-foreground">{message}</p>
-            <p className="text-xs text-muted-foreground">Closing this window…</p>
+            <CheckCircle2 className="h-10 w-10 mx-auto text-emerald-600" />
+            <p className="font-medium">{message}</p>
+            <p className="text-sm text-muted-foreground">This window will close automatically.</p>
           </>
         )}
         {status === "error" && (
           <>
-            <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
-              <XCircle className="h-8 w-8 text-destructive" />
-            </div>
-            <h2 className="text-lg font-semibold">Linking failed</h2>
-            <p className="text-sm text-muted-foreground">{message}</p>
-            <button
-              onClick={() => window.close()}
-              className="text-sm text-primary hover:underline"
-            >
-              Close window
-            </button>
+            <XCircle className="h-10 w-10 mx-auto text-destructive" />
+            <p className="font-medium">{message}</p>
+            <p className="text-sm text-muted-foreground">This window will close in a few seconds.</p>
           </>
         )}
       </div>
     </div>
-  );
-}
-
-export default function LinkCallbackPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-      <LinkCallbackContent />
-    </Suspense>
   );
 }
