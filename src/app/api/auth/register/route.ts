@@ -110,7 +110,7 @@ export const POST = apiRoute(async (req) => {
 
     // Email verification token — hash stored, raw returned for dev delivery.
     const rawToken = generateToken();
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24h
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes — prevents squatting
     await tx.emailVerificationToken.create({
       data: {
         userId: u.id,

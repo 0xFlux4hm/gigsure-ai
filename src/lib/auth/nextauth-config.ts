@@ -268,35 +268,41 @@ export const authOptions: NextAuthOptions = {
         }
 
         // New Google user — check if an account with this email already exists
-        // SECURITY: Also check for stale PENDING_REGISTRATION accounts.
-        // If a PENDING_REGISTRATION account is older than 24 hours, delete it
-        // and allow the new Google user to create a fresh account. This prevents
-        // squatting — an attacker who briefly controlled the email can't permanently
-        // block the victim from registering.
+        // SECURITY: Check for stale PENDING_REGISTRATION accounts.
+        // PENDING_REGISTRATION expires after 10 MINUTES. If expired, the account
+        // is deleted so the email is freed for legitimate use. This prevents
+        // squatting — an attacker who briefly controlled the email can't block
+        // the victim from registering for more than 10 minutes.
         const existingUser = await db.user.findUnique({
           where: { emailNormalized: email },
           select: { id: true, accountStatus: true, emailVerifiedAt: true, passwordHash: true, createdAt: true },
         });
 
         if (existingUser) {
-          // Clean up stale PENDING_REGISTRATION accounts (older than 24h)
+          // Check for EXPIRED PENDING_REGISTRATION accounts (older than 10 minutes)
           if (existingUser.accountStatus === "PENDING_REGISTRATION") {
-            const ageHours = (Date.now() - existingUser.createdAt.getTime()) / (1000 * 60 * 60);
-            if (ageHours > 24) {
-              // Delete the stale pending account so the new user can register
+            const ageMinutes = (Date.now() - existingUser.createdAt.getTime()) / (1000 * 60);
+            if (ageMinutes > 10) {
+              // Delete the expired pending account — frees the email
               await db.user.delete({ where: { id: existingUser.id } }).catch(() => {});
-              logSecurityEvent("info", "auth.google_stale_pending_deleted", {
+              logSecurityEvent("warn", "auth.google_pending_expired_deleted", {
                 email,
-                ageHours: Math.round(ageHours),
+                ageMinutes: Math.round(ageMinutes),
               });
-              // Fall through to create a new account
+              // Fall through to create a fresh account
             } else {
-              // Recent pending account — block (likely the same user retrying)
-              logSecurityEvent("warn", "auth.google_pending_exists", { email, ageHours: Math.round(ageHours) });
-              return `/?view=login&error=OAuthCallback`;
+              // Recent pending account (within 10 min) — block sign-in.
+              // The user who created it should complete registration.
+              // If they lost their session, they must wait 10 min for expiry.
+              logSecurityEvent("warn", "auth.google_pending_active", {
+                email,
+                ageMinutes: Math.round(ageMinutes),
+              });
+              return `/?view=login&error=PendingRegistration`;
             }
           } else {
             // SECURITY: NEVER auto-link Google to an existing password account.
+            // The user must explicitly link Google via Settings → Security.
             logSecurityEvent("warn", "auth.google_email_exists_not_linked", { email });
             return `/?view=login&error=OAuthCallback`;
           }
@@ -437,10 +443,26 @@ export const authOptions: NextAuthOptions = {
           return { ...token, userId: undefined } as typeof token;
         }
         // SECURITY: Allow PENDING_REGISTRATION users to have a session
-        // (they need it to complete the registration flow), but block
-        // suspended/deleted users.
+        // (they need it to complete the registration flow), but ONLY for
+        // 10 minutes. After that, the session is invalidated and the
+        // account is deleted on the next Google sign-in attempt.
+        // Block suspended/deleted users entirely.
         if (u.accountStatus !== "ACTIVE" && u.accountStatus !== "PENDING_REGISTRATION") {
           return { ...token, userId: undefined } as typeof token;
+        }
+        if (u.accountStatus === "PENDING_REGISTRATION") {
+          // Check if the pending account has expired (10 min)
+          const userCreated = await db.user.findUnique({
+            where: { id: token.userId as string },
+            select: { createdAt: true },
+          });
+          if (userCreated) {
+            const ageMinutes = (Date.now() - userCreated.createdAt.getTime()) / (1000 * 60);
+            if (ageMinutes > 10) {
+              // Expired — invalidate session
+              return { ...token, userId: undefined } as typeof token;
+            }
+          }
         }
         // Store accountStatus in token so the session callback can expose it
         token.accountStatus = u.accountStatus;
@@ -502,21 +524,45 @@ export const authOptions: NextAuthOptions = {
         });
       }
     },
-    // SECURITY: On signOut, revoke the JTI so stolen JWTs stop working immediately
+    // SECURITY: On signOut, invalidate ALL of the user's sessions — not just
+    // the current one. This means:
+    //   1. Set passwordChangedAt = now() → forces ALL JWTs to re-validate
+    //      (the JWT callback checks passwordChangedAt on every request and
+    //      rejects tokens issued before this timestamp)
+    //   2. Also revoke the current JTI in RevokedSession (defense-in-depth)
+    // This ensures: if a user's session was stolen on device A, signing out
+    // on device B kills BOTH sessions immediately.
     async signOut(message) {
       const token = message as { token?: { jti?: string; userId?: string } };
-      if (token?.token?.jti && token?.token?.userId) {
+      if (token?.token?.userId) {
+        // 1. Update passwordChangedAt → invalidates ALL JWTs for this user
         try {
-          await db.revokedSession.create({
-            data: {
-              jti: token.token.jti,
-              userId: token.token.userId,
-              reason: "user_signout",
-            },
+          await db.user.update({
+            where: { id: token.token.userId },
+            data: { passwordChangedAt: new Date() },
           });
         } catch {
-          // Already revoked (idempotent) — ignore
+          // User may have been deleted — ignore
         }
+
+        // 2. Also revoke the current JTI (defense-in-depth)
+        if (token.token.jti) {
+          try {
+            await db.revokedSession.create({
+              data: {
+                jti: token.token.jti,
+                userId: token.token.userId,
+                reason: "user_signout_all",
+              },
+            });
+          } catch {
+            // Already revoked — ignore
+          }
+        }
+
+        logSecurityEvent("info", "auth.signout_all_sessions", {
+          userId: token.token.userId,
+        });
       }
     },
   },

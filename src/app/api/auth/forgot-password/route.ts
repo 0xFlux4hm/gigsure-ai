@@ -57,7 +57,7 @@ export const POST = apiRoute(async (req) => {
       data: {
         userId: user.id,
         tokenHash: hashToken(rawToken),
-        expiresAt: new Date(Date.now() + 1000 * 60 * 60), // 1h
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes — prevents squatting
       },
     });
 
