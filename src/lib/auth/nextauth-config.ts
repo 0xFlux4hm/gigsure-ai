@@ -263,15 +263,46 @@ export const authOptions: NextAuthOptions = {
         // New Google user — check if an account with this email already exists
         const existingUser = await db.user.findUnique({
           where: { emailNormalized: email },
-          select: { id: true, accountStatus: true },
+          select: { id: true, accountStatus: true, emailVerifiedAt: true, passwordHash: true },
         });
 
         if (existingUser) {
           // Account exists with this email but has no Google identity linked.
-          // Per the account-linking policy, we NEVER auto-merge.
-          // Redirect the user to the account-linking flow.
-          // SECURITY: Return generic OAuth error (not AccountExistsNotLinked)
-          // to prevent email enumeration via distinct error codes.
+          // SECURITY: Auto-link if BOTH Google and the platform have verified
+          // the email. This is safe because:
+          //   1. Google confirmed email_verified === true (checked above)
+          //   2. The platform confirmed the email via the verification flow
+          //   3. Both verifications point to the same person
+          // This allows existing password users to also sign in with Google.
+          if (existingUser.emailVerifiedAt && existingUser.accountStatus === "ACTIVE") {
+            // Auto-link the Google identity to the existing account
+            await db.userIdentity.create({
+              data: {
+                userId: existingUser.id,
+                provider: "google",
+                providerSubject: account.providerAccountId,
+                lastAuthenticatedAt: new Date(),
+              },
+            }).catch(() => {
+              // P2002 — identity already exists (race condition), ignore
+            });
+
+            user.id = existingUser.id;
+
+            await recordAuditEvent({
+              actorId: existingUser.id,
+              action: "auth.google_auto_linked",
+              targetType: "User",
+              targetId: existingUser.id,
+              metadata: { provider: "google", email },
+            });
+
+            return true;
+          }
+
+          // If the existing user's email is NOT verified, or the account is
+          // not active, block the sign-in (security: don't auto-link to
+          // unverified or suspended accounts).
           logSecurityEvent("warn", "auth.google_email_exists_not_linked", { email });
           return `/api/auth/error?error=OAuthCallback`;
         }
