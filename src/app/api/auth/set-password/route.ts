@@ -16,7 +16,7 @@
  */
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail, ok } from "@/lib/api";
-import { requireUserId } from "@/lib/auth/session";
+import { requireRecentAuth } from "@/lib/auth/session";
 import { hashPassword, validatePasswordPolicy } from "@/lib/security/password";
 import { recordAuditEvent } from "@/lib/auth/audit";
 import { z } from "zod";
@@ -28,7 +28,9 @@ const Schema = z.object({
 });
 
 export const POST = apiRoute(async (req) => {
-  const userId = await requireUserId();
+  // SECURITY: Require sudo mode — prevents stolen session from adding
+  // a password to the account without the user's consent
+  const userId = await requireRecentAuth(15);
 
   const user = await db.user.findUnique({
     where: { id: userId },

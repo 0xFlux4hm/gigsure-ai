@@ -52,10 +52,14 @@ export const POST = apiRoute(async (req) => {
     return fail("You must accept the Terms of Service to continue.", 422);
   }
 
-  // Activate the account
+  // Activate the account + refresh passwordChangedAt to invalidate
+  // the PENDING_REGISTRATION JWT so the user gets a fresh ACTIVE session
   await db.user.update({
     where: { id: userId },
-    data: { accountStatus: "ACTIVE" },
+    data: {
+      accountStatus: "ACTIVE",
+      passwordChangedAt: new Date(),
+    },
   });
 
   await recordAuditEvent({

@@ -22,6 +22,27 @@ export async function requireUserId(): Promise<string> {
   return session.user.id;
 }
 
+/**
+ * SECURITY: Like requireUserId, but ALSO checks that the user's
+ * accountStatus is ACTIVE. This blocks PENDING_REGISTRATION users
+ * from calling mutating endpoints before accepting Terms of Service.
+ *
+ * Use this instead of requireUserId on ALL endpoints that perform
+ * mutations, access PII, or consume billable resources — EXCEPT
+ * /api/auth/complete-registration and /api/me.
+ */
+export async function requireActiveUser(): Promise<string> {
+  const userId = await requireUserId();
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { accountStatus: true },
+  });
+  if (!user || user.accountStatus !== "ACTIVE") {
+    throw new AuthnError("Account not active", 403);
+  }
+  return userId;
+}
+
 /** Returns the authenticated user (with sensitive fields), or null. */
 export async function getAuthenticatedUser() {
   const session = await getSession();

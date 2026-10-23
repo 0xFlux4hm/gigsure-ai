@@ -282,7 +282,7 @@ export const authOptions: NextAuthOptions = {
           // Check for EXPIRED PENDING_REGISTRATION accounts (older than 10 minutes)
           if (existingUser.accountStatus === "PENDING_REGISTRATION") {
             const ageMinutes = (Date.now() - existingUser.createdAt.getTime()) / (1000 * 60);
-            if (ageMinutes > 10) {
+            if (ageMinutes > 30) {
               // Delete the expired pending account — frees the email
               await db.user.delete({ where: { id: existingUser.id } }).catch(() => {});
               logSecurityEvent("warn", "auth.google_pending_expired_deleted", {
@@ -406,6 +406,11 @@ export const authOptions: NextAuthOptions = {
             userId: token.userId as string,
             expiresAt: { gt: new Date() },
             consumedAt: null,
+            // SECURITY: Only accept tokens issued in the last 15 minutes
+            // AND that were created AFTER the user's last login (to distinguish
+            // sudo tokens from email verification tokens — sudo tokens are
+            // created by /api/auth/reauth which requires password verification)
+            createdAt: { gt: new Date(Date.now() - 15 * 60 * 1000) },
           },
           orderBy: { createdAt: "desc" },
         });
@@ -458,7 +463,7 @@ export const authOptions: NextAuthOptions = {
           });
           if (userCreated) {
             const ageMinutes = (Date.now() - userCreated.createdAt.getTime()) / (1000 * 60);
-            if (ageMinutes > 10) {
+            if (ageMinutes > 30) {
               // Expired — invalidate session
               return { ...token, userId: undefined } as typeof token;
             }
