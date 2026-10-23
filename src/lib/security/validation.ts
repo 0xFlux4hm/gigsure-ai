@@ -12,12 +12,29 @@ const EMAIL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0
 const DISPLAY_NAME_RE = /^[\p{L}\p{M}\p{Z}\p{N}\p{P}~`&'^_\-+.() ]+$/u;
 
 export function normalizeEmail(email: string): string {
-  return (email ?? "").toString()
-    // strip control characters (NULL, BEL, BS, etc.)
-    // that could be used for log injection or DB-string truncation attacks.
+  let normalized = (email ?? "").toString()
+    // strip control characters
     .replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]/g, "")
     .trim()
     .toLowerCase();
+
+  // SECURITY: Normalize Gmail addresses to prevent account squatting and
+  // deduplication failures. Gmail ignores dots and plus-aliases:
+  //   u.s.e.r@gmail.com → user@gmail.com
+  //   user+anything@gmail.com → user@gmail.com
+  //   user@googlemail.com → user@gmail.com
+  // This prevents attackers from creating multiple accounts from one mailbox
+  // and ensures auto-link matching works correctly.
+  const [localPart, domain] = normalized.split("@");
+  if (domain && (domain === "gmail.com" || domain === "googlemail.com")) {
+    const cleanLocal = localPart.replace(/\./g, "").split("+")[0];
+    normalized = `${cleanLocal}@gmail.com`;
+  } else if (localPart && localPart.includes("+")) {
+    // For other providers, strip plus-aliasing (RFC 5233)
+    normalized = `${localPart.split("+")[0]}@${domain}`;
+  }
+
+  return normalized;
 }
 
 export function validateEmail(email: string): boolean {

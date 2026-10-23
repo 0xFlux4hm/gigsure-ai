@@ -268,50 +268,38 @@ export const authOptions: NextAuthOptions = {
         }
 
         // New Google user — check if an account with this email already exists
+        // SECURITY: Also check for stale PENDING_REGISTRATION accounts.
+        // If a PENDING_REGISTRATION account is older than 24 hours, delete it
+        // and allow the new Google user to create a fresh account. This prevents
+        // squatting — an attacker who briefly controlled the email can't permanently
+        // block the victim from registering.
         const existingUser = await db.user.findUnique({
           where: { emailNormalized: email },
-          select: { id: true, accountStatus: true, emailVerifiedAt: true, passwordHash: true },
+          select: { id: true, accountStatus: true, emailVerifiedAt: true, passwordHash: true, createdAt: true },
         });
 
         if (existingUser) {
-          // Account exists with this email but has no Google identity linked.
-          // SECURITY: Auto-link if BOTH Google and the platform have verified
-          // the email. This is safe because:
-          //   1. Google confirmed email_verified === true (checked above)
-          //   2. The platform confirmed the email via the verification flow
-          //   3. Both verifications point to the same person
-          // This allows existing password users to also sign in with Google.
-          if (existingUser.emailVerifiedAt && existingUser.accountStatus === "ACTIVE") {
-            // Auto-link the Google identity to the existing account
-            await db.userIdentity.create({
-              data: {
-                userId: existingUser.id,
-                provider: "google",
-                providerSubject: account.providerAccountId,
-                lastAuthenticatedAt: new Date(),
-              },
-            }).catch(() => {
-              // P2002 — identity already exists (race condition), ignore
-            });
-
-            user.id = existingUser.id;
-
-            await recordAuditEvent({
-              actorId: existingUser.id,
-              action: "auth.google_auto_linked",
-              targetType: "User",
-              targetId: existingUser.id,
-              metadata: { provider: "google", email },
-            });
-
-            return true;
+          // Clean up stale PENDING_REGISTRATION accounts (older than 24h)
+          if (existingUser.accountStatus === "PENDING_REGISTRATION") {
+            const ageHours = (Date.now() - existingUser.createdAt.getTime()) / (1000 * 60 * 60);
+            if (ageHours > 24) {
+              // Delete the stale pending account so the new user can register
+              await db.user.delete({ where: { id: existingUser.id } }).catch(() => {});
+              logSecurityEvent("info", "auth.google_stale_pending_deleted", {
+                email,
+                ageHours: Math.round(ageHours),
+              });
+              // Fall through to create a new account
+            } else {
+              // Recent pending account — block (likely the same user retrying)
+              logSecurityEvent("warn", "auth.google_pending_exists", { email, ageHours: Math.round(ageHours) });
+              return `/?view=login&error=OAuthCallback`;
+            }
+          } else {
+            // SECURITY: NEVER auto-link Google to an existing password account.
+            logSecurityEvent("warn", "auth.google_email_exists_not_linked", { email });
+            return `/?view=login&error=OAuthCallback`;
           }
-
-          // If the existing user's email is NOT verified, or the account is
-          // not active, block the sign-in (security: don't auto-link to
-          // unverified or suspended accounts).
-          logSecurityEvent("warn", "auth.google_email_exists_not_linked", { email });
-          return `/api/auth/error?error=OAuthCallback`;
         }
 
         // Create a new user account from the Google profile
@@ -402,27 +390,35 @@ export const authOptions: NextAuthOptions = {
         const { hashToken } = await import("@/lib/security/tokens");
         const sudoTokenHash = hashToken(session.sudoToken as string);
 
-        // Look up the token in the DB (stored by reauth endpoint)
+        // SECURITY: Only match tokens that are NOT consumed (consumedAt is null).
+        // Previously, any unconsumed EmailVerificationToken could be used as a
+        // sudo token (confused deputy). Now we explicitly filter for unconsumed
+        // tokens and only accept the most recent one.
         const sudoEntry = await db.emailVerificationToken.findFirst({
           where: {
             tokenHash: sudoTokenHash,
             userId: token.userId as string,
             expiresAt: { gt: new Date() },
+            consumedAt: null,
           },
           orderBy: { createdAt: "desc" },
         });
 
         if (sudoEntry) {
-          // Consume the token (single-use) — wrapped in try/catch for P2005
-          // (already deleted by a concurrent update() call — treat as success)
-          try {
-            await db.emailVerificationToken.delete({ where: { id: sudoEntry.id } });
-          } catch {
-            // Already consumed by a concurrent request — token is valid, proceed
+          // SECURITY: Atomically consume the token (prevents reuse)
+          const consumed = await db.emailVerificationToken.updateMany({
+            where: { id: sudoEntry.id, consumedAt: null },
+            data: { consumedAt: new Date() },
+          });
+          if (consumed.count > 0) {
+            token.issuedAt = Date.now();
+          } else {
+            // Race condition — another request consumed it first
+            logSecurityEvent("warn", "auth.sudo_token_already_consumed", {
+              userId: token.userId as string,
+            });
           }
-          token.issuedAt = Date.now();
         } else {
-          // Invalid or expired token — do NOT elevate
           logSecurityEvent("warn", "auth.sudo_token_invalid", {
             userId: token.userId as string,
           });
@@ -504,6 +500,23 @@ export const authOptions: NextAuthOptions = {
           targetId: user.id,
           metadata: { provider: account?.provider },
         });
+      }
+    },
+    // SECURITY: On signOut, revoke the JTI so stolen JWTs stop working immediately
+    async signOut(message) {
+      const token = message as { token?: { jti?: string; userId?: string } };
+      if (token?.token?.jti && token?.token?.userId) {
+        try {
+          await db.revokedSession.create({
+            data: {
+              jti: token.token.jti,
+              userId: token.token.userId,
+              reason: "user_signout",
+            },
+          });
+        } catch {
+          // Already revoked (idempotent) — ignore
+        }
       }
     },
   },

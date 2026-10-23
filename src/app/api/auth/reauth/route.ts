@@ -26,6 +26,7 @@ import { requireUserId } from "@/lib/auth/session";
 import { verifyPassword } from "@/lib/security/password";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { generateToken, hashToken } from "@/lib/security/tokens";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import { z } from "zod";
 
 const SUDO_TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
@@ -36,6 +37,12 @@ const Schema = z.object({
 
 export const POST = apiRoute(async (req) => {
   const userId = await requireUserId();
+
+  // SECURITY: Rate limit reauth attempts (prevents password brute-force via sudo path)
+  const rateResult = await checkRateLimit(`reauth:user:${userId}`, { limit: 5, windowMs: 15 * 60 * 1000 });
+  if (!rateResult.ok) {
+    return fail("Too many reauthentication attempts. Please try again later.", 429);
+  }
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);

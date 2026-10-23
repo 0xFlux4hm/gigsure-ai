@@ -30,14 +30,15 @@ export function resolveBaseUrl(req?: Request): string {
   }
 
   // 3. Auto-detect from the request's Host header — but ONLY if it matches
-  // the allowlist (configured via ALLOWED_HOSTS env var, comma-separated).
-  // SECURITY: Prefer the Host header over X-Forwarded-Host to prevent
-  // host header injection via X-Forwarded-Host spoofing (an attacker
-  // can control X-Forwarded-Host but not Host on Vercel/Cloudflare).
+  // the allowlist. In production, ALWAYS use https:// (never trust
+  // client-supplied x-forwarded-proto).
   if (req) {
     const hostHeader = req.headers.get("host");
     const forwardedHost = req.headers.get("x-forwarded-host");
-    const forwardedProto = req.headers.get("x-forwarded-proto") ?? "https";
+    // SECURITY: Always use https in production; only allow http in dev
+    const forwardedProto = process.env.NODE_ENV === "production"
+      ? "https"
+      : (req.headers.get("x-forwarded-proto") ?? "https");
 
     // Prefer Host header (set by the web server, not the client)
     const effectiveHost = hostHeader ?? forwardedHost;
@@ -65,30 +66,27 @@ function isAllowedHost(host: string): boolean {
   // Normalize: strip port, lowercase
   const hostname = host.split(":")[0].toLowerCase().trim();
 
-  // Always allow localhost
+  // If no explicit allowlist is configured, only allow the canonical
+  // production domain (if set) and localhost for dev.
   if (hostname === "localhost" || hostname === "127.0.0.1") {
     return true;
   }
 
-  // Check explicit allowlist
-  const allowlist = (process.env.ALLOWED_HOSTS ?? "")
-    .split(",")
-    .map((h) => h.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (allowlist.length > 0) {
-    // Check exact match and suffix match (for subdomains)
-    return allowlist.some(
-      (allowed) => hostname === allowed || hostname.endsWith("." + allowed),
-    );
+  // SECURITY: Only trust NEXTAUTH_URL_PRODUCTION domain in production
+  // (prevents *.vercel.app blanket trust — anyone can create a Vercel
+  // preview deployment with a similar name)
+  if (process.env.NODE_ENV === "production" && process.env.NEXTAUTH_URL_PRODUCTION) {
+    const prodHost = process.env.NEXTAUTH_URL_PRODUCTION
+      .replace(/^https?:\/\//, "")
+      .split("/")[0]
+      .toLowerCase();
+    return hostname === prodHost || hostname.endsWith("." + prodHost);
   }
 
-  // If no explicit allowlist is configured, allow vercel.app subdomains
-  // (these are the Vercel preview deployment URLs)
-  if (hostname.endsWith(".vercel.app") || hostname.endsWith(".vercel.net")) {
+  // Non-production: allow vercel.app subdomains for preview deployments
+  if (process.env.NODE_ENV !== "production" && hostname.endsWith(".vercel.app")) {
     return true;
   }
 
-  // Reject everything else
   return false;
 }

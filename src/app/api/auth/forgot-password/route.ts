@@ -29,14 +29,22 @@ export const POST = apiRoute(async (req) => {
   const email = normalizeEmail(parsed.data.email);
   if (!validateEmail(email)) return fail("Invalid email", 400);
 
-  // use the central rate limiter (has periodic cleanup)
-  // instead of an ad-hoc Map that grows indefinitely.
+  // SECURITY: Per-email rate limit (prevents targeting one user)
   const rateResult = await checkRateLimit(
     `forgotpw:email:${email}`,
     RATE_LIMITS.FORGOT_PASSWORD_PER_EMAIL,
   );
   if (!rateResult.ok) {
     return fail("Too many requests. Please try again later.", 429);
+  }
+
+  // SECURITY: Per-IP rate limit (prevents mass email amplification)
+  const ip = await getClientIp();
+  if (ip) {
+    const ipRate = await checkRateLimit(`forgotpw:ip:${ip}`, { limit: 10, windowMs: 10 * 60 * 1000 });
+    if (!ipRate.ok) {
+      return fail("Too many requests from this IP. Please try again later.", 429);
+    }
   }
 
   const user = await db.user.findUnique({

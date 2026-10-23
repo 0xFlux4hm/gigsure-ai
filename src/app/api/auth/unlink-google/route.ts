@@ -54,7 +54,7 @@ export const POST = apiRoute(async (req) => {
     );
   }
 
-  await db.userIdentity.deleteMany({
+  const result = await db.userIdentity.deleteMany({
     where: {
       userId,
       provider: "google",
@@ -68,6 +68,12 @@ export const POST = apiRoute(async (req) => {
       providerSubject: parsed.data.providerSubject,
     },
   });
+
+  // SECURITY: Only invalidate sessions if something was actually deleted
+  // (prevents self-DoS where user submits a fake providerSubject)
+  if (result.count === 0) {
+    return fail("No matching Google identity found linked to your account.", 404);
+  }
 
   // SECURITY: Invalidate all existing sessions by updating passwordChangedAt.
   // The JWT callback checks passwordChangedAt on every request and rejects
