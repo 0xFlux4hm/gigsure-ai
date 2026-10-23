@@ -7,6 +7,10 @@
  * requires recent reauthentication (sudo mode) to
  * prevent a stolen session cookie from being used to lock the victim out
  * of their account by unlinking all auth methods.
+ *
+ * SECURITY: On unlink, sets passwordChangedAt = now() to invalidate all
+ * existing JWT sessions (so a stolen session cookie stops working after
+ * Google is unlinked).
  */
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail, ok } from "@/lib/api";
@@ -26,10 +30,24 @@ export const POST = apiRoute(async (req) => {
   const parsed = Schema.safeParse(body);
   if (!parsed.success) return fail("Invalid input", 422);
 
+  // Check the user has another way to sign in (password or other identity)
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { passwordHash: true },
+  });
   const identities = await db.userIdentity.findMany({
     where: { userId },
   });
-  if (identities.length <= 1) {
+
+  // SECURITY: Check both UserIdentity count AND passwordHash on the User record.
+  // Previously only checked identities.length, which missed users who have a
+  // password but no "password" UserIdentity row (edge case from data migration).
+  const hasPassword = !!user?.passwordHash;
+  const otherIdentities = identities.filter(
+    (i) => !(i.provider === "google" && i.providerSubject === parsed.data.providerSubject),
+  );
+
+  if (otherIdentities.length === 0 && !hasPassword) {
     return fail(
       "You must keep at least one authentication method. Add another before removing this one.",
       400,
@@ -49,6 +67,15 @@ export const POST = apiRoute(async (req) => {
       provider: "google",
       providerSubject: parsed.data.providerSubject,
     },
+  });
+
+  // SECURITY: Invalidate all existing sessions by updating passwordChangedAt.
+  // The JWT callback checks passwordChangedAt on every request and rejects
+  // tokens issued before this timestamp. This ensures a stolen session cookie
+  // stops working after Google is unlinked.
+  await db.user.update({
+    where: { id: userId },
+    data: { passwordChangedAt: new Date() },
   });
 
   await recordAuditEvent({

@@ -221,6 +221,15 @@ export const authOptions: NextAuthOptions = {
           return false;
         }
 
+        // SECURITY: Verify Google confirmed the email is verified.
+        // Without this, an attacker with a Google Workspace could create
+        // an unverified alias email and auto-create a GigSure account
+        // with emailVerifiedAt = now, bypassing email verification.
+        if (profile?.email_verified !== true) {
+          logSecurityEvent("warn", "auth.google_email_not_verified", { email });
+          return false;
+        }
+
         // Check if a UserIdentity already exists for this Google account
         const existingIdentity = await db.userIdentity.findUnique({
           where: {
@@ -261,10 +270,10 @@ export const authOptions: NextAuthOptions = {
           // Account exists with this email but has no Google identity linked.
           // Per the account-linking policy, we NEVER auto-merge.
           // Redirect the user to the account-linking flow.
+          // SECURITY: Return generic OAuth error (not AccountExistsNotLinked)
+          // to prevent email enumeration via distinct error codes.
           logSecurityEvent("warn", "auth.google_email_exists_not_linked", { email });
-          // Return false to block sign-in — user must link via settings
-          // after logging in with their existing credentials.
-          return `/api/auth/error?error=AccountExistsNotLinked`;
+          return `/api/auth/error?error=OAuthCallback`;
         }
 
         // Create a new user account from the Google profile
@@ -359,8 +368,13 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (sudoEntry) {
-          // Consume the token (single-use) and refresh issuedAt
-          await db.emailVerificationToken.delete({ where: { id: sudoEntry.id } });
+          // Consume the token (single-use) — wrapped in try/catch for P2005
+          // (already deleted by a concurrent update() call — treat as success)
+          try {
+            await db.emailVerificationToken.delete({ where: { id: sudoEntry.id } });
+          } catch {
+            // Already consumed by a concurrent request — token is valid, proceed
+          }
           token.issuedAt = Date.now();
         } else {
           // Invalid or expired token — do NOT elevate

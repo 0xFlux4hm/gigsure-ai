@@ -24,6 +24,7 @@ import { calculatePaymentBreakdown } from "@/lib/payments/fee-calculator";
 import { getDefaultProvider, getProvider } from "@/lib/payments/registry";
 import { generateProviderTxRef } from "@/lib/security/tokens";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
+import { resolveBaseUrl } from "@/lib/auth/base-url";
 import { z } from "zod";
 
 const Schema = z.object({
@@ -131,7 +132,7 @@ export const POST = apiRoute(async (req) => {
       customerEmail: user.email,
       customerName: user.displayName,
       paymentDescription: `GigSure AI — ${milestone.title}`,
-      redirectUrl: `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/?view=project-funding&project=${projectId}`,
+      redirectUrl: `${resolveBaseUrl(req)}/?view=project-funding&project=${projectId}`,
       feeMinor: breakdown.feeMinor,
       netMinor: breakdown.netMinor,
       policyVersion: breakdown.policyVersion,
@@ -145,7 +146,7 @@ export const POST = apiRoute(async (req) => {
         providerReference: result.providerReference,
         checkoutUrl: result.checkoutUrl ?? null,
         status: result.status,
-        redirectUrl: `${process.env.NEXTAUTH_URL ?? ""}/?view=project-funding&project=${projectId}`,
+        redirectUrl: `${resolveBaseUrl(req)}/?view=project-funding&project=${projectId}`,
       },
     });
 

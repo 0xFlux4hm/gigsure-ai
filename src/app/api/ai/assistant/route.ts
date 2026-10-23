@@ -190,6 +190,18 @@ async function assembleContext(
 export const POST = apiRoute(async (req) => {
   const userId = await requireUserId();
 
+  // SECURITY: Check aiFeatureDisclosure consent before sending data to LLM
+  const userPrefs = await db.userPreferences.findUnique({
+    where: { userId },
+    select: { aiFeatureDisclosure: true },
+  });
+  if (!userPrefs?.aiFeatureDisclosure) {
+    return fail(
+      "AI features require explicit consent. Please enable 'AI feature disclosure' in your privacy settings to use AI assistants.",
+      403,
+    );
+  }
+
   // Rate-limit AI calls (per-user + per-IP)
   const ip = headers().get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   const userLimit = await checkRateLimit(`ai:user:${userId}`, RATE_LIMITS.AI_ASSISTANT_PER_USER);

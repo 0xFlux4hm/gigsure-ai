@@ -68,8 +68,11 @@ export function currencyDecimals(currency: string): number {
 export function safeParseInt(v: unknown, min = 0, max = Number.MAX_SAFE_INTEGER): number | null {
   if (typeof v === "number") return Number.isFinite(v) && v >= min && v <= max ? Math.floor(v) : null;
   if (typeof v === "string") {
-    const n = Number(v);
-    return Number.isFinite(n) && n >= min && n <= max ? Math.floor(n) : null;
+    // SECURITY: Use regex to ensure only decimal digits, then parseInt with radix 10
+    // (prevents hex strings like "0x10" being parsed as 16 by Number())
+    if (!/^\d+$/.test(v.trim())) return null;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n >= min && n <= max ? n : null;
   }
   return null;
 }

@@ -38,13 +38,14 @@ class MockEmailProvider implements EmailProvider {
 // HTML-escape any user-controlled value interpolated
 // into email HTML to prevent HTML/script injection in email clients.
 function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => {
+  return s.replace(/[&<>"'`]/g, (c) => {
     switch (c) {
       case "&": return "&amp;";
       case "<": return "&lt;";
       case ">": return "&gt;";
       case '"': return "&quot;";
       case "'": return "&#39;";
+      case "`": return "&#96;";
       default: return c;
     }
   });

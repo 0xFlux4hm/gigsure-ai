@@ -129,7 +129,9 @@ export function assertPermission(
   if (!membership) throw new AuthzError("Not a member of this project", 403);
   if (membership.revokedAt) throw new AuthzError("Membership revoked", 403);
   if (!hasPermission(membership.role as ProjectRole, perm)) {
-    throw new AuthzError(`Your role does not permit: ${perm}`, 403);
+    // SECURITY: Generic error message — don't reveal the exact permission name
+    // (prevents permission enumeration by attackers probing different actions)
+    throw new AuthzError("Insufficient permissions for this action", 403);
   }
 }
 

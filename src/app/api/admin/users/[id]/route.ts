@@ -43,6 +43,17 @@ export const PATCH = apiRoute(async (req, { params }) => {
     return fail("You cannot perform this action on your own account.", 400);
   }
 
+  // SECURITY: Prevent demoting/suspending the second-to-last admin
+  // (would leave only 1 admin — single point of failure)
+  if ((data.action === "demote_admin" || data.action === "suspend") && target.platformRole === "ADMIN") {
+    const activeAdminCount = await db.user.count({
+      where: { platformRole: "ADMIN", accountStatus: "ACTIVE" },
+    });
+    if (activeAdminCount <= 2) {
+      return fail("Cannot demote or suspend — would leave fewer than 2 active admins.", 400);
+    }
+  }
+
   let update: Record<string, unknown> = {};
   let auditAction: string = "";
   switch (data.action) {

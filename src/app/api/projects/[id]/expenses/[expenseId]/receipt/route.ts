@@ -20,7 +20,7 @@ const Schema = z.object({
     .string()
     .url()
     .max(2048)
-    .refine((url) => /^https?:\/\//i.test(url), "Only http(s) URLs are allowed"),
+    .refine((url) => /^https:\/\//i.test(url), "Only HTTPS URLs are allowed"),
 });
 
 export const POST = apiRoute(async (req, { params }) => {

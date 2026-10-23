@@ -113,9 +113,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
 
   // SECURITY: Use deterministic providerEventId to prevent replay attacks.
   // If the provider doesn't send one, derive it from the reference + event type
-  // so identical replays are deduped (instead of generating unique IDs per request).
-  // NOTE: providerReference must be declared BEFORE providerEventId because
-  // providerEventId's fallback references it (TDZ — temporal dead zone).
+  // + timestamp so identical replays are deduped.
+  // NEVER use Date.now() — it makes every replay unique, defeating dedup.
   const providerReference =
     verification.providerReference ||
     payload.provider_tx_ref ||
@@ -123,7 +122,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
     "";
   const providerEventId =
     payload.provider_event_id ??
-    `${providerName}_${providerReference || "unknown"}_${verification.eventType}_${payload.timestamp ?? Date.now()}`;
+    `${providerName}_${providerReference || "unknown"}_${verification.eventType}_${payload.timestamp}`;
 
   // Replay protection
   const existing = await db.webhookEvent.findUnique({

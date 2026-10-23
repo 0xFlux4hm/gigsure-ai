@@ -98,11 +98,11 @@ export async function POST(req: Request) {
 
   // SECURITY: Fail-closed — ONLY skip signature verification when explicitly
   // in sandbox mode AND an explicit env var KYC_ALLOW_UNSIGNED_SANDBOX=true
-  // is set. Default behavior (even in sandbox) is to REQUIRE the signature.
-  // This prevents KYC bypass when SMILE_ID_API_KEY is accidentally unset.
+  // is set AND we're NOT in production.
   const isExplicitSandbox = process.env.SMILE_ID_ENVIRONMENT === "sandbox";
   const allowUnsignedSandbox = process.env.KYC_ALLOW_UNSIGNED_SANDBOX === "true";
-  const isSandboxWithoutKey = isExplicitSandbox && !smileIdApiKey && allowUnsignedSandbox;
+  const isProduction = process.env.NODE_ENV === "production";
+  const isSandboxWithoutKey = isExplicitSandbox && !smileIdApiKey && allowUnsignedSandbox && !isProduction;
 
   if (!isSandboxWithoutKey) {
     if (!smileIdApiKey) {
@@ -137,6 +137,18 @@ export async function POST(req: Request) {
   if (!verification) {
     logSecurityEvent("warn", "kyc.callback_unknown_job", { jobId });
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
+  }
+
+  // SECURITY: Verify the callback's user_id matches the verification record's owner.
+  // Without this, an attacker who compromises Smile ID (or forges a sandbox callback)
+  // could submit a verification result for a different user_id, marking another user as KYC-verified.
+  if (userId !== verification.userId) {
+    logSecurityEvent("warn", "kyc.callback_user_mismatch", {
+      callbackUserId: userId,
+      verificationUserId: verification.userId,
+      jobId,
+    });
+    return NextResponse.json({ error: "User ID mismatch" }, { status: 401 });
   }
 
   // Replay protection: check if this job was already processed
