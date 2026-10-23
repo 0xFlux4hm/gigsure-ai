@@ -68,7 +68,10 @@ export async function requireAdmin(): Promise<{ userId: string; email: string; d
   const isAdminByDb = user.platformRole === "ADMIN";
 
   if (!isAdminByDb && !isAdminByEnv) {
-    throw new AuthzError("Administrator access required", 403);
+    // SECURITY: Return 404 (not 403) for non-admins so admin endpoints
+    // appear not to exist. A 403 confirms the endpoint exists; a 404
+    // makes it look like a dead link — preventing endpoint enumeration.
+    throw new AuthzError("Not found", 404);
   }
 
   // Auto-promote: if env grants admin but DB doesn't, sync the DB.

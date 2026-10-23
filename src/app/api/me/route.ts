@@ -1,4 +1,4 @@
-/** Current authenticated user info (includes KYC status). */
+/** Current authenticated user info (includes KYC status + admin check). */
 import { db } from "@/lib/db";
 import { apiRoute, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
@@ -14,6 +14,7 @@ export const GET = apiRoute(async () => {
       displayName: true,
       emailVerifiedAt: true,
       accountStatus: true,
+      platformRole: true,
       lastLoginAt: true,
       createdAt: true,
       profile: true,

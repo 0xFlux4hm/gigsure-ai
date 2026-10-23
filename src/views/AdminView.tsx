@@ -42,8 +42,12 @@ export function AdminView() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
-    api.get<{ platformRole: string }>("/api/admin/me")
-      .then(() => setIsAdmin(true))
+    // SECURITY: Check admin status via /api/me (not /api/admin/me)
+    // Admin endpoints now return 404 for non-admins, so /api/admin/me
+    // would fail for non-admins AND for admins on first load (cold start).
+    // /api/me returns platformRole for all authenticated users.
+    api.get<{ platformRole?: string }>("/api/me")
+      .then((u) => setIsAdmin(u.platformRole === "ADMIN"))
       .catch(() => setIsAdmin(false));
   }, []);
 

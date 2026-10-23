@@ -112,10 +112,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, [view]);
 
-  // Check admin status once per session
+  // Check admin status via /api/me (not /api/admin/me — that endpoint
+  // is now hidden from non-admins and returns 404).
   useEffect(() => {
-    api.get<{ platformRole: string }>("/api/admin/me")
-      .then(() => setIsAdmin(true))
+    api.get<{ platformRole?: string }>("/api/me")
+      .then((u) => setIsAdmin(u.platformRole === "ADMIN"))
       .catch(() => setIsAdmin(false));
   }, [session?.user?.id]);
 
