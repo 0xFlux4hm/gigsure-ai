@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useNav } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { ShieldCheck, Loader2, Check, User, Mail, FileText } from "lucide-react"
 
 export function GoogleRegistrationView() {
   const { navigate } = useNav();
+  const { update: updateSession } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
@@ -45,10 +46,42 @@ export function GoogleRegistrationView() {
       await api.post<{ activated: boolean }>("/api/auth/complete-registration", {
         acceptedTerms: true,
       });
-      setSuccess(true);
-      setTimeout(() => {
+
+      // SECURITY FIX (post-registration redirect bug):
+      //
+      // Previously this used `setTimeout(() => window.location.href = "/?view=dashboard", 1500)`.
+      // The hard reload worked IF the JWT was still valid — but the
+      // complete-registration route used to also bump `passwordChangedAt`,
+      // which invalidated the JWT in the next jwt() callback. The user
+      // landed on /?view=dashboard with no session → bounced to login.
+      //
+      // Now that the route no longer bumps passwordChangedAt, the existing
+      // JWT stays valid — but the cached client session still shows
+      // accountStatus = "PENDING_REGISTRATION". We must refresh the session
+      // in-band before navigating, otherwise the Router in app/page.tsx
+      // would see the stale PENDING_REGISTRATION status and bounce the
+      // user right back here.
+      //
+      // `await updateSession()` triggers NextAuth's jwt() callback, which
+      // re-reads accountStatus from the DB (nextauth-config.ts:442-444)
+      // and propagates the new ACTIVE status into the client session.
+      try {
+        await updateSession();
+      } catch {
+        // If the in-band refresh fails (network blip, etc.), fall back to
+        // a hard reload — the page reload will re-fetch /api/auth/session
+        // and pick up the ACTIVE status from the DB.
         window.location.href = "/?view=dashboard";
-      }, 1500);
+        return;
+      }
+
+      setSuccess(true);
+      // Brief success message, then navigate in-app (no hard reload).
+      // Using navigate() keeps the SPA state and avoids the
+      // loading flash of a full page reload.
+      setTimeout(() => {
+        navigate({ view: "dashboard" });
+      }, 1200);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to complete registration.");
     } finally {

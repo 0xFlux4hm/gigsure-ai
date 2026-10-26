@@ -52,13 +52,32 @@ export const POST = apiRoute(async (req) => {
     return fail("You must accept the Terms of Service to continue.", 422);
   }
 
-  // Activate the account + refresh passwordChangedAt to invalidate
-  // the PENDING_REGISTRATION JWT so the user gets a fresh ACTIVE session
+  // SECURITY FIX (post-registration redirect bug):
+  //
+  // Previously this route also bumped `passwordChangedAt = new Date()` to
+  // "invalidate the PENDING_REGISTRATION JWT and force a fresh ACTIVE session".
+  //
+  // That was wrong. NextAuth v4 does NOT auto-issue a fresh JWT when an
+  // existing JWT is invalidated by `passwordChangedAt > token.issuedAt`.
+  // Instead, the jwt() callback in nextauth-config.ts returns
+  // `{ ...token, userId: undefined }`, which makes the next /api/auth/session
+  // response come back WITHOUT a userId and WITHOUT accountStatus.
+  //
+  // Net effect: the user clicked "Activate my account", got redirected to
+  // /?view=dashboard, and landed with no session → bounced back to login
+  // (or a blank dashboard). Reported as: "not redirecting to dashboard
+  // after authenticated".
+  //
+  // We don't NEED to invalidate the JWT here at all. The jwt() callback
+  // already does a fresh `db.user.findUnique({ accountStatus })` on every
+  // request (nextauth-config.ts:442-444), so the PENDING_REGISTRATION →
+  // ACTIVE transition is reflected in the session automatically — on the
+  // next /api/auth/session fetch (either via page reload or via
+  // `useSession().update()` from the client).
   await db.user.update({
     where: { id: userId },
     data: {
       accountStatus: "ACTIVE",
-      passwordChangedAt: new Date(),
     },
   });
 
