@@ -9,7 +9,7 @@
 #   3. runner  — minimal runtime image (no dev deps, no source)
 
 # ---- Stage 1: Install dependencies ----
-FROM oven/bun:1.3.14-debian AS deps
+FROM oven/bun:1.4.4-debian AS deps
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile
 
 # ---- Stage 2: Build ----
-FROM oven/bun:1.3.14-debian AS builder
+FROM oven/bun:1.4.4-debian AS builder
 
 WORKDIR /app
 
@@ -38,7 +38,7 @@ RUN bun run db:generate
 RUN bun run build
 
 # ---- Stage 3: Runtime ----
-FROM oven/bun:1.3.14-debian AS runner
+FROM oven/bun:1.4.4-debian AS runner
 
 WORKDIR /app
 
