@@ -17,6 +17,7 @@ import { AuthzError } from "@/lib/auth/authorization";
 import { recordAuditEvent } from "@/lib/auth/audit";
 import { generateToken } from "@/lib/security/tokens";
 
+import { isPlatformAdmin } from "@/lib/auth/admin-access";
 export const dynamic = "force-dynamic";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -46,7 +47,9 @@ export const GET = apiRoute(async (_req, { params }) => {
   const membership = await db.projectMembership.findUnique({
     where: { projectId_userId: { projectId: params.id, userId } },
   });
-  if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
+  // HACKATHON FIX (Oct 29, 2026): platform admins get read access for oversight
+  const _isAdmin = await isPlatformAdmin(userId);
+  if ((!membership || membership.revokedAt) && !_isAdmin) throw new AuthzError("Not a member", 403);
 
   // SECURITY: Verify the task belongs to the project in the URL
   const task = await db.task.findUnique({

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
 import { assertPermission, AuthzError } from "@/lib/auth/authorization";
+import { isPlatformAdmin } from "@/lib/auth/admin-access";
 import { recordAuditEvent } from "@/lib/auth/audit";
 import { validateCurrency, amountToMinor } from "@/lib/security/validation";
 import { z } from "zod";
@@ -44,8 +45,13 @@ async function loadProjectAndMembership(projectId: string, userId: string) {
 export const GET = apiRoute(async (req, { params }) => {
   const userId = await requireUserId();
   const { project, membership } = await loadProjectAndMembership(params.id, userId);
-  if (!membership) throw new AuthzError("Not a member of this project", 403);
-  if (membership.revokedAt) throw new AuthzError("Membership revoked", 403);
+  // HACKATHON FIX (Oct 29, 2026): Admins can read any project for support
+  // oversight (e.g. investigating disputes via admin dashboard). They are NOT
+  // granted write access here — see PATCH/DELETE below which still require
+  // proper project-level RBAC via assertPermission.
+  const isAdmin = await isPlatformAdmin(userId);
+  if (!membership && !isAdmin) throw new AuthzError("Not a member of this project", 403);
+  if (membership?.revokedAt && !isAdmin) throw new AuthzError("Membership revoked", 403);
 
   const contracts = await db.contractVersion.findMany({
     where: { projectId: params.id },
@@ -60,7 +66,9 @@ export const GET = apiRoute(async (req, { params }) => {
 
   return {
     ...project,
-    myRole: membership.role,
+    // If admin without explicit membership, expose role as "ADMIN" so the UI
+    // can show a clear admin badge instead of "no role".
+    myRole: membership?.role ?? (isAdmin ? "ADMIN" : null),
     recentContracts: contracts,
     latestCompensation: compensation,
   };

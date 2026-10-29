@@ -29,6 +29,7 @@ import { getDefaultProvider } from "@/lib/payments/registry";
 import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { z } from "zod";
 
+import { isPlatformAdmin } from "@/lib/auth/admin-access";
 export const dynamic = "force-dynamic";
 
 const PostSchema = z.object({
@@ -126,7 +127,9 @@ export const GET = apiRoute(async (req, { params }) => {
   const membership = await db.projectMembership.findUnique({
     where: { projectId_userId: { projectId, userId } },
   });
-  if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
+  // HACKATHON FIX (Oct 29, 2026): platform admins get read access for oversight
+  const _isAdmin = await isPlatformAdmin(userId);
+  if ((!membership || membership.revokedAt) && !_isAdmin) throw new AuthzError("Not a member", 403);
 
   // SECURITY: Only members with funding:initiate permission (OWNER) can
   // view virtual account details — including existing accounts.

@@ -15,6 +15,7 @@ import { validateCurrency, amountToMinor, minorToAmount } from "@/lib/security/v
 import { z } from "zod";
 
 import { logSecurityEvent } from "@/lib/auth/audit";
+import { isPlatformAdmin } from "@/lib/auth/admin-access";
 const AllocationSchema = z.object({
   userId: z.string().cuid(),
   role: z.string().max(80),
@@ -36,7 +37,9 @@ export const GET = apiRoute(async (_req, { params }) => {
   const membership = await db.projectMembership.findUnique({
     where: { projectId_userId: { projectId: params.id, userId } },
   });
-  if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
+  // HACKATHON FIX (Oct 29, 2026): platform admins get read access for oversight
+  const _isAdmin = await isPlatformAdmin(userId);
+  if ((!membership || membership.revokedAt) && !_isAdmin) throw new AuthzError("Not a member", 403);
 
   const agreements = await db.compensationAgreement.findMany({
     where: { projectId: params.id },

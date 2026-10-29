@@ -7,6 +7,7 @@ import { recordAuditEvent } from "@/lib/auth/audit";
 import { z } from "zod";
 
 import { logSecurityEvent } from "@/lib/auth/audit";
+import { isPlatformAdmin } from "@/lib/auth/admin-access";
 const Schema = z.object({
   title: z.string().min(3).max(200),
   description: z.string().min(10).max(8000),
@@ -19,11 +20,14 @@ export const GET = apiRoute(async (_req, { params }) => {
   const membership = await db.projectMembership.findUnique({
     where: { projectId_userId: { projectId: params.id, userId } },
   });
-  if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
+  // HACKATHON FIX (Oct 29, 2026): platform admins get read access for oversight
+  const _isAdmin = await isPlatformAdmin(userId);
+  if ((!membership || membership.revokedAt) && !_isAdmin) throw new AuthzError("Not a member", 403);
 
   // Reviewers see only disputes assigned to them.
+  // Admins (no membership) see all disputes in the project.
   const where =
-    membership.role === "REVIEWER"
+    membership?.role === "REVIEWER"
       ? { projectId: params.id, reviews: { some: { reviewerId: userId } } }
       : { projectId: params.id };
 

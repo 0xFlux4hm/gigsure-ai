@@ -19,6 +19,7 @@ import { recordAuditEvent } from "@/lib/auth/audit";
 import { notifyUser } from "@/lib/notifications";
 import { z } from "zod";
 
+import { isPlatformAdmin } from "@/lib/auth/admin-access";
 export const dynamic = "force-dynamic";
 
 const CreateSchema = z.object({
@@ -37,7 +38,9 @@ export const GET = apiRoute(async (_req, { params }) => {
   const membership = await db.projectMembership.findUnique({
     where: { projectId_userId: { projectId: params.id, userId } },
   });
-  if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
+  // HACKATHON FIX (Oct 29, 2026): platform admins get read access for oversight
+  const _isAdmin = await isPlatformAdmin(userId);
+  if ((!membership || membership.revokedAt) && !_isAdmin) throw new AuthzError("Not a member", 403);
 
   const feedback = await db.projectFeedback.findMany({
     where: { projectId: params.id, isPublic: true },

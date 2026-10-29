@@ -4,6 +4,7 @@ import { apiRoute, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
 import { AuthzError } from "@/lib/auth/authorization";
 
+import { isPlatformAdmin } from "@/lib/auth/admin-access";
 export const dynamic = "force-dynamic";
 
 export const GET = apiRoute(async (_req, { params }) => {
@@ -11,7 +12,9 @@ export const GET = apiRoute(async (_req, { params }) => {
   const membership = await db.projectMembership.findUnique({
     where: { projectId_userId: { projectId: params.id, userId } },
   });
-  if (!membership || membership.revokedAt) throw new AuthzError("Not a member", 403);
+  // HACKATHON FIX (Oct 29, 2026): platform admins get read access for oversight
+  const _isAdmin = await isPlatformAdmin(userId);
+  if ((!membership || membership.revokedAt) && !_isAdmin) throw new AuthzError("Not a member", 403);
 
   const expense = await db.projectExpense.findUnique({
     where: { id: params.expenseId },
