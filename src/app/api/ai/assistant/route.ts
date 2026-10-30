@@ -280,22 +280,31 @@ export const POST = apiRoute(async (req) => {
     logSecurityEvent("warn", "ai.provider_error", {
       assistant: parsed.data.assistant,
       message: (err as Error)?.message,
+      // HACKATHON DEBUG (Oct 30, 2026): also log the error name + status
+      // so we can see exactly what kind of error Z.AI is throwing
+      name: (err as Error)?.name,
+      status: (err as { status?: number })?.status,
     });
     fallbackUsed = true;
-    // HACKATHON FIX (Oct 30, 2026): if the error is "ZAI_API_KEY not set",
-    // give a clear actionable message instead of the generic fallback.
-    // This helps the operator (you) see at a glance that env vars are missing
-    // on Vercel — instead of debugging "why is AI always returning fallback?"
-    const errMsg = (err as Error)?.message ?? "";
-    if (errMsg.includes("ZAI_API_KEY") || errMsg.includes("Configuration file not found")) {
-      response =
-        "AI is not configured on this deployment. Add ZAI_API_KEY (and optionally ZAI_BASE_URL) " +
-        "to the Vercel Project Settings → Environment Variables, then redeploy. " +
-        "Until then, this deterministic fallback is shown:\n\n" +
-        generateFallback(parsed.data.assistant, context);
-    } else {
-      response = generateFallback(parsed.data.assistant, context);
-    }
+    // HACKATHON FIX (Oct 30, 2026): ALWAYS include the actual error message
+    // in the response so we can diagnose what's failing. Previously only
+    // showed the helpful "AI not configured" message for ZAI_API_KEY errors,
+    // but if Z.AI throws a DIFFERENT error (401, network, bad config), the
+    // user only saw the generic fallback with no clue what was wrong.
+    const errMsg = (err as Error)?.message ?? "Unknown error";
+    const errName = (err as Error)?.name ?? "Error";
+    const errStatus = (err as { status?: number })?.status;
+    response =
+      `[AI provider error — ${errName}${errStatus ? ` (${errStatus})` : ""}]: ${errMsg}\n\n` +
+      `This means the Z.AI SDK was loaded (so ZAI_API_KEY is set), but the actual ` +
+      `chat completion call failed. Common causes:\n` +
+      `  • Invalid ZAI_API_KEY value (should be "Z.ai" for sandbox)\n` +
+      `  • Wrong ZAI_BASE_URL (should be https://internal-api.z.ai/v1)\n` +
+      `  • Missing ZAI_TOKEN (JWT required for sandbox auth)\n` +
+      `  • Network/firewall issue reaching internal-api.z.ai\n\n` +
+      `Check the Vercel function logs (Project → Functions → Logs) for the full stack trace.\n\n` +
+      `Until fixed, this deterministic fallback is shown:\n\n` +
+      generateFallback(parsed.data.assistant, context);
   }
 
   // Persist activity log (no sensitive PII in prompt body — already sanitized).
