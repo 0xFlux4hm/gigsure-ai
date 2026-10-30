@@ -61,8 +61,10 @@ export const DELETE = apiRoute(async (_req, { params }) => {
     return fail("You can only revoke your own current session", 403);
   }
 
-  const ip = headers().get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-  const ua = headers().get("user-agent") ?? null;
+  // BUG FIX (Oct 30, 2026): Next.js 16 changed headers() to async.
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  const ua = h.get("user-agent") ?? null;
 
   await db.revokedSession.create({
     data: {

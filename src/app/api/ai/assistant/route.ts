@@ -215,7 +215,12 @@ export const POST = apiRoute(async (req) => {
   }
 
   // Rate-limit AI calls (per-user + per-IP)
-  const ip = headers().get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  // BUG FIX (Oct 30, 2026): Next.js 16 changed headers() to be async
+  // (returns a Promise). Previously called headers().get() synchronously
+  // which threw "headers(...).get is not a function" → 500 Internal server
+  // error. Now we await headers() first.
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   const userLimit = await checkRateLimit(`ai:user:${userId}`, RATE_LIMITS.AI_ASSISTANT_PER_USER);
   const ipLimit = await checkRateLimit(`ai:ip:${ip}`, RATE_LIMITS.AI_ASSISTANT_PER_IP);
   if (!userLimit.ok || !ipLimit.ok) {

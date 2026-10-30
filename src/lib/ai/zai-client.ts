@@ -26,10 +26,12 @@
  *   ZAI_CHAT_ID     — optional, used for chat session tracking
  *   ZAI_TOKEN       — optional, JWT token if needed
  *
- * If ZAI_API_KEY is not set, getZai() throws a clear error so the route
- * handler can return a useful message instead of silently using fallback.
+ * If ZAI_API_KEY is not set, getZai() throws an AuthnError (which IS in
+ * the apiRoute whitelist) so the error message reaches the client with
+ * a clear actionable explanation instead of generic "Internal server error".
  */
 import ZAI from "z-ai-web-dev-sdk";
+import { AuthnError } from "@/lib/auth/authorization";
 
 export interface ZaiConfig {
   baseUrl: string;
@@ -44,16 +46,22 @@ let _cachedZai: ZAI | null = null;
 /**
  * Returns a cached ZAI instance configured from env vars.
  * The instance is created once + reused — ZAI is stateless after construction.
+ *
+ * Throws AuthnError (whitelisted by apiRoute) if env vars are missing,
+ * so the error message reaches the client with actionable guidance.
  */
 export function getZai(): ZAI {
   if (_cachedZai) return _cachedZai;
 
   const apiKey = process.env.ZAI_API_KEY;
   if (!apiKey) {
-    throw new Error(
-      "ZAI_API_KEY environment variable is not set. Add it in Vercel " +
-        "Project Settings → Environment Variables. The value should be your " +
-        "Z.AI API key (e.g., 'Z.ai' for the dev sandbox or your real key).",
+    // AuthnError is in the apiRoute whitelist, so this message reaches the
+    // client verbatim instead of being replaced with "Internal server error".
+    throw new AuthnError(
+      "AI is not configured on this deployment. Add ZAI_API_KEY (and optionally " +
+        "ZAI_BASE_URL, ZAI_CHAT_ID, ZAI_USER_ID, ZAI_TOKEN) to Vercel Project " +
+        "Settings → Environment Variables, then redeploy.",
+      503,
     );
   }
 
