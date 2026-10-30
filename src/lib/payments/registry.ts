@@ -1,23 +1,3 @@
-/**
- * Payment provider registry — manages all available providers.
- *
- * Live providers: Monnify, OPay, PayPal.
- *
- * HACKATHON INTEGRATION (Oct 30 – Nov 12, 2026):
- *   PayPal added for the PayPal AI Hackathon. Sandbox-only by default —
- *   no real money moves, perfect for cross-border demo (USD → NGN escrow).
- *
- * Configuration sources:
- *   - Environment variables (MONNIFY_*, OPAY_*, PAYPAL_*) — used at server boot.
- *   - PaymentSettings table (admin-managed via /api/admin/payment-settings) —
- *     overrides env at runtime when set.
- *
- * Default provider selection:
- *   - Read PAYMENTS_DEFAULT_PROVIDER env var (default: "monnify").
- *   - If the default is enabled + configured, return it.
- *   - Otherwise, return the first enabled + configured real provider.
- *   - If none is enabled, throw.
- */
 import type { PaymentProvider, PaymentProviderName } from "./provider-interface";
 import { MonnifyProvider } from "./monnify-provider";
 import { OpayProvider } from "./opay-provider";
@@ -63,7 +43,6 @@ function getProviders(): Map<PaymentProviderName, PaymentProvider> {
     map.set("opay", opay);
   }
 
-  // HACKATHON: register PayPal if configured. Sandbox-friendly — uses test
   // credentials from developer.paypal.com, no real money moves.
   const paypal = new PayPalProvider();
   if (paypal.isConfigured()) {
@@ -128,7 +107,7 @@ export async function getDefaultProvider(): Promise<PaymentProvider> {
       const dbEnabled =
         dbName === "monnify" ? dbSettings.monnifyEnabled
         : dbName === "opay" ? dbSettings.opayEnabled
-        : true; // HACKATHON: PayPal is enabled via PAYPAL_ENABLED env var
+        : true;
       const provider = providers.get(dbName);
       if (provider && dbEnabled && provider.isEnabled()) {
         return provider;

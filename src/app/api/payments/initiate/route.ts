@@ -1,25 +1,3 @@
-/**
- * Initiate a payment for a project milestone.
- *
- * Body: {
- *   projectId: string,
- *   milestoneId: string,
- *   provider?: "monnify" | "opay" | "paypal"  (defaults to system default)
- * }
- *
- * Flow:
- *   1. Verify auth + project membership + KYC
- *   2. Look up milestone + calculate fee breakdown (1.5%)
- *   3. Create PaymentTransaction record
- *   4. Call provider's initiatePayment()
- *   5. Store provider reference + checkout URL
- *   6. Return checkout URL to frontend
- *
- * HACKATHON INTEGRATION (PayPal AI Hackathon):
- *   Added "paypal" as a provider option. Cross-border flow: international
- *   clients pay in USD via PayPal sandbox; funds land in the existing NGN
- *   escrow. See src/lib/payments/paypal-provider.ts for the conversion logic.
- */
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";

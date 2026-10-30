@@ -290,7 +290,6 @@ export class OpayProvider implements PaymentProvider {
     }
 
     // SECURITY: Verify clientAuthKey — fail-closed when not configured.
-    // Previously this was fail-open: if OPAY_CLIENT_AUTH_KEY was unset,
     // the check was silently skipped. Now we reject if the env var is
     // missing (defense-in-depth alongside the HMAC-SHA512 signature check).
     const expectedAuthKey = process.env.OPAY_CLIENT_AUTH_KEY ?? "";

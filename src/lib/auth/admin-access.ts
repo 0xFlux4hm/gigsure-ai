@@ -1,26 +1,3 @@
-/**
- * Admin access helper for project-scoped routes.
- *
- * HACKATHON FIX (Oct 29, 2026):
- *
- * Previously, project routes (GET /api/projects/[id], disputes, team, etc.)
- * only checked project membership. An admin (platformRole === "ADMIN") could
- * see projects in the admin dashboard but couldn't click into them — got
- * "Not a member of this project" (403).
- *
- * This helper grants platform admins read access to ALL projects for support
- * and oversight purposes, while keeping write operations (PATCH, POST, DELETE)
- * gated behind proper project-level RBAC.
- *
- * Usage:
- *   const userId = await requireUserId();
- *   const { project, membership, isAdmin } = await loadProjectForUser(projectId, userId);
- *   if (!project) return fail("Project not found", 404);
- *   if (!membership && !isAdmin) throw new AuthzError("Not a member of this project", 403);
- *
- * For mutating endpoints, you should NOT skip assertPermission even for admins —
- * admins should use the dedicated admin endpoints (PATCH /api/admin/projects/[id]).
- */
 import { db } from "@/lib/db";
 import type { Project, ProjectMembership } from "@prisma/client";
 

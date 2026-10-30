@@ -1,14 +1,3 @@
-/**
- * Payment provider interface — provider-independent abstraction.
- *
- * Every provider (Monnify, OPay, PayPal, Mock) implements this interface.
- * The application domain never depends on a provider's specific response format.
- *
- * HACKATHON INTEGRATION (Oct 30 – Nov 12, 2026):
- *   PayPal provider added for the PayPal AI Hackathon. Sandbox-only by default,
- *   supports cross-border USD payments to GigSure's existing NGN escrow flow.
- *   See src/lib/payments/paypal-provider.ts + HACKATHON.md.
- */
 import type { FeePolicy } from "./fee-calculator";
 
 export type PaymentProviderName = "monnify" | "opay" | "paypal";

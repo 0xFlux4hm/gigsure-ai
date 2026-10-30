@@ -45,7 +45,6 @@ async function loadProjectAndMembership(projectId: string, userId: string) {
 export const GET = apiRoute(async (req, { params }) => {
   const userId = await requireUserId();
   const { project, membership } = await loadProjectAndMembership(params.id, userId);
-  // HACKATHON FIX (Oct 29, 2026): Admins can read any project for support
   // oversight (e.g. investigating disputes via admin dashboard). They are NOT
   // granted write access here — see PATCH/DELETE below which still require
   // proper project-level RBAC via assertPermission.

@@ -1,45 +1,3 @@
-/**
- * PayPal payment provider adapter.
- *
- * HACKATHON INTEGRATION (PayPal AI Hackathon, Oct 30 – Nov 12, 2026):
- *   This adapter brings PayPal into GigSure's existing multi-provider payment
- *   architecture. The use case is cross-border: an international client funds
- *   a milestone in USD via PayPal, funds are held in escrow, and the freelancer
- *   receives NGN via the existing Monnify/OPay payout rails.
- *
- * Official docs:
- *   - Orders API v2: https://developer.paypal.com/docs/api/orders/v2/
- *   - Webhooks:       https://developer.paypal.com/docs/api/webhooks/v1/
- *
- * Authentication:
- *   OAuth 2.0 client-credentials grant → access token (1 hour TTL).
- *   POST /v1/oauth2/token with Base64(client_id:client_secret) → bearer token.
- *
- * Webhook verification:
- *   PayPal sends a webhook ID in the `paypal-transmission-id` header.
- *   Verification is done by calling POST /v1/notifications/verify-webhook-signature
- *   with the transmission headers + webhook ID + the event body.
- *   This is more robust than PayPal's older CRC32-based verification.
- *
- * Environment:
- *   PAYPAL_ENABLED=true
- *   PAYPAL_ENVIRONMENT=sandbox|production  (default: sandbox for hackathon)
- *   PAYPAL_CLIENT_ID=<from developer.paypal.com dashboard>
- *   PAYPAL_CLIENT_SECRET=<from developer.paypal.com dashboard>
- *   PAYPAL_WEBHOOK_ID=<from developer.paypal.com → Apps & Credentials → Webhooks>
- *
- * The sandbox environment uses fake funds — no real money moves, perfect for
- * hackathon demo purposes. International clients can "pay" in USD, EUR, GBP
- * to GigSure's PayPal sandbox merchant account.
- *
- * Cross-border flow (the demo centerpiece):
- *   1. Client clicks "Pay with PayPal" on a milestone funding page
- *   2. PayPal Checkout SDK opens the PayPal popup (client-side)
- *   3. Client approves the payment in PayPal
- *   4. PayPal calls our webhook → we mark the funding as SUCCEEDED
- *   5. Escrow holds the funds (converted to NGN at the day's rate)
- *   6. On milestone completion, Monnify/OPay pays out to the freelancer's bank account
- */
 import { createHmac } from "crypto";
 import type {
   PaymentProvider,
@@ -204,7 +162,6 @@ export class PayPalProvider implements PaymentProvider {
   async initiatePayment(input: InitiatePaymentInput): Promise<InitiatePaymentResult> {
     const token = await this.getAccessToken();
 
-    // HACKATHON: support cross-border. If the project currency is NGN,
     // create the PayPal order in USD at a fixed demo rate (1 USD = 1500 NGN).
     // In production, this would use a live FX rate API.
     const isCrossBorder = input.currency === "NGN";
@@ -291,7 +248,6 @@ export class PayPalProvider implements PaymentProvider {
       ? Math.round(parseFloat(capture.amount.value) * 100)
       : undefined;
 
-    // HACKATHON: if cross-border (USD), convert back to NGN at the demo rate
     // so the rest of the platform (which expects NGN) works unchanged.
     const isCrossBorder = capture?.amount.currency_code === "USD";
     const amountPaidMinorInProjectCurrency = isCrossBorder && amountPaidMinor

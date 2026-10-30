@@ -11,7 +11,6 @@ export const GET = apiRoute(async (_req, { params }) => {
   const membership = await db.projectMembership.findUnique({
     where: { projectId_userId: { projectId, userId } },
   });
-  // HACKATHON FIX (Oct 29, 2026): platform admins get read access for oversight
   const _isAdmin = await isPlatformAdmin(userId);
   if ((!membership || membership.revokedAt) && !_isAdmin) throw new AuthzError("Not a member", 403);
 
@@ -28,7 +27,6 @@ export const GET = apiRoute(async (_req, { params }) => {
   if (!dispute || dispute.projectId !== projectId) return fail("Dispute not found", 404);
 
   // Reviewers can view only disputes assigned to them.
-  // HACKATHON FIX (Oct 29, 2026): admins (no membership) see all disputes.
   if (membership?.role === "REVIEWER") {
     const assigned = dispute.reviews.some((r) => r.reviewerId === userId);
     if (!assigned) throw new AuthzError("Dispute not assigned to you", 403);

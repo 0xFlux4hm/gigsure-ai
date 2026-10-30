@@ -55,3 +55,6 @@ server.log
 db/
 *.pid
 download/gigsure-assets/
+worklog.md
+tool-results/
+upload/

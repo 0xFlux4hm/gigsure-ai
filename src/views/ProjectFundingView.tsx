@@ -233,12 +233,6 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
         </CardContent>
       </Card>
 
-      {/*
-        HACKATHON INTEGRATION (PayPal AI Hackathon, Oct 30 – Nov 12, 2026):
-        Cross-border funding. International clients pay in USD via PayPal,
-        funds are converted to NGN at the day's rate and held in escrow.
-        See src/lib/payments/paypal-provider.ts for the conversion logic.
-      */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -305,7 +299,6 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// PayPal funding card — HACKATHON (PayPal AI Hackathon, Oct 30 – Nov 12, 2026)
 //
 // Lets an international client fund a milestone in USD via PayPal sandbox.
 // Funds convert to NGN at the platform demo rate (1 USD = ₦1,500) and land
@@ -341,7 +334,6 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
     api
       .get<{ milestones: Milestone[] }>(`/api/projects/${projectId}/milestones`)
       .then((res) => {
-        // HACKATHON: only show milestones that can be funded via PayPal.
         // - DRAFT, AWAITING_FUNDING → fully fundable
         // - FUNDED → also fundable (top-up / additional funding) so the demo
         //   works even if the milestone was previously funded via NGN bank transfer

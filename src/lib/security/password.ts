@@ -1,15 +1,3 @@
-/**
- * Password hashing utilities.
- *
- * Uses Node's built-in `scrypt` (a memory-hard KDF recommended by OWASP).
- * Hashes are stored as `scrypt:N:r:p:saltHex:hashHex` so we can later verify
- * parameters without silent migration. Never log hash strings.
- *
- * SECURITY: verifyPassword rejects hashes whose N/r/p/keyLen don't match
- * SCRYPT_PARAMS — prevents an attacker with DB write access from downgrading
- * a victim's hash to weak parameters (e.g., scrypt:2:1:1:...) that would
- * make any password trivially hashable.
- */
 import { scryptSync, randomBytes, timingSafeEqual } from "crypto";
 
 const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1, keyLen: 64 } as const;

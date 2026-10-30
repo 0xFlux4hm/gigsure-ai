@@ -226,7 +226,6 @@ function LoginForm() {
       return;
     }
     if (res?.ok) {
-      // BUG FIX (Oct 30, 2026): previously used
       //   window.location.href = res.url ?? "/?view=dashboard";
       // which is a HARD navigation. Hard navigation forces a full page
       // reload, and the NextAuth session cookie might not be fully set yet
@@ -350,7 +349,6 @@ function RegisterForm() {
           callbackUrl: "/?view=dashboard",
         });
         if (signInResult?.ok) {
-          // BUG FIX (Oct 30, 2026): use in-band session refresh + SPA navigate
           // instead of hard window.location.href navigation. Same reason as
           // LoginForm — hard navigation can race with the session cookie set.
           try {

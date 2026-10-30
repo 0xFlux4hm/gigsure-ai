@@ -1,8 +1,3 @@
-/**
- * Admin: list all audit events across the platform.
- *
- * Supports filtering by action prefix (?action=auth.*) and actor (?actorId=...).
- */
 import { db } from "@/lib/db";
 import { apiRoute, getQueryInt, getQueryParam } from "@/lib/api";
 import { requireAdminRateLimited } from "@/lib/auth/session";

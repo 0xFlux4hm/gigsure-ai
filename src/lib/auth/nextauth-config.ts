@@ -54,7 +54,6 @@ export const authOptions: NextAuthOptions = {
     // NextAuth v4 normally applies these automatically when useSecureCookies=true,
     // but our explicit override was stripping them. Restore them here.
     //
-    // BUG FIX (Oct 29, 2026): previously, the `options` object was missing
     // `maxAge`. Without `maxAge`, browsers treat the cookie as a "session
     // cookie" that lives until the browser is closed — the 7-day JWT
     // maxAge in `session.maxAge` was effectively ignored at the browser
@@ -291,7 +290,6 @@ export const authOptions: NextAuthOptions = {
 
         if (existingUser) {
           // Check for EXPIRED PENDING_REGISTRATION accounts (older than 30 minutes)
-          // BUG FIX (Oct 30, 2026): comments said "10 minutes" but code used 30.
           // Made it consistently 30 minutes everywhere — gives users enough
           // time to read the Terms of Service without being bounced.
           if (existingUser.accountStatus === "PENDING_REGISTRATION") {
@@ -411,7 +409,6 @@ export const authOptions: NextAuthOptions = {
         const sudoTokenHash = hashToken(session.sudoToken as string);
 
         // SECURITY: Only match tokens that are NOT consumed (consumedAt is null).
-        // Previously, any unconsumed EmailVerificationToken could be used as a
         // sudo token (confused deputy). Now we explicitly filter for unconsumed
         // tokens and only accept the most recent one.
         const sudoEntry = await db.emailVerificationToken.findFirst({
@@ -453,7 +450,6 @@ export const authOptions: NextAuthOptions = {
       // this JWT was issued, force re-authentication by returning an empty
       // token (NextAuth treats this as "not authenticated").
       if (token.userId && token.issuedAt) {
-        // BUG FIX (Oct 29, 2026): enforce JWT expiry at the callback level.
         // NextAuth sets `token.exp` based on `jwt.maxAge` (7 days above), but
         // the jwt() callback itself was never checking it — so even after the
         // JWT "expired", the callback kept returning the token as long as the
@@ -476,11 +472,8 @@ export const authOptions: NextAuthOptions = {
         // SECURITY: Allow PENDING_REGISTRATION users to have a session
         // (they need it to complete the registration flow).
         //
-        // BUG FIX (Oct 30, 2026 — final redirect fix):
-        //   Previously, this code ALSO checked if the PENDING_REGISTRATION
         //   account was older than 30 minutes. If yes, the session was
         //   invalidated → userId set to undefined → user bounced to login.
-        //   This TTL check was the ROOT CAUSE of the persistent redirect
         //   bug. Users who took more than 30 minutes to read the Terms of
         //   Service got bounced, and the in-band session refresh in
         //   GoogleRegistrationView sometimes returned stale PENDING_REGISTRATION
@@ -490,7 +483,6 @@ export const authOptions: NextAuthOptions = {
         //   now enforced in requireUserId() (see src/lib/auth/session.ts)
         //   which whitelists /api/auth/* + /api/me for PENDING_REGISTRATION
         //   users and returns 403 for everything else. This is a cleaner,
-        //   race-free design that follows OWASP A01 (Broken Access Control)
         //   best practices.
         //
         //   Stale PENDING_REGISTRATION accounts are cleaned up by a separate
@@ -627,7 +619,6 @@ declare module "next-auth/jwt" {
     issuedAt?: number;
     jti?: string;
     accountStatus?: string;
-    // BUG FIX (Oct 29, 2026): `exp` is set by NextAuth core based on
     // `jwt.maxAge`. We declare it explicitly so the jwt() callback can
     // read it without TS errors. Without this, NextAuth's types
     // included `exp` only as an implicit any.

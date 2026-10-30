@@ -1,25 +1,3 @@
-/**
- * Provider-specific webhook endpoint.
- *
- * URL: /api/payments/webhook/[provider]
- *   - /api/payments/webhook/monnify
- *   - /api/payments/webhook/opay
- *   - /api/payments/webhook/paypal  (HACKATHON: PayPal AI Hackathon integration)
- *
- * Each provider has its own signature verification scheme:
- *   - Monnify: HMAC-SHA512 with API key, signature in `monnify-signature` header
- *   - OPay: HMAC-SHA512 with private key, signature in body's `sign` field
- *   - PayPal: Official verify-webhook-signature API (HACKATHON — async verification
- *     via POST /v1/notifications/verify-webhook-signature). See paypal-provider.ts.
- *
- * Security:
- *   1. Verify signature using raw body (not parsed JSON)
- *   2. Check replay (providerEventId uniqueness)
- *   3. Check timestamp (5-min replay window)
- *   4. Update PaymentTransaction status transactionally
- *   5. Create ledger entries atomically
- *   6. Confirm linked FundingRecord + trigger payouts (for RELEASE records)
- */
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getProvider } from "@/lib/payments/registry";
@@ -34,7 +12,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   const { provider: providerName } = await params;
 
   // Validate provider name — only real providers allowed.
-  // HACKATHON: added "paypal" for the PayPal AI Hackathon integration.
   if (providerName !== "monnify" && providerName !== "opay" && providerName !== "paypal") {
     return NextResponse.json({ error: "Unknown provider" }, { status: 400 });
   }
@@ -57,7 +34,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
     headers[key] = value;
   });
 
-  // HACKATHON: PayPal's verifyWebhook is async (calls PayPal's verification API).
   // Monnify/OPay return synchronously.
   const verification = await Promise.resolve(provider.verifyWebhook(rawBody, headers));
 
@@ -73,17 +49,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   let payload: {
     event?: string;
     eventType?: string;
-    event_type?: string; // HACKATHON: PayPal uses snake_case `event_type`
+    event_type?: string;
     provider_event_id?: string;
     provider_tx_ref?: string;
     transactionReference?: string;
-    id?: string; // HACKATHON: PayPal webhook event ID
+    id?: string;
     amount?: number;
     amount_minor?: number;
     currency?: string;
     status?: string;
     timestamp?: string;
-    create_time?: string; // HACKATHON: PayPal uses `create_time` for the event time
+    create_time?: string;
     paymentMethod?: string;
   };
   try {
@@ -92,7 +68,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // HACKATHON: PayPal webhook events put the timestamp in `create_time`.
   // Normalize so the replay-window check below works for all providers.
   const normalizedTimestamp = payload.timestamp ?? payload.create_time;
   const normalizedEventType = verification.eventType ?? payload.event_type ?? payload.eventType ?? "";
@@ -149,7 +124,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
     return NextResponse.json({ ok: true, processed: false, reason: "duplicate_event" });
   }
 
-  // HACKATHON: For PayPal, the amount is in the `resource.amount.total` field.
   // For Monnify/OPay, it's already in `amount_minor` or `amount`.
   // The confirmFundingRecord call below uses `payload.amount_minor ?? Math.round((payload.amount ?? 0) * 100)`
   // so we need to extract PayPal's amount and put it in `amount_minor`.

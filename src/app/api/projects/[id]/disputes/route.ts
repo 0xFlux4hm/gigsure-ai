@@ -20,7 +20,6 @@ export const GET = apiRoute(async (_req, { params }) => {
   const membership = await db.projectMembership.findUnique({
     where: { projectId_userId: { projectId: params.id, userId } },
   });
-  // HACKATHON FIX (Oct 29, 2026): platform admins get read access for oversight
   const _isAdmin = await isPlatformAdmin(userId);
   if ((!membership || membership.revokedAt) && !_isAdmin) throw new AuthzError("Not a member", 403);
 

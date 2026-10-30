@@ -47,7 +47,6 @@ export function GoogleRegistrationView() {
         acceptedTerms: true,
       });
 
-      // SECURITY FIX (post-registration redirect bug, fully fixed Oct 30, 2026):
       //
       // HISTORY: this flow broke THREE TIMES before:
       //   1. complete-registration bumped passwordChangedAt → JWT invalidated
@@ -57,7 +56,6 @@ export function GoogleRegistrationView() {
       //      session sometimes still shows PENDING_REGISTRATION, causing the
       //      Router to bounce the user back to this page
       //
-      // CURRENT FIX (comprehensive):
       //   1. Call complete-registration (server marks user ACTIVE in DB)
       //   2. Force-useSession refresh via updateSession() — this triggers
       //      jwt() callback which re-reads accountStatus from DB

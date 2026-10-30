@@ -1,20 +1,3 @@
-/**
- * Server-side session helper. Re-exports getServerSession with our config.
- *
- * OWASP Top 10 — A01 Broken Access Control defense:
- *   requireUserId() now ALSO checks accountStatus === "ACTIVE" server-side.
- *   Previously, only the client-side Router checked accountStatus, so a
- *   PENDING_REGISTRATION user could call any /api/* endpoint directly with
- *   their JWT and bypass the gating. This is a real Broken Access Control
- *   vulnerability — fixed here by enforcing it server-side at the entry point.
- *
- *   Whitelist of endpoints that PENDING_REGISTRATION users CAN call:
- *     - /api/auth/complete-registration (they need this to activate)
- *     - /api/me                          (the registration page loads profile)
- *     - /api/auth/*                      (NextAuth's own endpoints)
- *
- *   Everything else returns 403 if the user isn't ACTIVE.
- */
 import { getServerSession } from "next-auth/next";
 import { headers } from "next/headers";
 import { authOptions } from "./nextauth-config";
@@ -42,22 +25,12 @@ function isPathAllowedForPending(path: string): boolean {
   return PENDING_ALLOWED_PATHS.some((p) => path.startsWith(p));
 }
 
-/**
- * Returns the authenticated user ID, or throws AuthnError.
- *
- * OWASP A01 fix: also checks accountStatus === "ACTIVE" server-side.
- * PENDING_REGISTRATION users are rejected with 403 unless the request
- * path is in the whitelist (e.g. /api/auth/complete-registration).
- *
- * Use this at the top of every protected API route handler.
- */
 export async function requireUserId(): Promise<string> {
   const session = await getSession();
   if (!session?.user?.id) throw new AuthnError();
 
   const userId = session.user.id;
 
-  // OWASP A01: server-side enforcement of accountStatus.
   // We DO trust the session's accountStatus (set by the jwt callback from DB),
   // but we re-check the DB on each call to close any race window where the
   // session is stale (e.g. admin just suspended the user).

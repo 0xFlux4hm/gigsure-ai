@@ -52,9 +52,7 @@ export const POST = apiRoute(async (req) => {
     return fail("You must accept the Terms of Service to continue.", 422);
   }
 
-  // SECURITY FIX (post-registration redirect bug):
   //
-  // Previously this route also bumped `passwordChangedAt = new Date()` to
   // "invalidate the PENDING_REGISTRATION JWT and force a fresh ACTIVE session".
   //
   // That was wrong. NextAuth v4 does NOT auto-issue a fresh JWT when an

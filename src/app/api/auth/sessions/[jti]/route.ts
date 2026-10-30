@@ -61,7 +61,6 @@ export const DELETE = apiRoute(async (_req, { params }) => {
     return fail("You can only revoke your own current session", 403);
   }
 
-  // BUG FIX (Oct 30, 2026): Next.js 16 changed headers() to async.
   const h = await headers();
   const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
   const ua = h.get("user-agent") ?? null;
