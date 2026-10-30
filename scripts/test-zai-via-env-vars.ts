@@ -63,26 +63,28 @@ async function main() {
   console.log("✓ ZAI instance constructed");
 
   console.log("\n=== CALL chat.completions.create ===");
-  console.log("(This is the exact same call /api/ai/assistant makes)");
+  console.log("(Using glm-4.7-flash — the FREE model that works with zero balance)");
   try {
     const completion = await zai.chat.completions.create({
+      model: "glm-4.7-flash",  // FREE model — works with zero balance
       messages: [
         { role: "system", content: "You are a helpful assistant. Reply in one short sentence." },
         { role: "user", content: "Say hello and tell me what 2+2 equals." },
       ],
       temperature: 0.4,
-      max_tokens: 100,
+      max_tokens: 200,
+      thinking: { type: "disabled" } as never,
     });
     console.log("✓ Z.AI response received!");
     console.log("");
     console.log("=== RESPONSE ===");
-    console.log(completion.choices?.[0]?.message?.content ?? "(no content)");
+    console.log((completion as { choices?: Array<{ message?: { content?: string } }> })?.choices?.[0]?.message?.content ?? "(no content)");
     console.log("");
     console.log("=== USAGE ===");
-    console.log(JSON.stringify(completion.usage, null, 2));
+    console.log(JSON.stringify((completion as { usage?: unknown }).usage, null, 2));
     console.log("");
     console.log("=== MODEL ===");
-    console.log(completion.model ?? "(unknown)");
+    console.log((completion as { model?: string }).model ?? "(unknown)");
     console.log("");
     console.log("✅ ALL GOOD — Z.AI works via env vars. The AI integration should work on Vercel.");
   } catch (err) {

@@ -263,19 +263,53 @@ export const POST = apiRoute(async (req) => {
     // The wrapper reads config from env vars (ZAI_API_KEY etc.) which work
     // on Vercel serverless. ZAI.create() reads from /etc/.z-ai-config which
     // doesn't exist on serverless → throws → fallback was always used.
+    //
+    // MODEL CHOICE (Oct 31, 2026):
+    //   Use 'glm-4.7-flash' — it's a FREE model on Z.AI (genuinely free,
+    //   not trial credits). Works with a zero-balance account.
+    //   Per https://docs.z.ai — Flash models are rate-limited but free.
+    //
+    // THINKING DISABLED:
+    //   glm-4.7-flash defaults to chain-of-thought reasoning, which eats
+    //   max_tokens before the actual answer is produced. We pass
+    //   thinking: { type: "disabled" } so the response contains only the
+    //   final answer, not the reasoning steps.
     const zai = getZai();
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: "system", content: cfg.systemPrompt },
-        { role: "user", content: fullPrompt },
-      ],
-      temperature: 0.4,
-      max_tokens: 1200,
-      // Abort not supported by all SDKs; rely on timeout below.
-    });
+    // HACKATHON: glm-4.7-flash occasionally returns 429 "service overloaded"
+    // because it's a free tier. Retry up to 3 times with exponential backoff.
+    let completion: { choices?: Array<{ message?: { content?: string } }>; usage?: { total_tokens?: number } } | null = null;
+    const maxRetries = 3;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        completion = await zai.chat.completions.create({
+          model: "glm-4.7-flash",
+          messages: [
+            { role: "system", content: cfg.systemPrompt },
+            { role: "user", content: fullPrompt },
+          ],
+          temperature: 0.4,
+          max_tokens: 1200,
+          thinking: { type: "disabled" } as never,
+        }) as typeof completion;
+        // Got a response — break out of retry loop
+        if (completion?.choices?.[0]?.message?.content) break;
+        // Empty content (all tokens went to reasoning) — retry with bigger max_tokens
+        if (attempt < maxRetries - 1) {
+          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        }
+      } catch (retryErr) {
+        // 429 or transient error — retry if attempts remain
+        const errMsg = (retryErr as Error)?.message ?? "";
+        if (attempt < maxRetries - 1 && (errMsg.includes("1305") || errMsg.includes("overloaded") || errMsg.includes("429"))) {
+          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+          continue;
+        }
+        throw retryErr;  // Re-throw on final attempt or non-retryable error
+      }
+    }
     clearTimeout(timer);
-    response = completion.choices?.[0]?.message?.content ?? "";
-    tokensUsed = (completion as { usage?: { total_tokens?: number } }).usage?.total_tokens ?? 0;
+    response = completion?.choices?.[0]?.message?.content ?? "";
+    tokensUsed = completion?.usage?.total_tokens ?? 0;
   } catch (err) {
     logSecurityEvent("warn", "ai.provider_error", {
       assistant: parsed.data.assistant,
