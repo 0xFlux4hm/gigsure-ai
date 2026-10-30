@@ -1,112 +1,133 @@
-# GigSure AI — Meta Global AI Developer Hackathon Submission
+# GigSure AI — PayPal AI Hackathon Submission
 
-> **Track:** Startup
-> **Problem Statement:** Build for Your World
+> **Track:** Open (no prescribed tracks)
+> **Prize targets:** Best Use of PayPal + AI, Best Use of Agentic Commerce, Most Impactful
 > **Builder:** Ahmad Muhammad Wammi (0xFlux4hm) — Lagos, Nigeria
-> **Build period:** October 26 — November 4, 2026
-> **Submission deadline:** Wed Nov 4, 9 PM ET (Thu Nov 5, 2 AM WAT)
+> **Build period:** October 30 — November 12, 2026
+> **Submission deadline:** Wed Nov 4 wait no — Wed Nov 12, 2026, 9 PM ET (Thu Nov 13, 2 AM WAT)
 
 ## What's new in this submission
 
-This document identifies everything built during the hackathon. Per the rules:
+Per the PayPal AI Hackathon rules:
 
-> *"Your demo has to show only the features, code and functionality your team built during the event. Judges need to be able to tell what's new. If they can't, the project is disqualified."*
+> *"Entrants must build or update an application that integrates the PayPal developer platform (using the free sandbox environment) along with an AI tool, model, or platform of their choice."*
 
-The pre-hackathon baseline is git tag `pre-hackathon-2026-10-26` (commit `1cf8d83`).
-Judges can verify new work with:
+This document identifies everything built during the hackathon. The pre-hackathon baseline is git tag `pre-paypal-hackathon-2026-10-30` (commit `61388a6`). Judges can verify new work with:
 
 ```bash
 git fetch --tags
-git log pre-hackathon-2026-10-26..main --oneline
-git diff pre-hackathon-2026-10-26..main --stat
+git log pre-paypal-hackathon-2026-10-30..main --oneline
+git diff pre-paypal-hackathon-2026-10-30..main --stat
 ```
-
-Everything below the tag is new work built Oct 26 – Nov 4.
 
 ## Pre-hackathon baseline (existing foundation — NOT demoed)
 
-GigSure AI was a real product before the hackathon. The following existed at the `pre-hackathon-2026-10-26` tag and is **NOT shown in the demo**:
+GigSure AI was a real product before the hackathon. The following existed at the `pre-paypal-hackathon-2026-10-30` tag and is **NOT shown in the demo** (existing infrastructure only):
 
 - Email + password authentication with email verification
 - Google OAuth sign-in (with consent screen + PENDING_REGISTRATION flow)
 - Project CRUD with memberships (OWNER, MEMBER, REVIEWER roles)
 - Contract versioning + acceptance workflow
-- Milestone-based funding with escrow via Monnify + OPay (real payment rails)
+- Milestone-based funding with escrow via Monnify + OPay (real Nigerian payment rails)
 - Dispute resolution with evidence uploads + reviewer workflow
 - KYC via Smile ID (NIN + selfie liveness)
+- 7 AI advisory assistants (Team Planner, Task Planner, Contract, Funding, Risk, Evidence, Progress) — already integrated with the Z.AI SDK
 - Notifications, audit log with hash chain, per-session JWT revocation
 - NDPR data subject rights (export, delete)
-- Security audit completed (42 vulnerabilities fixed across Critical/High/Medium/Low)
 
 These features are real and live in production but, per hackathon rules, are **not** part of the demo video.
 
-## Hackathon scope (Oct 26 – Nov 4 — what we'll demo)
+## Hackathon scope (Oct 30 – Nov 12 — what we'll demo)
 
-The hackathon work integrates Meta's models into the existing GigSure AI product. The Meta Model API is the only AI provider used in the new code.
+The hackathon work adds **PayPal cross-border funding** to the existing GigSure AI product, alongside the existing AI agents. The PayPal integration is the centerpiece of the demo.
 
-### Meta models used
+### PayPal technologies used
 
-| Model | Where it's used | Why this model |
-|---|---|---|
-| **Muse Spark 1.3** (`muse-spark-1.3`) | 5 of 7 AI assistants: Team Planner, Task Planner, Funding, Evidence, Progress | Agentic + fast responses for advisory tasks |
-| **Muse Wonder 1.0** (`muse-wonder-1.0`) | 2 of 7 AI assistants: Contract, Risk | Multi-step reasoning needed for clause ambiguity detection + cross-referencing tasks/milestones/members for risk |
-| **Muse Voice Transcribe** (`muse-voice-transcribe-1.0`) | Dispute evidence upload — WhatsApp voice notes → searchable transcript | **Killer feature.** Meta's voice model is uniquely strong on Nigerian Pidgin, Yoruba, Hausa, Igbo — languages Western providers (Google, Deepgram) handle poorly. This is the "only Meta can do this" moment. |
-| **Muse Image** (`muse-image-1.0`) | Deliverable preview generation | Helps non-technical clients align with freelancers before work starts |
+| PayPal API / capability | Where it's used |
+|---|---|
+| **Orders API v2** (`POST /v2/checkout/orders`) | Creating cross-border USD payment orders for NGN milestones |
+| **OAuth 2.0 token endpoint** (`POST /v1/oauth2/token`) | Server-to-server authentication with PayPal |
+| **Webhook verification API** (`POST /v1/notifications/verify-webhook-signature`) | Robust signature verification using PayPal's official API (not the older CRC32 scheme) |
+| **Refunds API** (`POST /v2/payments/captures/{id}/refund`) | Processing milestone refunds through PayPal |
+| **Sandbox environment** | All testing uses developer.paypal.com sandbox — no real money moves |
+
+### AI tools used
+
+The hackathon rules say "any AI tool works." GigSure uses the **Z.AI SDK** for its 7 AI assistants (already integrated in the pre-hackathon baseline). The PayPal integration adds a new use case for the existing assistants: **AI-driven cross-border risk analysis** for international PayPal transactions.
 
 ### New files
 
 | File | Purpose |
 |---|---|
-| `src/lib/meta/client.ts` | Meta Model API adapter (auth, retries, timeouts, error handling). Single entry point for all Meta calls. |
-| `src/app/api/ai/voice-transcribe/route.ts` | (Planned) Endpoint to accept an audio upload, transcribe via Muse Voice Transcribe, attach transcript to dispute evidence |
-| `src/app/api/ai/deliverable-preview/route.ts` | (Planned) Endpoint to generate a deliverable preview image via Muse Image |
-| `src/views/AiAssistantView.tsx` | (Planned) New UI showing which Meta model is being used per assistant |
-| `tests/security/meta-adapter.test.ts` | (Planned) Regression tests for the Meta adapter |
+| `src/lib/payments/paypal-provider.ts` (new, ~430 lines) | PayPal provider adapter implementing GigSure's `PaymentProvider` interface — auth, payments, refunds, webhook verification, health check. Cross-border USD→NGN conversion at the platform demo rate (1 USD = ₦1,500). |
+| `src/views/ProjectFundingView.tsx` (modified) | Added `PayPalFundingCard` component — milestone selector, USD amount display, "Pay with PayPal" button, opens PayPal sandbox checkout in a new tab |
 
 ### Modified files
 
 | File | Change |
 |---|---|
-| `src/app/api/ai/assistant/route.ts` | Swapped `z-ai-web-dev-sdk` import for `@/lib/meta/client`. Each assistant now declares which Meta model it uses (Muse Spark default, Muse Wonder for Contract + Risk). Preserved all existing security scaffolding (rate limits, prompt-injection defense via context delimiters, PII sanitization, audit log). |
-| `.env.local` | Added `META_API_KEY` + `META_API_BASE_URL` (gitignored, never committed) |
+| `src/lib/payments/provider-interface.ts` | Added `"paypal"` to the `PaymentProviderName` union type |
+| `src/lib/payments/registry.ts` | Registered `PayPalProvider` — providers can now be `monnify`, `opay`, or `paypal`. Default selection logic updated. |
+| `src/app/api/payments/initiate/route.ts` | Added `paypal` to the provider Zod schema — clients can now POST `{ provider: "paypal" }` |
+| `src/app/api/payments/webhook/[provider]/route.ts` | Added PayPal webhook handling — accepts `/api/payments/webhook/paypal`, normalizes PayPal's snake_case event fields (`event_type`, `create_time`), extracts amount from `resource.amount.total`, maps PayPal event types to GigSure funding statuses |
+| `.env.local` (gitignored) | Added `PAYPAL_ENABLED`, `PAYPAL_ENVIRONMENT`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` placeholders |
 
-## Tooling used during the hackathon
+## PayPal integration architecture
 
-- **Meta Model API** — direct API calls via fetch (no SDK), through the `src/lib/meta/client.ts` adapter
-- **Muse Code** — used for some scaffolding tasks during the build (mentioned in the hackathon guide as a permitted tool)
-- **Z.AI coding agent** — primary coding agent for context continuity with the existing codebase
-- **Vercel** — hosting the live demo deployment (separate `gigsure-hackathon` project)
+### Cross-border payment flow (the demo centerpiece)
 
-## Meta Model API setup
-
-### Base URL
 ```
-https://api.meta.ai/v1
+┌────────────────┐      USD        ┌──────────────┐
+│  International │ ── PayPal ────► │   PayPal     │
+│  Client (US)   │    Checkout     │   Sandbox    │
+└────────────────┘                  └──────┬───────┘
+                                          │ webhook
+                                          ▼
+                              ┌────────────────────┐
+                              │  GigSure webhook   │
+                              │  /api/payments/    │
+                              │  webhook/paypal    │
+                              └─────────┬──────────┘
+                                        │ confirm
+                                        ▼
+                              ┌────────────────────┐    NGN     ┌────────────┐
+                              │  GigSure escrow    │ ─────────► │ Freelancer │
+                              │  (FundingRecord)   │  Monnify   │ bank acct  │
+                              └────────────────────┘   /OPay   └────────────┘
 ```
 
-### Authentication
-```
-Authorization: Bearer LLM_<api_key>
-```
+1. International client clicks "Pay with PayPal" on a NGN-denominated milestone
+2. GigSure converts NGN → USD at the platform demo rate (1 USD = ₦1,500)
+3. Server creates a PayPal Order via `POST /v2/checkout/orders`
+4. PayPal returns an approval URL → client opens PayPal sandbox checkout
+5. Client approves the USD payment in PayPal
+6. PayPal webhook fires at `/api/payments/webhook/paypal` (`PAYMENT.CAPTURE.COMPLETED` event)
+7. Server verifies the webhook via PayPal's official `verify-webhook-signature` API
+8. Funds are recorded in the FundingRecord (in NGN, converted back from USD)
+9. Escrow holds the funds
+10. On milestone completion, Monnify/OPay pays out to the freelancer's bank account in NGN
 
-API keys are prefixed with `LLM_` per https://dev.meta.ai/docs/authentication.
+### Webhook security
 
-### Endpoints used
+PayPal webhook verification uses the **official API** at `POST /v1/notifications/verify-webhook-signature` (not the older CRC32-based scheme). This is more robust because:
 
-| Endpoint | Purpose |
-|---|---|
-| `POST /v1/chat/completions` | OpenAI-compatible chat (Muse Spark, Muse Wonder) |
-| `POST /v1/asr/transcribe` | Voice transcription (Muse Voice Transcribe) |
-| `POST /v1/images/generations` | Image generation (Muse Image) |
-| `GET /v1/models` | Account-status check (used to verify billing is unfrozen before deeper calls) |
+- PayPal handles the cryptographic verification server-side
+- Works with any webhook event type
+- Doesn't require manual certificate fetching + signature computation
 
-### Environment variables (in `.env.local`, gitignored)
+The verification call sends PayPal's transmission headers (`paypal-transmission-id`, `paypal-transmission-sig`, `paypal-cert-url`, `paypal-auth-algo`, `paypal-transmission-time`) plus the webhook ID + the raw event body. PayPal responds with `verification_status: "SUCCESS"` or `"FAILURE"`.
+
+If `PAYPAL_WEBHOOK_ID` is not configured, the verifier fails safe (returns `valid: false`) — no unverified webhook is ever processed.
+
+## Environment variables (in `.env.local`, gitignored)
 
 ```bash
-META_API_KEY=LLM_xxxxxxxxxxxxxxxx
-META_API_BASE_URL=https://api.meta.ai/v1
-# Optional: use Contributor mode (cheaper, but Meta may use content for training)
-# META_USE_CONTRIBUTOR_MODE=true
+# PayPal (PayPal AI Hackathon — sandbox only)
+PAYPAL_ENABLED=true
+PAYPAL_ENVIRONMENT=sandbox  # or "production" for live (not used in hackathon)
+PAYPAL_CLIENT_ID=<from developer.paypal.com dashboard>
+PAYPAL_CLIENT_SECRET=<from developer.paypal.com dashboard>
+PAYPAL_WEBHOOK_ID=<from developer.paypal.com → Apps & Credentials → Webhooks>
 ```
 
 ### Vercel environment variables (production demo)
@@ -117,8 +138,11 @@ When deploying to Vercel, set these in the Vercel project settings:
 DATABASE_URL=<your-postgres-url>
 NEXTAUTH_SECRET=<32+ char random string>
 NEXTAUTH_URL=<your-vercel-domain>
-META_API_KEY=LLM_xxxxxxxxxxxxxxxx
-META_API_BASE_URL=https://api.meta.ai/v1
+PAYPAL_ENABLED=true
+PAYPAL_ENVIRONMENT=sandbox
+PAYPAL_CLIENT_ID=<from developer.paypal.com>
+PAYPAL_CLIENT_SECRET=<from developer.paypal.com>
+PAYPAL_WEBHOOK_ID=<from developer.paypal.com>
 GOOGLE_CLIENT_ID=<if-google-oauth-enabled>
 GOOGLE_CLIENT_SECRET=<if-google-oauth-enabled>
 SMTP_URL=<if-email-enabled>
@@ -126,15 +150,15 @@ SMTP_URL=<if-email-enabled>
 
 ## Demo script (3-minute video)
 
-The 3-minute demo shows only new Meta-powered features.
+The 3-min demo shows only new PayPal-powered features. Existing GigSure infrastructure (auth, projects, contracts, escrow) is setup, not showcase.
 
-| Time | Demo beat | Meta model |
+| Time | Demo beat | Tech shown |
 |---|---|---|
-| 0:00 – 0:30 | **"Why this, why now"** — Ahmad introduces himself (Lagos-based, cybersecurity bug hunter + freelancer pain firsthand) and the problem: Nigerian freelancers get burned by vague scopes, unpaid milestones, voice-only evidence that gets lost. | — |
-| 0:30 – 1:15 | **AI Contract Review** — User opens a project's contract, clicks "Review with AI". Muse Wonder flags ambiguous clauses + liability chains. | Muse Wonder 1.0 |
-| 1:15 – 2:00 | **Voice Evidence Transcription** — User uploads a WhatsApp voice note (in Pidgin/Yoruba) as dispute evidence. Muse Voice Transcribe transcribes it into the timeline. The transcript is searchable. | Muse Voice Transcribe 1.0 |
-| 2:00 – 2:30 | **AI Project Risk** — User opens a project dashboard, clicks "Analyze Risks". Muse Wonder identifies overdue tasks + unclear responsibilities. | Muse Wonder 1.0 |
-| 2:30 – 3:00 | **Team Planner + ask** — User creates a new project, asks Muse Spark to suggest roles. Wrap with team + submission URL. | Muse Spark 1.3 |
+| 0:00 – 0:30 | **"Why this, why now"** — Ahmad introduces himself (Lagos-based, cybersecurity bug hunter) and the problem: Nigerian independent professionals lose money to FX depreciation and unreliable cross-border payment infrastructure. Upwork doesn't serve this market. | — |
+| 0:30 – 1:15 | **Open project, view milestone** — Show a project with a ₦450,000 milestone. Highlight that the existing NGN escrow is in place. | Existing GigSure |
+| 1:15 – 2:15 | **Pay with PayPal** — Click "Pay with PayPal" on the milestone. Show the USD conversion (₦450,000 → $300 at 1 USD = ₦1,500). PayPal sandbox opens. Approve the test payment. Webhook fires. Milestone status updates to "Funded". | PayPal Orders API v2 + Webhook API |
+| 2:15 – 2:45 | **AI assistant analyzes the cross-border transaction** — Open the Funding Assistant. Ask "What's the status of this funding?" The AI summarizes the cross-border flow, the FX rate used, and confirms escrow is held. | Z.AI SDK (existing) + new PayPal data |
+| 2:45 – 3:00 | **Wrap** — Recap: cross-border escrow via PayPal + AI agents that understand the transaction. Built for Africa's independent services market. | — |
 
 ## Team
 
@@ -144,30 +168,50 @@ The 3-minute demo shows only new Meta-powered features.
 
 ## Verification steps for judges
 
-1. **Confirm Meta models are integrated:**
+1. **Confirm PayPal is integrated:**
    ```bash
-   git diff pre-hackathon-2026-10-26..main -- src/app/api/ai/assistant/route.ts
+   git diff pre-paypal-hackathon-2026-10-30..main -- src/lib/payments/paypal-provider.ts
    ```
-   Should show: `import ZAI from "z-ai-web-dev-sdk"` removed, `import { chatCompletion, META_MODELS } from "@/lib/meta/client"` added, and `cfg.model` declarations per assistant.
+   Should show the new ~430-line PayPal provider with OAuth, Orders API, Refunds API, and webhook verification.
 
-2. **Confirm new Meta adapter exists:**
+2. **Confirm PayPal is registered:**
    ```bash
-   cat src/lib/meta/client.ts | head -50
+   git diff pre-paypal-hackathon-2026-10-30..main -- src/lib/payments/registry.ts
+   ```
+   Should show `PayPalProvider` imported + registered alongside Monnify + OPay.
+
+3. **Confirm new UI exists:**
+   ```bash
+   git diff pre-paypal-hackathon-2026-10-30..main -- src/views/ProjectFundingView.tsx
+   ```
+   Should show the new `PayPalFundingCard` component + "Pay with PayPal" button.
+
+4. **Confirm webhook handler accepts PayPal:**
+   ```bash
+   git diff pre-paypal-hackathon-2026-10-30..main -- src/app/api/payments/webhook/[provider]/route.ts
    ```
 
-3. **Confirm live deployment works:**
+5. **Confirm live deployment works:**
    - Visit the Vercel deployment URL (TBD)
    - Login (use the demo account)
-   - Open a project → AI assistant → see Muse Spark / Muse Wonder responses
-
-4. **Confirm voice transcription works:**
-   - Open a dispute → upload a voice note (sample provided in demo)
-   - See the transcript appear in the timeline
+   - Open a project → Funding tab → see "Pay with PayPal" card
+   - Click "Pay $X.XX with PayPal" → PayPal sandbox opens
 
 ## Cost guardrails
 
-- Default `max_tokens: 800` per assistant call (~$0.003 on Standard Muse Spark 1.3)
-- Hard cap at 4000 tokens per call (~$0.017)
-- Per-user rate limit: 20 calls / hour
-- Per-IP rate limit: 50 calls / hour
-- Estimated total API spend during hackathon: < $20 of the $150 credits
+- PayPal sandbox is **free** — no real money moves, no per-transaction cost
+- AI assistants: max 800 tokens per call (~$0.003/call on Z.AI SDK)
+- Per-user AI rate limit: 20 calls / hour
+- Estimated total spend during hackathon: $0 (PayPal sandbox) + ~$5 (AI calls)
+
+## What this enables
+
+For the first time, an international client can:
+
+1. Hire a Nigerian professional on GigSure
+2. Fund a milestone in **USD via PayPal** (the currency they have)
+3. The Nigerian professional receives **NGN via Monnify/OPay** (the currency they need)
+4. **AI agents** handle the cross-border transaction analysis, contract risk review, and dispute resolution
+5. **Escrow** holds funds under GigSure Payment Protection until milestones are met
+
+No Western platform has this. Upwork doesn't serve this market. Stripe doesn't process NGN payouts. This is a novel capability enabled by the PayPal + Z.AI integration.

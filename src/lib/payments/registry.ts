@@ -1,12 +1,14 @@
 /**
  * Payment provider registry — manages all available providers.
  *
- * Live providers only (Monnify + OPay). No mock fallback — if no real provider
- * is configured, all payment-related operations will throw a clear error
- * directing the operator to configure MONNIFY_* or OPAY_* env vars.
+ * Live providers: Monnify, OPay, PayPal.
+ *
+ * HACKATHON INTEGRATION (Oct 30 – Nov 12, 2026):
+ *   PayPal added for the PayPal AI Hackathon. Sandbox-only by default —
+ *   no real money moves, perfect for cross-border demo (USD → NGN escrow).
  *
  * Configuration sources:
- *   - Environment variables (MONNIFY_*, OPAY_*) — used at server boot.
+ *   - Environment variables (MONNIFY_*, OPAY_*, PAYPAL_*) — used at server boot.
  *   - PaymentSettings table (admin-managed via /api/admin/payment-settings) —
  *     overrides env at runtime when set.
  *
@@ -19,6 +21,7 @@
 import type { PaymentProvider, PaymentProviderName } from "./provider-interface";
 import { MonnifyProvider } from "./monnify-provider";
 import { OpayProvider } from "./opay-provider";
+import { PayPalProvider } from "./paypal-provider";
 import { PaymentProviderError } from "./errors";
 import { db } from "@/lib/db";
 
@@ -60,6 +63,13 @@ function getProviders(): Map<PaymentProviderName, PaymentProvider> {
     map.set("opay", opay);
   }
 
+  // HACKATHON: register PayPal if configured. Sandbox-friendly — uses test
+  // credentials from developer.paypal.com, no real money moves.
+  const paypal = new PayPalProvider();
+  if (paypal.isConfigured()) {
+    map.set("paypal", paypal);
+  }
+
   _providers = map;
   return map;
 }
@@ -80,11 +90,15 @@ export function getProvider(name: PaymentProviderName): PaymentProvider {
   const providers = getProviders();
   const provider = providers.get(name);
   if (!provider) {
+    const envVarHint =
+      name === "monnify"
+        ? "MONNIFY_API_KEY, MONNIFY_SECRET_KEY, MONNIFY_CONTRACT_CODE"
+        : name === "opay"
+          ? "OPAY_MERCHANT_ID, OPAY_PUBLIC_KEY, OPAY_PRIVATE_KEY"
+          : "PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET";
     throw new PaymentProviderError(
       `Payment provider '${name}' is not configured. Set the corresponding ` +
-        (name === "monnify"
-          ? "MONNIFY_API_KEY, MONNIFY_SECRET_KEY, MONNIFY_CONTRACT_CODE"
-          : "OPAY_MERCHANT_ID, OPAY_PUBLIC_KEY, OPAY_PRIVATE_KEY") +
+        envVarHint +
         " env vars and enable the provider.",
       503,
     );
@@ -98,7 +112,7 @@ export function getProvider(name: PaymentProviderName): PaymentProvider {
  * Selection order:
  *   1. Default provider from PaymentSettings DB table (if set + enabled).
  *   2. PAYMENTS_DEFAULT_PROVIDER env var (default: "monnify"), if enabled.
- *   3. First enabled + configured provider (Monnify preferred over OPay).
+ *   3. First enabled + configured provider (Monnify preferred over OPay/PayPal).
  *   4. Throws PaymentProviderError if no provider is configured.
  *
  * This is async because it reads PaymentSettings from the DB on every call.
@@ -110,9 +124,11 @@ export async function getDefaultProvider(): Promise<PaymentProvider> {
   // 1. DB-configured default
   if (dbSettings?.defaultProvider) {
     const dbName = dbSettings.defaultProvider as PaymentProviderName;
-    if (dbName === "monnify" || dbName === "opay") {
+    if (dbName === "monnify" || dbName === "opay" || dbName === "paypal") {
       const dbEnabled =
-        dbName === "monnify" ? dbSettings.monnifyEnabled : dbSettings.opayEnabled;
+        dbName === "monnify" ? dbSettings.monnifyEnabled
+        : dbName === "opay" ? dbSettings.opayEnabled
+        : true; // HACKATHON: PayPal is enabled via PAYPAL_ENABLED env var
       const provider = providers.get(dbName);
       if (provider && dbEnabled && provider.isEnabled()) {
         return provider;
@@ -122,15 +138,15 @@ export async function getDefaultProvider(): Promise<PaymentProvider> {
 
   // 2. Env-configured default
   const envDefault = (process.env.PAYMENTS_DEFAULT_PROVIDER ?? "monnify") as PaymentProviderName;
-  if (envDefault === "monnify" || envDefault === "opay") {
+  if (envDefault === "monnify" || envDefault === "opay" || envDefault === "paypal") {
     const provider = providers.get(envDefault);
     if (provider?.isEnabled()) {
       return provider;
     }
   }
 
-  // 3. First enabled provider
-  for (const name of ["monnify", "opay"] as PaymentProviderName[]) {
+  // 3. First enabled provider (Monnify → OPay → PayPal)
+  for (const name of ["monnify", "opay", "paypal"] as PaymentProviderName[]) {
     const provider = providers.get(name);
     if (provider?.isEnabled()) {
       return provider;
@@ -139,9 +155,10 @@ export async function getDefaultProvider(): Promise<PaymentProvider> {
 
   // 4. None configured — throw with a helpful error message.
   throw new PaymentProviderError(
-    "No payment provider is configured. Configure Monnify or OPay via the " +
-      "Admin → Gateway tab, or set MONNIFY_API_KEY, MONNIFY_SECRET_KEY, " +
-      "MONNIFY_CONTRACT_CODE (and MONNIFY_ENABLED=true) environment variables.",
+    "No payment provider is configured. Configure Monnify, OPay, or PayPal via " +
+      "the Admin → Gateway tab, or set the corresponding environment variables " +
+      "(MONNIFY_*, OPAY_*, or PAYPAL_*). For PayPal (sandbox for hackathon): " +
+      "PAYPAL_ENABLED=true, PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET.",
     503,
   );
 }
