@@ -4,7 +4,7 @@
  * Body: {
  *   projectId: string,
  *   milestoneId: string,
- *   provider?: "monnify" | "opay"  (defaults to system default)
+ *   provider?: "monnify" | "opay" | "paypal"  (defaults to system default)
  * }
  *
  * Flow:
@@ -14,6 +14,11 @@
  *   4. Call provider's initiatePayment()
  *   5. Store provider reference + checkout URL
  *   6. Return checkout URL to frontend
+ *
+ * HACKATHON INTEGRATION (PayPal AI Hackathon):
+ *   Added "paypal" as a provider option. Cross-border flow: international
+ *   clients pay in USD via PayPal sandbox; funds land in the existing NGN
+ *   escrow. See src/lib/payments/paypal-provider.ts for the conversion logic.
  */
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail } from "@/lib/api";
@@ -30,7 +35,7 @@ import { z } from "zod";
 const Schema = z.object({
   projectId: z.string().cuid(),
   milestoneId: z.string().cuid(),
-  provider: z.enum(["monnify", "opay"]).optional(),
+  provider: z.enum(["monnify", "opay", "paypal"]).optional(),
 });
 
 export const POST = apiRoute(async (req) => {
