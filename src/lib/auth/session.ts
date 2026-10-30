@@ -1,5 +1,19 @@
 /**
  * Server-side session helper. Re-exports getServerSession with our config.
+ *
+ * OWASP Top 10 — A01 Broken Access Control defense:
+ *   requireUserId() now ALSO checks accountStatus === "ACTIVE" server-side.
+ *   Previously, only the client-side Router checked accountStatus, so a
+ *   PENDING_REGISTRATION user could call any /api/* endpoint directly with
+ *   their JWT and bypass the gating. This is a real Broken Access Control
+ *   vulnerability — fixed here by enforcing it server-side at the entry point.
+ *
+ *   Whitelist of endpoints that PENDING_REGISTRATION users CAN call:
+ *     - /api/auth/complete-registration (they need this to activate)
+ *     - /api/me                          (the registration page loads profile)
+ *     - /api/auth/*                      (NextAuth's own endpoints)
+ *
+ *   Everything else returns 403 if the user isn't ACTIVE.
  */
 import { getServerSession } from "next-auth/next";
 import { headers } from "next/headers";
@@ -13,35 +27,92 @@ export async function getSession(): Promise<Session | null> {
 }
 
 /**
+ * Path prefix whitelist for endpoints that PENDING_REGISTRATION users can
+ * call before accepting Terms of Service. Everything else requires ACTIVE.
+ *
+ * NOTE: This is checked on every requireUserId() call, so it must be fast.
+ * The whitelist is small + uses startsWith() which is O(n) on path length.
+ */
+const PENDING_ALLOWED_PATHS = [
+  "/api/auth/",          // NextAuth endpoints (signout, session, etc.)
+  "/api/me",             // Profile loading on the registration page
+];
+
+function isPathAllowedForPending(path: string): boolean {
+  return PENDING_ALLOWED_PATHS.some((p) => path.startsWith(p));
+}
+
+/**
  * Returns the authenticated user ID, or throws AuthnError.
+ *
+ * OWASP A01 fix: also checks accountStatus === "ACTIVE" server-side.
+ * PENDING_REGISTRATION users are rejected with 403 unless the request
+ * path is in the whitelist (e.g. /api/auth/complete-registration).
+ *
  * Use this at the top of every protected API route handler.
  */
 export async function requireUserId(): Promise<string> {
   const session = await getSession();
   if (!session?.user?.id) throw new AuthnError();
-  return session.user.id;
-}
 
-/**
- * SECURITY: Like requireUserId, but ALSO checks that the user's
- * accountStatus is ACTIVE. This blocks PENDING_REGISTRATION users
- * from calling mutating endpoints before accepting Terms of Service.
- *
- * Use this instead of requireUserId on ALL endpoints that perform
- * mutations, access PII, or consume billable resources — EXCEPT
- * /api/auth/complete-registration and /api/me.
- */
-export async function requireActiveUser(): Promise<string> {
-  const userId = await requireUserId();
+  const userId = session.user.id;
+
+  // OWASP A01: server-side enforcement of accountStatus.
+  // We DO trust the session's accountStatus (set by the jwt callback from DB),
+  // but we re-check the DB on each call to close any race window where the
+  // session is stale (e.g. admin just suspended the user).
+  const path = await getRequestPath();
   const user = await db.user.findUnique({
     where: { id: userId },
     select: { accountStatus: true },
   });
-  if (!user || user.accountStatus !== "ACTIVE") {
+
+  if (!user) {
+    // User was deleted between JWT issuance and this call
+    throw new AuthnError("User not found", 401);
+  }
+
+  if (user.accountStatus !== "ACTIVE") {
+    // PENDING_REGISTRATION users can ONLY call whitelisted endpoints.
+    // Anything else = 403 (account not yet active).
+    if (user.accountStatus === "PENDING_REGISTRATION" && isPathAllowedForPending(path)) {
+      return userId;
+    }
+    // All other non-ACTIVE statuses (SUSPENDED, DELETED, etc.) = blocked everywhere
     throw new AuthnError("Account not active", 403);
   }
+
   return userId;
 }
+
+/**
+ * Helper: read the request path from Next.js headers.
+ * In Next.js 15+ App Router, headers() is async.
+ */
+async function getRequestPath(): Promise<string> {
+  try {
+    const h = await headers();
+    return h.get("x-invoke-path") ?? h.get("x-url") ?? "/";
+  } catch {
+    return "/";
+  }
+}
+
+/**
+ * SECURITY: Like requireUserId, but ALSO checks that the user's
+ * accountStatus is ACTIVE. Now redundant with requireUserId (which also
+ * checks ACTIVE), but kept for backward compatibility + explicit intent.
+ *
+ * Use this on endpoints that perform mutations, access PII, or consume
+ * billable resources. It makes the security intent explicit in the code.
+ */
+export async function requireActiveUser(): Promise<string> {
+  // requireUserId() now also enforces ACTIVE, so this is equivalent.
+  // Kept as a separate function so the security intent is explicit at
+  // the call site + future-proof if requireUserId's behavior changes.
+  return requireUserId();
+}
+
 
 /** Returns the authenticated user (with sensitive fields), or null. */
 export async function getAuthenticatedUser() {

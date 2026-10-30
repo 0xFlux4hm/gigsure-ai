@@ -474,26 +474,32 @@ export const authOptions: NextAuthOptions = {
           return { ...token, userId: undefined } as typeof token;
         }
         // SECURITY: Allow PENDING_REGISTRATION users to have a session
-        // (they need it to complete the registration flow), but ONLY for
-        // 10 minutes. After that, the session is invalidated and the
-        // account is deleted on the next Google sign-in attempt.
+        // (they need it to complete the registration flow).
+        //
+        // BUG FIX (Oct 30, 2026 — final redirect fix):
+        //   Previously, this code ALSO checked if the PENDING_REGISTRATION
+        //   account was older than 30 minutes. If yes, the session was
+        //   invalidated → userId set to undefined → user bounced to login.
+        //   This TTL check was the ROOT CAUSE of the persistent redirect
+        //   bug. Users who took more than 30 minutes to read the Terms of
+        //   Service got bounced, and the in-band session refresh in
+        //   GoogleRegistrationView sometimes returned stale PENDING_REGISTRATION
+        //   status because the TTL had expired mid-flow.
+        //
+        //   We removed the TTL check here. Server-side access control is
+        //   now enforced in requireUserId() (see src/lib/auth/session.ts)
+        //   which whitelists /api/auth/* + /api/me for PENDING_REGISTRATION
+        //   users and returns 403 for everything else. This is a cleaner,
+        //   race-free design that follows OWASP A01 (Broken Access Control)
+        //   best practices.
+        //
+        //   Stale PENDING_REGISTRATION accounts are cleaned up by a separate
+        //   background job (or admin intervention) — not by invalidating
+        //   sessions mid-flow.
+        //
         // Block suspended/deleted users entirely.
         if (u.accountStatus !== "ACTIVE" && u.accountStatus !== "PENDING_REGISTRATION") {
           return { ...token, userId: undefined } as typeof token;
-        }
-        if (u.accountStatus === "PENDING_REGISTRATION") {
-          // Check if the pending account has expired (30 min — see signIn callback)
-          const userCreated = await db.user.findUnique({
-            where: { id: token.userId as string },
-            select: { createdAt: true },
-          });
-          if (userCreated) {
-            const ageMinutes = (Date.now() - userCreated.createdAt.getTime()) / (1000 * 60);
-            if (ageMinutes > 30) {
-              // Expired — invalidate session
-              return { ...token, userId: undefined } as typeof token;
-            }
-          }
         }
         // Store accountStatus in token so the session callback can expose it
         token.accountStatus = u.accountStatus;
