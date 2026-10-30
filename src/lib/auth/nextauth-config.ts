@@ -53,6 +53,14 @@ export const authOptions: NextAuthOptions = {
     //   __Host-   → browser refuses to set the cookie from any subdomain (no Domain attr, Path=/)
     // NextAuth v4 normally applies these automatically when useSecureCookies=true,
     // but our explicit override was stripping them. Restore them here.
+    //
+    // BUG FIX (Oct 29, 2026): previously, the `options` object was missing
+    // `maxAge`. Without `maxAge`, browsers treat the cookie as a "session
+    // cookie" that lives until the browser is closed — the 7-day JWT
+    // maxAge in `session.maxAge` was effectively ignored at the browser
+    // level, so users stayed logged in forever (until browser close).
+    // Setting `maxAge` to match `session.maxAge` ensures the browser also
+    // discards the cookie after 7 days of inactivity.
     sessionToken: {
       name: process.env.NODE_ENV === "production"
         ? "__Secure-gigsure_session_token"
@@ -62,6 +70,7 @@ export const authOptions: NextAuthOptions = {
         sameSite: "lax",
         path: "/",
         secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 24 * 7, // 7 days — matches session.maxAge above
       },
     },
     csrfToken: {
@@ -73,6 +82,8 @@ export const authOptions: NextAuthOptions = {
         sameSite: "lax",
         path: "/",
         secure: process.env.NODE_ENV === "production",
+        // CSRF cookie should also expire — default to same 7-day window.
+        maxAge: 60 * 60 * 24 * 7,
       },
     },
   },
@@ -439,6 +450,18 @@ export const authOptions: NextAuthOptions = {
       // this JWT was issued, force re-authentication by returning an empty
       // token (NextAuth treats this as "not authenticated").
       if (token.userId && token.issuedAt) {
+        // BUG FIX (Oct 29, 2026): enforce JWT expiry at the callback level.
+        // NextAuth sets `token.exp` based on `jwt.maxAge` (7 days above), but
+        // the jwt() callback itself was never checking it — so even after the
+        // JWT "expired", the callback kept returning the token as long as the
+        // user existed + account was active. This made sessions effectively
+        // never expire on the server side, even after we fixed the cookie
+        // maxAge. Now we explicitly reject tokens past their `exp`.
+        //
+        // `token.exp` is in seconds (Unix epoch); compare against current time.
+        if (typeof token.exp === "number" && token.exp * 1000 < Date.now()) {
+          return { ...token, userId: undefined } as typeof token;
+        }
         const u = await db.user.findUnique({
           where: { id: token.userId as string },
           select: { passwordChangedAt: true, accountStatus: true },
@@ -595,5 +618,11 @@ declare module "next-auth/jwt" {
     issuedAt?: number;
     jti?: string;
     accountStatus?: string;
+    // BUG FIX (Oct 29, 2026): `exp` is set by NextAuth core based on
+    // `jwt.maxAge`. We declare it explicitly so the jwt() callback can
+    // read it without TS errors. Without this, NextAuth's types
+    // included `exp` only as an implicit any.
+    exp?: number;
+    iat?: number;
   }
 }
