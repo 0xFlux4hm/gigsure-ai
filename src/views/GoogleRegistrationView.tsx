@@ -11,7 +11,7 @@ import { ShieldCheck, Loader2, Check, User, Mail, FileText } from "lucide-react"
 
 export function GoogleRegistrationView() {
   const { navigate } = useNav();
-  const { update: updateSession } = useSession();
+  const { update: updateSession, data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
@@ -47,38 +47,45 @@ export function GoogleRegistrationView() {
         acceptedTerms: true,
       });
 
-      // SECURITY FIX (post-registration redirect bug):
+      // SECURITY FIX (post-registration redirect bug, fully fixed Oct 30, 2026):
       //
-      // Previously this used `setTimeout(() => window.location.href = "/?view=dashboard", 1500)`.
-      // The hard reload worked IF the JWT was still valid — but the
-      // complete-registration route used to also bump `passwordChangedAt`,
-      // which invalidated the JWT in the next jwt() callback. The user
-      // landed on /?view=dashboard with no session → bounced to login.
+      // HISTORY: this flow broke THREE TIMES before:
+      //   1. complete-registration bumped passwordChangedAt → JWT invalidated
+      //   2. Even after that fix, used setTimeout + window.location.href →
+      //      hard reload races with session cookie set
+      //   3. Even after the in-band updateSession() fix, the cached client
+      //      session sometimes still shows PENDING_REGISTRATION, causing the
+      //      Router to bounce the user back to this page
       //
-      // Now that the route no longer bumps passwordChangedAt, the existing
-      // JWT stays valid — but the cached client session still shows
-      // accountStatus = "PENDING_REGISTRATION". We must refresh the session
-      // in-band before navigating, otherwise the Router in app/page.tsx
-      // would see the stale PENDING_REGISTRATION status and bounce the
-      // user right back here.
-      //
-      // `await updateSession()` triggers NextAuth's jwt() callback, which
-      // re-reads accountStatus from the DB (nextauth-config.ts:442-444)
-      // and propagates the new ACTIVE status into the client session.
+      // CURRENT FIX (comprehensive):
+      //   1. Call complete-registration (server marks user ACTIVE in DB)
+      //   2. Force-useSession refresh via updateSession() — this triggers
+      //      jwt() callback which re-reads accountStatus from DB
+      //   3. VERIFY the new session has accountStatus === "ACTIVE"
+      //   4. If yes → navigate via SPA (no hard reload)
+      //   5. If no (refresh failed or returned stale status) → fall back to
+      //      hard reload, which forces a fresh /api/auth/session fetch
+      let refreshedSession;
       try {
-        await updateSession();
+        refreshedSession = await updateSession();
       } catch {
-        // If the in-band refresh fails (network blip, etc.), fall back to
-        // a hard reload — the page reload will re-fetch /api/auth/session
-        // and pick up the ACTIVE status from the DB.
+        // Network error — hard reload picks up the new state from DB
+        window.location.href = "/?view=dashboard";
+        return;
+      }
+
+      // Verify the refreshed session has ACTIVE status. If not, hard reload
+      // as a final safety net.
+      const newStatus = (refreshedSession?.user as { accountStatus?: string } | undefined)?.accountStatus
+        ?? (session?.user as { accountStatus?: string } | undefined)?.accountStatus;
+      if (newStatus !== "ACTIVE") {
+        // Stale session — hard reload will re-fetch from /api/auth/session
         window.location.href = "/?view=dashboard";
         return;
       }
 
       setSuccess(true);
       // Brief success message, then navigate in-app (no hard reload).
-      // Using navigate() keeps the SPA state and avoids the
-      // loading flash of a full page reload.
       setTimeout(() => {
         navigate({ view: "dashboard" });
       }, 1200);

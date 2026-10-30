@@ -290,7 +290,10 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (existingUser) {
-          // Check for EXPIRED PENDING_REGISTRATION accounts (older than 10 minutes)
+          // Check for EXPIRED PENDING_REGISTRATION accounts (older than 30 minutes)
+          // BUG FIX (Oct 30, 2026): comments said "10 minutes" but code used 30.
+          // Made it consistently 30 minutes everywhere — gives users enough
+          // time to read the Terms of Service without being bounced.
           if (existingUser.accountStatus === "PENDING_REGISTRATION") {
             const ageMinutes = (Date.now() - existingUser.createdAt.getTime()) / (1000 * 60);
             if (ageMinutes > 30) {
@@ -302,9 +305,9 @@ export const authOptions: NextAuthOptions = {
               });
               // Fall through to create a fresh account
             } else {
-              // Recent pending account (within 10 min) — block sign-in.
+              // Recent pending account (within 30 min) — block sign-in.
               // The user who created it should complete registration.
-              // If they lost their session, they must wait 10 min for expiry.
+              // If they lost their session, they must wait 30 min for expiry.
               logSecurityEvent("warn", "auth.google_pending_active", {
                 email,
                 ageMinutes: Math.round(ageMinutes),
@@ -479,7 +482,7 @@ export const authOptions: NextAuthOptions = {
           return { ...token, userId: undefined } as typeof token;
         }
         if (u.accountStatus === "PENDING_REGISTRATION") {
-          // Check if the pending account has expired (10 min)
+          // Check if the pending account has expired (30 min — see signIn callback)
           const userCreated = await db.user.findUnique({
             where: { id: token.userId as string },
             select: { createdAt: true },

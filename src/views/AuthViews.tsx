@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNav } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
@@ -204,6 +204,7 @@ function GoogleDivider() {
 
 function LoginForm() {
   const { navigate } = useNav();
+  const { update: updateSession } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -219,13 +220,35 @@ function LoginForm() {
       redirect: false,
       callbackUrl: "/?view=dashboard",
     });
-    setLoading(false);
     if (res?.error) {
+      setLoading(false);
       setError("Invalid email or password. Please try again.");
       return;
     }
     if (res?.ok) {
-      window.location.href = res.url ?? "/?view=dashboard";
+      // BUG FIX (Oct 30, 2026): previously used
+      //   window.location.href = res.url ?? "/?view=dashboard";
+      // which is a HARD navigation. Hard navigation forces a full page
+      // reload, and the NextAuth session cookie might not be fully set yet
+      // when the new page loads → Router sees session=null → bounces to
+      // login. Reported as: "login succeeds but doesn't redirect to dashboard".
+      //
+      // Fix: refresh the session IN-BAND via useSession().update(), then
+      // navigate via the SPA router. This guarantees the client has a fresh
+      // session before the Router checks it.
+      try {
+        await updateSession();
+      } catch {
+        // If the in-band refresh fails (rare), fall back to a hard reload.
+        // The session cookie should be set by the time the new page loads.
+        window.location.href = res.url ?? "/?view=dashboard";
+        return;
+      }
+      setLoading(false);
+      navigate({ view: "dashboard" });
+    } else {
+      setLoading(false);
+      setError("Login failed. Please try again.");
     }
   };
 
@@ -293,6 +316,7 @@ function LoginForm() {
 
 function RegisterForm() {
   const { navigate } = useNav();
+  const { update: updateSession } = useSession();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -326,8 +350,17 @@ function RegisterForm() {
           callbackUrl: "/?view=dashboard",
         });
         if (signInResult?.ok) {
-          // Redirect to dashboard on successful auto-login
-          window.location.href = signInResult.url ?? "/?view=dashboard";
+          // BUG FIX (Oct 30, 2026): use in-band session refresh + SPA navigate
+          // instead of hard window.location.href navigation. Same reason as
+          // LoginForm — hard navigation can race with the session cookie set.
+          try {
+            await updateSession();
+          } catch {
+            window.location.href = signInResult.url ?? "/?view=dashboard";
+            return;
+          }
+          setLoading(false);
+          navigate({ view: "dashboard" });
         } else {
           // Auto-login failed — email verification is required before login.
           // Show a clear message about whether the email was actually sent.
