@@ -341,8 +341,12 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
     api
       .get<{ milestones: Milestone[] }>(`/api/projects/${projectId}/milestones`)
       .then((res) => {
+        // HACKATHON: only show milestones that can be funded via PayPal.
+        // - DRAFT, AWAITING_FUNDING → fully fundable
+        // - FUNDED → also fundable (top-up / additional funding) so the demo
+        //   works even if the milestone was previously funded via NGN bank transfer
         const fundable = (res.milestones ?? []).filter((m) =>
-          ["DRAFT", "AWAITING_FUNDING"].includes(m.status),
+          ["DRAFT", "AWAITING_FUNDING", "FUNDED"].includes(m.status),
         );
         setMilestones(fundable);
         if (fundable.length > 0) setSelectedId(fundable[0].id);
@@ -400,8 +404,29 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
 
   if (milestones.length === 0) {
     return (
-      <div className="text-sm text-muted-foreground py-3">
-        No milestones awaiting funding. Create a milestone first to use PayPal.
+      <div className="space-y-3">
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+          <p className="font-medium text-amber-700 dark:text-amber-300 mb-2">
+            No milestones available for PayPal funding
+          </p>
+          <p className="text-xs text-muted-foreground mb-3">
+            PayPal funding requires milestones in <strong>Draft</strong>, <strong>Awaiting Funding</strong>, or
+            <strong> Funded</strong> status. Your project either has no milestones yet, or all milestones are
+            already past the funding stage (Submitted / Approved / Released).
+          </p>
+          <div className="text-xs space-y-1">
+            <div className="font-medium">To demo PayPal funding:</div>
+            <ol className="list-decimal list-inside space-y-1 text-muted-foreground pl-2">
+              <li>Open the <strong>Milestones</strong> tab in the sidebar</li>
+              <li>Create a new milestone with any NGN amount (e.g., ₦450,000)</li>
+              <li>Return to this <strong>Funding</strong> tab</li>
+              <li>The new milestone will appear in the dropdown below</li>
+            </ol>
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Need a quick test? Create a milestone titled "Logo design" for ₦150,000 — that converts to $100 USD via PayPal.
+        </div>
       </div>
     );
   }
