@@ -1,6 +1,18 @@
 /**
  * AI assistant endpoints.
  *
+ * HACKATHON FIX (Oct 30, 2026):
+ *   Previously called `ZAI.create()` which reads config from a `.z-ai-config`
+ *   file at /etc/.z-ai-config or ~/.z-ai-config. On Vercel serverless, those
+ *   paths don't exist → ZAI.create() throws → route catches the error and
+ *   returns the deterministic fallback. From the user's perspective, the AI
+ *   was "not working" — every assistant returned the canned fallback message.
+ *
+ *   Fix: use the new getZai() wrapper in src/lib/ai/zai-client.ts which
+ *   reads config from environment variables (ZAI_API_KEY, ZAI_BASE_URL, etc.)
+ *   that you set in Vercel Project Settings. This works on serverless because
+ *   env vars are always available — no file system access needed.
+ *
  * Per spec section 20:
  *   - 7 assistant types: TEAM_PLANNER, TASK_PLANNER, CONTRACT, FUNDING, RISK, EVIDENCE, PROGRESS
  *   - Authorization enforced before data retrieval
@@ -9,7 +21,7 @@
  *   - Timeouts, size limits, fallback behavior
  *   - Records AI activity log (without sensitive data in plaintext)
  */
-import ZAI from "z-ai-web-dev-sdk";
+import { getZai, isZaiConfigured } from "@/lib/ai/zai-client";
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
@@ -242,7 +254,11 @@ export const POST = apiRoute(async (req) => {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const zai = await ZAI.create();
+    // HACKATHON FIX (Oct 30, 2026): use getZai() instead of ZAI.create().
+    // The wrapper reads config from env vars (ZAI_API_KEY etc.) which work
+    // on Vercel serverless. ZAI.create() reads from /etc/.z-ai-config which
+    // doesn't exist on serverless → throws → fallback was always used.
+    const zai = getZai();
     const completion = await zai.chat.completions.create({
       messages: [
         { role: "system", content: cfg.systemPrompt },
@@ -261,7 +277,20 @@ export const POST = apiRoute(async (req) => {
       message: (err as Error)?.message,
     });
     fallbackUsed = true;
-    response = generateFallback(parsed.data.assistant, context);
+    // HACKATHON FIX (Oct 30, 2026): if the error is "ZAI_API_KEY not set",
+    // give a clear actionable message instead of the generic fallback.
+    // This helps the operator (you) see at a glance that env vars are missing
+    // on Vercel — instead of debugging "why is AI always returning fallback?"
+    const errMsg = (err as Error)?.message ?? "";
+    if (errMsg.includes("ZAI_API_KEY") || errMsg.includes("Configuration file not found")) {
+      response =
+        "AI is not configured on this deployment. Add ZAI_API_KEY (and optionally ZAI_BASE_URL) " +
+        "to the Vercel Project Settings → Environment Variables, then redeploy. " +
+        "Until then, this deterministic fallback is shown:\n\n" +
+        generateFallback(parsed.data.assistant, context);
+    } else {
+      response = generateFallback(parsed.data.assistant, context);
+    }
   }
 
   // Persist activity log (no sensitive PII in prompt body — already sanitized).
