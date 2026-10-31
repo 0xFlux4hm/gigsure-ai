@@ -393,6 +393,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
         providerReference?: string;
         provider?: string;
         transactionId?: string;
+        amountMinor?: number;
       }>("/api/payments/initiate", {
         projectId,
         milestoneId: selectedId,
@@ -401,16 +402,20 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
       if (res.checkoutUrl) {
         setCheckoutUrl(res.checkoutUrl);
         setPaymentTxId(res.transactionId ?? null);
-        // Extract PayPal order ID from the checkout URL token
+        // Calculate the verified amount from the server response (not the
+        // local selected milestone — which might be stale after a reload)
+        const paidUsd = res.amountMinor
+          ? (res.amountMinor / 100 / FX_RATE).toFixed(2)
+          : usdAmount;
+        setVerifiedAmount(paidUsd);
         const tokenMatch = res.checkoutUrl.match(/token=([A-Z0-9]+)/);
         const orderId = tokenMatch ? tokenMatch[1] : null;
         if (orderId) setPaypalOrderId(orderId);
-        // Persist to localStorage so it survives mobile tab unloading
         localStorage.setItem(`paypal_pending_${projectId}`, JSON.stringify({
           checkoutUrl: res.checkoutUrl,
           paymentTxId: res.transactionId ?? null,
           paypalOrderId: orderId,
-          verifiedAmount: usdAmount,
+          verifiedAmount: paidUsd,
         }));
         if (typeof window !== "undefined") {
           window.open(res.checkoutUrl, "_blank", "noopener,noreferrer");
