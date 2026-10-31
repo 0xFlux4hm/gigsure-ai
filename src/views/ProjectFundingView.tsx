@@ -327,6 +327,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [paymentTxId, setPaymentTxId] = useState<string | null>(null);
+  const [paypalOrderId, setPaypalOrderId] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
 
@@ -359,6 +360,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
     setError(null);
     setCheckoutUrl(null);
     setPaymentTxId(null);
+    setPaypalOrderId(null);
     setVerified(false);
     try {
       const res = await api.post<{
@@ -374,6 +376,12 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
       if (res.checkoutUrl) {
         setCheckoutUrl(res.checkoutUrl);
         setPaymentTxId(res.transactionId ?? null);
+        // Also extract the PayPal order ID from the checkout URL token
+        // so we can verify even if the page was reloaded (mobile tab unloading)
+        const tokenMatch = res.checkoutUrl.match(/token=([A-Z0-9]+)/);
+        if (tokenMatch) {
+          setPaypalOrderId(tokenMatch[1]);
+        }
         if (typeof window !== "undefined") {
           window.open(res.checkoutUrl, "_blank", "noopener,noreferrer");
         }
@@ -393,13 +401,16 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
   }
 
   async function handleVerify() {
-    if (!paymentTxId) return;
+    if (!paymentTxId && !paypalOrderId) return;
     setVerifying(true);
     setError(null);
     try {
+      const body: Record<string, string> = {};
+      if (paymentTxId) body.paymentTransactionId = paymentTxId;
+      if (paypalOrderId) body.paypalOrderId = paypalOrderId;
       const res = await api.post<{ verified: boolean; message?: string }>(
         "/api/payments/verify",
-        { paymentTransactionId: paymentTxId },
+        body,
       );
       if (res.verified) {
         setVerified(true);
@@ -549,7 +560,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
               <path d="M7 17L17 7M17 7H8M17 7v9" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </a>
-          {paymentTxId && (
+          {(paymentTxId || paypalOrderId) && (
             <Button
               onClick={handleVerify}
               disabled={verifying}

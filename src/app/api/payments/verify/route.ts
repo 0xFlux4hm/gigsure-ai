@@ -18,8 +18,12 @@ import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { z } from "zod";
 
 const Schema = z.object({
-  paymentTransactionId: z.string().cuid(),
-});
+  paymentTransactionId: z.string().cuid().optional(),
+  paypalOrderId: z.string().optional(),
+}).refine(
+  (data) => data.paymentTransactionId || data.paypalOrderId,
+  { message: "Either paymentTransactionId or paypalOrderId is required" },
+);
 
 export const POST = apiRoute(async (req) => {
   const userId = await requireUserId();
@@ -30,9 +34,19 @@ export const POST = apiRoute(async (req) => {
     return fail("Invalid request", 422);
   }
 
-  const transaction = await db.paymentTransaction.findUnique({
-    where: { id: parsed.data.paymentTransactionId },
-  });
+  const { paymentTransactionId, paypalOrderId } = parsed.data;
+
+  // Look up the transaction by either ID or PayPal order ID
+  let transaction;
+  if (paymentTransactionId) {
+    transaction = await db.paymentTransaction.findUnique({
+      where: { id: paymentTransactionId },
+    });
+  } else if (paypalOrderId) {
+    transaction = await db.paymentTransaction.findFirst({
+      where: { providerReference: paypalOrderId },
+    });
+  }
 
   if (!transaction) {
     return fail("Payment transaction not found", 404);
@@ -43,7 +57,7 @@ export const POST = apiRoute(async (req) => {
   }
 
   if (transaction.status === "SUCCEEDED") {
-    return { verified: true, message: "Payment already confirmed", transaction };
+    return { verified: true, message: "Payment already confirmed" };
   }
 
   const provider = getProvider("paypal");
