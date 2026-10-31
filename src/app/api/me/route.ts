@@ -31,14 +31,15 @@ export const GET = apiRoute(async () => {
   });
   if (!user) return fail("User not found", 404);
 
-  // Include KYC verification status
+  // Include KYC verification status (bypassed in development)
   const kyc = await getUserKycStatus(userId);
+  const kycBypassed = process.env.KYC_BYPASS === "true" || process.env.NODE_ENV !== "production";
 
   return {
     ...user,
     kyc: {
-      verified: kyc.verified,
-      status: kyc.status,
+      verified: kycBypassed || kyc.verified,
+      status: kycBypassed ? "VERIFIED" : kyc.status,
     },
   };
 });

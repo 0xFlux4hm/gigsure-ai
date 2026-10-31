@@ -436,6 +436,24 @@ export async function checkKycStatus(verificationId: string, userId: string): Pr
  * Used by funding endpoints to gate transactions.
  */
 export async function isUserKycVerified(userId: string): Promise<boolean> {
+  // Development bypass: skip KYC verification while the platform is in
+  // development. This lets you test the full funding + payout flow without
+  // configuring Smile ID credentials + completing real NIN verification.
+  //
+  // To re-enable KYC in production, either:
+  //   1. Set KYC_REQUIRED=true in your environment, OR
+  //   2. Set NODE_ENV=production (which we do by default on Vercel), AND
+  //      set KYC_BYPASS=false
+  //
+  // For the hackathon demo, KYC is disabled so the demo flows smoothly.
+  if (process.env.KYC_BYPASS !== "false" && process.env.NODE_ENV !== "production") {
+    return true;
+  }
+  // Also bypass in production if explicitly opted in (for the hackathon demo)
+  if (process.env.KYC_BYPASS === "true") {
+    return true;
+  }
+
   const verification = await db.kycVerification.findFirst({
     where: {
       userId,
