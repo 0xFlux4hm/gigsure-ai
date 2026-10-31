@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/client-api";
 import { Shield, Loader2, AlertTriangle, CheckCircle2, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 
 type RiskFlag = {
   clause: string;
@@ -73,8 +74,10 @@ export function ContractRiskAnalyzer({ contractVersionId }: { contractVersionId:
         contractVersionId,
       });
       setAnalysis(result);
+      toast.success("Risk analysis complete", { description: `Score: ${result.score}/100 — ${result.riskLevel.toLowerCase()} risk.` });
     } catch (err) {
       setError((err as Error)?.message ?? "Failed to analyze contract");
+      toast.error("Risk analysis failed", { description: (err as Error)?.message ?? "Unknown error" });
     } finally {
       setLoading(false);
     }

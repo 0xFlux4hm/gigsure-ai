@@ -13,6 +13,7 @@ import { api } from "@/lib/client-api";
 import { useNav } from "@/lib/nav";
 import { Loader2, Check, X, ShieldCheck, Mail, Building2, User } from "lucide-react";
 
+import { toast } from "sonner";
 type Profile = {
   headline: string | null;
   bio: string | null;
@@ -88,9 +89,10 @@ export function SettingsProfileView() {
         preferredCategories: JSON.parse(profile.preferredCategories || "[]"),
       });
       setSaved(true);
+      toast.success("Profile saved", { description: "Your changes have been updated." });
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     } finally {
       setSaving(false);
     }

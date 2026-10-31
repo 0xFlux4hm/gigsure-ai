@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { exportAdminPDF } from "@/lib/pdf/export";
 
+import { toast } from "sonner";
 type AdminTab = "overview" | "users" | "projects" | "payments" | "payouts" | "disputes" | "kyc" | "audit" | "ai" | "privacy" | "webhooks" | "gateway";
 
 export function AdminView() {
@@ -336,7 +337,7 @@ function UsersTab() {
       await api.patch(`/api/admin/users/${userId}`, { action, reason: reason || undefined });
       load();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     } finally {
       setActingId(null);
     }
@@ -1123,7 +1124,7 @@ function PrivacyTab() {
       await api.patch("/api/admin/privacy-requests", { requestId: id, status, result: result || undefined });
       load();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     } finally {
       setActingId(null);
     }

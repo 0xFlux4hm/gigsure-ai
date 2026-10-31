@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { api } from "@/lib/client-api";
 import { Loader2, ShieldCheck, Trash2, Link2, KeyRound } from "lucide-react";
+import { toast } from "sonner";
 
 type User = {
   id: string;
@@ -64,6 +65,7 @@ export function SettingsSecurityView() {
     const handler = (e: MessageEvent) => {
       if (e.data?.type === "google-linked" && e.data.success) {
         setOk("Google account linked successfully! Please sign in again.");
+        toast.success("Google account linked", { description: "Please sign in again." });
         setSudoOpen(false);
         load();
         // Session is invalidated — force re-login
@@ -98,10 +100,12 @@ export function SettingsSecurityView() {
         // Existing password user — change password
         await api.post("/api/auth/change-password", { currentPassword, newPassword });
         setOk("Password changed. Please sign in again with your new password.");
+        toast.success("Password changed", { description: "Please sign in again with your new password." });
       } else {
         // Google-only user — set password for the first time
         await api.post("/api/auth/set-password", { newPassword });
         setOk("Password set successfully! You can now sign in with email + password.");
+        toast.success("Password set", { description: "You can now sign in with email + password." });
       }
       setCurrentPassword("");
       setNewPassword("");
@@ -110,6 +114,7 @@ export function SettingsSecurityView() {
       }, 2000);
     } catch (err) {
       setError((err as Error).message);
+      toast.error("Failed to change password", { description: (err as Error).message });
     } finally {
       setChangingPassword(false);
     }
@@ -148,6 +153,7 @@ export function SettingsSecurityView() {
       }
     } catch (err) {
       setError((err as Error).message ?? "Reauthentication failed");
+      toast.error("Reauthentication failed", { description: (err as Error).message ?? "Unknown error" });
     } finally {
       setSudoLoading(false);
     }
@@ -188,12 +194,14 @@ export function SettingsSecurityView() {
     try {
       await api.post("/api/auth/unlink-google", { provider: "google", providerSubject });
       setOk("Google account unlinked. Please sign in again.");
+      toast.success("Google account unlinked", { description: "Please sign in again." });
       setTimeout(() => {
         window.location.href = "/?view=login";
       }, 2000);
       load();
     } catch (err) {
       setError((err as Error).message);
+      toast.error("Failed to unlink Google account", { description: (err as Error).message });
     }
   };
 

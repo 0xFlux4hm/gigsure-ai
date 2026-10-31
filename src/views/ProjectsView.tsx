@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, formatDate, timeAgo, formatMinor } from "@/lib/client-api";
 import { FolderKanban, Plus, Loader2, ArrowRight } from "lucide-react";
+import { toast } from "sonner";
 
 type Project = {
   id: string;
@@ -136,9 +137,11 @@ function NewProjectDialog({ onCreated }: { onCreated: (id: string) => void }) {
         fundingArrangement,
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       });
+      toast.success("Project created", { description: `"${title}" is ready.` });
       onCreated(project.id);
     } catch (err) {
       setError((err as Error).message);
+      toast.error("Failed to create project", { description: (err as Error).message });
     } finally {
       setLoading(false);
     }

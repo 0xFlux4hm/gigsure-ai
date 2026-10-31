@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api } from "@/lib/client-api";
 import { Loader2, Check } from "lucide-react";
 
+import { toast } from "sonner";
 type Prefs = {
   preferredCurrency: string;
   emailNotifications: boolean;
@@ -34,9 +35,10 @@ export function SettingsNotificationsView() {
     try {
       await api.put("/api/settings", prefs);
       setSaved(true);
+      toast.success("Preferences saved", { description: "Your notification settings have been updated." });
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     } finally {
       setSaving(false);
     }

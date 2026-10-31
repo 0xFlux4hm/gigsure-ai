@@ -20,6 +20,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api, formatMinor, formatDateTime } from "@/lib/client-api";
 import { Loader2, Plus, Receipt, Check, X, Upload, Info } from "lucide-react";
+import { toast } from "sonner";
 
 type Expense = {
   id: string;
@@ -121,11 +122,13 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
         amountMinor,
       });
       setSuccess("Expense request submitted. The client will be notified to approve.");
+      toast.success("Expense request submitted", { description: "The client will be notified to approve." });
       setFormState({ milestoneId: "", title: "", description: "", category: "DOMAIN_HOSTING", amount: "" });
       setAdding(false);
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit expense");
+      toast.error("Failed to submit expense", { description: err instanceof Error ? err.message : "Unknown error" });
     } finally {
       setSubmitting(false);
     }
@@ -135,9 +138,11 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
     try {
       await api.post(`/api/projects/${projectId}/expenses/${expenseId}/approve`, {});
       setSuccess("Expense approved. Click 'Release' to send the funds.");
+      toast.success("Expense approved", { description: "Funds are ready to release." });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to approve");
+      toast.error("Failed to approve expense", { description: err instanceof Error ? err.message : "Unknown error" });
     }
   }
 
@@ -146,9 +151,11 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
     if (!reason) return;
     try {
       await api.post(`/api/projects/${projectId}/expenses/${expenseId}/reject`, { reason });
+      toast.success("Expense rejected", { description: "The requester has been notified." });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to reject");
+      toast.error("Failed to reject expense", { description: err instanceof Error ? err.message : "Unknown error" });
     }
   }
 
@@ -157,9 +164,11 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
     try {
       await api.post(`/api/projects/${projectId}/expenses/${expenseId}/release`, {});
       setSuccess("Funds released. The service provider will receive the payout shortly.");
+      toast.success("Funds released", { description: "Payout to the service provider has been queued." });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to release");
+      toast.error("Failed to release funds", { description: err instanceof Error ? err.message : "Unknown error" });
     }
   }
 
@@ -169,9 +178,11 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
     try {
       await api.post(`/api/projects/${projectId}/expenses/${expenseId}/receipt`, { receiptUrl: url });
       setSuccess("Receipt uploaded.");
+      toast.success("Receipt uploaded", { description: "The receipt URL has been saved." });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to upload receipt");
+      toast.error("Failed to upload receipt", { description: err instanceof Error ? err.message : "Unknown error" });
     }
   }
 

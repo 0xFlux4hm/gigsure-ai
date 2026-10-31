@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { api, formatDate } from "@/lib/client-api";
 import { Plus, Loader2, ChevronDown, ChevronRight, Upload, Download, Trash2, Paperclip } from "lucide-react";
 
+import { toast } from "sonner";
 type Deliverable = {
   id: string;
   filename: string;
@@ -65,9 +66,17 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
   const transition = async (taskId: string, status: string) => {
     try {
       await api.patch(`/api/projects/${projectId}/tasks/${taskId}`, { status });
+      const statusMessages: Record<string, { title: string; desc: string }> = {
+        IN_PROGRESS: { title: "Task started", desc: "Task is now in progress." },
+        SUBMITTED: { title: "Task submitted", desc: "Sent for review." },
+        APPROVED: { title: "Task approved", desc: "Task marked complete." },
+        CHANGES_REQUESTED: { title: "Changes requested", desc: "Reviewer requested revisions." },
+      };
+      const msg = statusMessages[status] ?? { title: "Task updated", desc: "Status has been changed." };
+      toast.success(msg.title, { description: msg.desc });
       load();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   };
 
@@ -84,9 +93,10 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
         const data = await res.json();
         throw new Error(data?.error || "Upload failed");
       }
+      toast.success("Deliverable uploaded", { description: file.name });
       load();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   };
 
@@ -94,9 +104,10 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
     if (!confirm("Delete this deliverable?")) return;
     try {
       await api.del(`/api/projects/${projectId}/tasks/${taskId}/deliverables/${deliverableId}`);
+      toast.success("Deliverable deleted", { description: "The file has been removed." });
       load();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   };
 
@@ -266,9 +277,11 @@ function NewTaskDialog({ projectId, onCreated }: { projectId: string; onCreated:
         priority,
         dueDate: dueDate ? new Date(dueDate).toISOString() : null,
       });
+      toast.success("Task created", { description: `"${title}" has been added to the board.` });
       onCreated();
     } catch (err) {
       setError((err as Error).message);
+      toast.error("Failed to create task", { description: (err as Error).message });
     } finally {
       setLoading(false);
     }

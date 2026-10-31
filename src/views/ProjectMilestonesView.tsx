@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { api, formatDate, formatMinor } from "@/lib/client-api";
 import { Plus, Loader2, ArrowRight, AlertTriangle } from "lucide-react";
 
+import { toast } from "sonner";
 type Milestone = {
   id: string;
   title: string;
@@ -41,18 +42,24 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
   const submit_milestone = async (id: string) => {
     try {
       await api.post(`/api/projects/${projectId}/milestones/${id}/submit`);
+      toast.success("Milestone submitted", { description: "Submitted for client approval." });
       load();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   };
 
   const approve_milestone = async (id: string, decision: "APPROVED" | "CHANGES_REQUESTED") => {
     try {
       await api.post(`/api/projects/${projectId}/milestones/${id}/approve`, { decision, note: "" });
+      if (decision === "APPROVED") {
+        toast.success("Milestone approved", { description: "Funds are now eligible for release." });
+      } else {
+        toast.success("Changes requested", { description: "The service provider has been notified." });
+      }
       load();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   };
 
@@ -126,9 +133,10 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
                               milestoneId: m.id,
                               amountMinor: m.amountMinor,
                             });
+                            toast.success("Funding initiated", { description: "Milestone funding request has been recorded." });
                             load();
                           } catch (err) {
-                            alert((err as Error).message);
+                            toast.error((err as Error).message);
                           }
                         }}
                       >
@@ -156,9 +164,10 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
                               milestoneId: m.id,
                               amountMinor: m.amountMinor,
                             });
+                            toast.success("Release initiated", { description: "Payout to the service provider has been queued." });
                             load();
                           } catch (err) {
-                            alert((err as Error).message);
+                            toast.error((err as Error).message);
                           }
                         }}
                       >
@@ -210,9 +219,11 @@ function NewMilestoneDialog({ projectId, onCreated }: { projectId: string; onCre
         amountMinor: Math.round(Number(amount) * 100),
         dueDate: dueDate ? new Date(dueDate).toISOString() : null,
       });
+      toast.success("Milestone created", { description: `"${title}" has been added to the project.` });
       onCreated();
     } catch (err) {
       setError((err as Error).message);
+      toast.error("Failed to create milestone", { description: (err as Error).message });
     } finally {
       setLoading(false);
     }

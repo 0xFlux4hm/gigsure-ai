@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { api, formatMinor, formatDateTime } from "@/lib/client-api";
 import { Plus, Loader2, CheckCircle2, Info } from "lucide-react";
 
+import { toast } from "sonner";
 type Allocation = {
   id: string;
   userId: string;
@@ -50,9 +51,10 @@ export function ProjectCompensationView({ projectId }: { projectId: string }) {
   const accept = async (agreementId: string) => {
     try {
       await api.post(`/api/projects/${projectId}/compensation/${agreementId}/accept`);
+      toast.success("Compensation accepted", { description: "Your allocation has been accepted." });
       load();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   };
 
@@ -191,9 +193,11 @@ function NewAgreementDialog({ projectId, members, onCreated }: { projectId: stri
         })),
         enforceTotalMatch: true,
       });
+      toast.success("Compensation agreement proposed", { description: "Recipients can now review and accept their allocations." });
       onCreated();
     } catch (err) {
       setError((err as Error).message);
+      toast.error("Failed to propose agreement", { description: (err as Error).message });
     } finally {
       setLoading(false);
     }

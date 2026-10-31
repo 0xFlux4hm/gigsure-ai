@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api, formatDateTime, timeAgo } from "@/lib/client-api";
 import { Send, Loader2, Scale, AlertTriangle } from "lucide-react";
 
+import { toast } from "sonner";
 type Dispute = {
   id: string;
   title: string;
@@ -45,10 +46,11 @@ export function ProjectDisputeDetailView({ projectId, disputeId }: { projectId: 
     setActing(true);
     try {
       await api.post(`/api/projects/${projectId}/disputes/${disputeId}/messages`, { body: msg });
+      toast.success("Message posted", { description: "Your message has been added to the dispute thread." });
       setMsg("");
       load();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     } finally {
       setActing(false);
     }
@@ -62,10 +64,11 @@ export function ProjectDisputeDetailView({ projectId, disputeId }: { projectId: 
         proposedResolution: proposed || undefined,
         outcome: outcome || undefined,
       });
+      toast.success("Review submitted", { description: "Your reviewer note has been recorded." });
       setNote(""); setProposed(""); setOutcome(undefined);
       load();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     } finally {
       setActing(false);
     }

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { api, timeAgo } from "@/lib/client-api";
 import { Loader2, Bell, Check } from "lucide-react";
 
+import { toast } from "sonner";
 type Notification = {
   id: string;
   type: string;
@@ -31,9 +32,10 @@ export function NotificationsView() {
   const markRead = async (id: string) => {
     try {
       await api.post(`/api/notifications/${id}/read`);
+      toast.success("Notification marked as read", { description: "Removed from your unread list." });
       load();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   };
 

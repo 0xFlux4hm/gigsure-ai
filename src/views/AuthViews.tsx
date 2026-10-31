@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api } from "@/lib/client-api";
 import { ShieldCheck, Loader2, Lock, FileCheck, Wallet, Scale, Bot } from "lucide-react";
+import { toast } from "sonner";
 
 /**
  * Check if Google OAuth is configured by fetching the auth providers list.
@@ -223,6 +224,7 @@ function LoginForm() {
     if (res?.error) {
       setLoading(false);
       setError("Invalid email or password. Please try again.");
+      toast.error("Login failed", { description: "Invalid email or password. Please try again." });
       return;
     }
     if (res?.ok) {
@@ -248,6 +250,7 @@ function LoginForm() {
     } else {
       setLoading(false);
       setError("Login failed. Please try again.");
+      toast.error("Login failed", { description: "Please try again." });
     }
   };
 
@@ -341,6 +344,7 @@ function RegisterForm() {
       });
       if (res.verificationUrl) setVerifyUrl(res.verificationUrl);
       if (res.created) {
+        toast.success("Account created", { description: "Welcome to GigSure AI." });
         // Auto-login after registration, then redirect to dashboard
         const signInResult = await signIn("credentials", {
           email,
@@ -367,16 +371,19 @@ function RegisterForm() {
               "Account created, but the verification email could not be sent. " +
               "Please contact support."
             );
+            toast.error("Verification email not sent", { description: "Please contact support." });
           } else {
             setError(
               "Account created! We sent a verification link to your email. " +
               "Click the link in the email to verify your account, then sign in."
             );
+            toast.success("Verification email sent", { description: "Check your inbox to verify your account." });
           }
         }
       }
     } catch (err) {
       setError((err as Error).message ?? "Registration failed");
+      toast.error("Registration failed", { description: (err as Error).message ?? "Unknown error" });
     } finally {
       setLoading(false);
     }
@@ -489,9 +496,11 @@ function VerifyEmailForm({ token }: { token?: string }) {
     try {
       await api.post("/api/auth/verify-email", { token: enteredToken });
       setOk(true);
+      toast.success("Email verified", { description: "Redirecting to sign-in…" });
       setTimeout(() => navigate({ view: "login" }), 2000);
     } catch (err) {
       setError((err as Error).message ?? "Verification failed");
+      toast.error("Email verification failed", { description: (err as Error).message ?? "Unknown error" });
     } finally {
       setLoading(false);
     }
@@ -552,8 +561,10 @@ function ForgotPasswordForm() {
     try {
       await api.post("/api/auth/forgot-password", { email });
       setSent(true);
+      toast.success("Reset link sent", { description: "If the email is registered, a reset link has been sent." });
     } catch (err) {
       setError((err as Error).message ?? "Request failed");
+      toast.error("Password reset request failed", { description: (err as Error).message ?? "Unknown error" });
     } finally {
       setLoading(false);
     }
@@ -621,8 +632,10 @@ function ResendVerificationForm() {
     try {
       await api.post("/api/auth/resend-verification", { email });
       setSent(true);
+      toast.success("Verification email resent", { description: "Check your inbox (and spam folder)." });
     } catch (err) {
       setError((err as Error).message ?? "Request failed");
+      toast.error("Failed to resend verification", { description: (err as Error).message ?? "Unknown error" });
     } finally {
       setLoading(false);
     }
@@ -694,9 +707,11 @@ function ResetPasswordForm({ token }: { token?: string }) {
     try {
       await api.post("/api/auth/reset-password", { token: enteredToken, newPassword });
       setOk(true);
+      toast.success("Password reset", { description: "Redirecting to sign-in…" });
       setTimeout(() => navigate({ view: "login" }), 2000);
     } catch (err) {
       setError((err as Error).message ?? "Reset failed");
+      toast.error("Password reset failed", { description: (err as Error).message ?? "Unknown error" });
     } finally {
       setLoading(false);
     }

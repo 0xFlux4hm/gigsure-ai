@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/client-api";
 import { Bot, Loader2, AlertTriangle, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 
 const ASSISTANTS = [
   { key: "TEAM_PLANNER", name: "Team Planner", desc: "Suggest roles and collaboration structures" },
@@ -46,8 +47,10 @@ export function ProjectAiView({ projectId }: { projectId: string }) {
       });
       setResponse(res.response);
       setFallbackUsed(res.fallbackUsed);
+      toast.success("Assistant response ready", { description: res.fallbackUsed ? "Generated using fallback (deterministic)." : "Generated successfully." });
     } catch (err) {
       setError((err as Error).message);
+      toast.error("Assistant run failed", { description: (err as Error).message });
     } finally {
       setLoading(false);
     }

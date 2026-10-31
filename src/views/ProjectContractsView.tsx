@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { api, formatDateTime } from "@/lib/client-api";
 import { Plus, Loader2, CheckCircle2, History, GitCompare } from "lucide-react";
 import { ContractRiskAnalyzer } from "@/views/ContractRiskAnalyzer";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -57,9 +58,10 @@ export function ProjectContractsView({ projectId }: { projectId: string }) {
   const accept = async (versionId: string) => {
     try {
       await api.post(`/api/projects/${projectId}/contracts/${versionId}/accept`);
+      toast.success("Contract version accepted", { description: "Your acceptance has been recorded." });
       load();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   };
 
@@ -267,9 +269,11 @@ function NewContractDialog({ projectId, onCreated }: { projectId: string; onCrea
         cancellationTerms: form.cancellationTerms,
         disputeProcedures: form.disputeProcedures,
       });
+      toast.success("Contract version created", { description: "The new version is now visible to project members." });
       onCreated();
     } catch (err) {
       setError((err as Error).message);
+      toast.error("Failed to create contract version", { description: (err as Error).message });
     } finally {
       setLoading(false);
     }

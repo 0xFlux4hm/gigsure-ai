@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, formatDateTime, timeAgo } from "@/lib/client-api";
 import { Plus, Loader2, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 
 type Dispute = {
   id: string;
@@ -110,9 +111,11 @@ function NewDisputeDialog({ projectId, onCreated }: { projectId: string; onCreat
         description,
         category,
       });
+      toast.success("Dispute opened", { description: `"${title}" has been filed under ${category}.` });
       onCreated();
     } catch (err) {
       setError((err as Error).message);
+      toast.error("Failed to open dispute", { description: (err as Error).message });
     } finally {
       setLoading(false);
     }

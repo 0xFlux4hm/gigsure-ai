@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api, formatDate, timeAgo } from "@/lib/client-api";
 import { UserPlus, Trash2, Loader2, Mail, Copy, Check } from "lucide-react";
 
+import { toast } from "sonner";
 type Member = {
   id: string;
   role: string;
@@ -55,9 +56,10 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
     if (!confirm("Revoke this invitation?")) return;
     try {
       await api.del(`/api/projects/${projectId}/invitations/${id}`);
+      toast.success("Invitation revoked", { description: "The invitation has been cancelled." });
       load();
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   };
 
@@ -165,9 +167,11 @@ function InviteDialog({ projectId, onCreated }: { projectId: string; onCreated: 
         role,
       });
       if (res.inviteUrl) setInviteUrl(res.inviteUrl);
+      toast.success("Invitation sent", { description: `An invite has been sent to ${inviteeEmail}.` });
       onCreated();
     } catch (err) {
       setError((err as Error).message);
+      toast.error("Failed to send invitation", { description: (err as Error).message });
     } finally {
       setLoading(false);
     }

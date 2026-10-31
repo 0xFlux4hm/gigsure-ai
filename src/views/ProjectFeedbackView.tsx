@@ -19,6 +19,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api, formatDateTime } from "@/lib/client-api";
 import { Loader2, Star, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 type Feedback = {
   id: string;
@@ -117,6 +118,7 @@ export function ProjectFeedbackView({ projectId }: { projectId: string }) {
         comment: formState.comment || undefined,
       });
       setSuccess("Review submitted!");
+      toast.success("Review submitted", { description: "Thank you for your feedback." });
       setFormState({
         revieweeId: "",
         rating: 5,
@@ -131,6 +133,7 @@ export function ProjectFeedbackView({ projectId }: { projectId: string }) {
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit review");
+      toast.error("Failed to submit review", { description: err instanceof Error ? err.message : "Unknown error" });
     } finally {
       setSubmitting(false);
     }
