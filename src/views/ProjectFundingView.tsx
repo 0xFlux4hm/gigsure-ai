@@ -331,6 +331,26 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
 
+  // On mount, check if there's a pending PayPal payment in localStorage
+  // (survives mobile tab unloading + page reloads)
+  useEffect(() => {
+    const stored = localStorage.getItem(`paypal_pending_${projectId}`);
+    if (stored) {
+      try {
+        const data = JSON.parse(stored) as {
+          checkoutUrl?: string;
+          paymentTxId?: string;
+          paypalOrderId?: string;
+        };
+        if (data.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
+        if (data.paymentTxId) setPaymentTxId(data.paymentTxId);
+        if (data.paypalOrderId) setPaypalOrderId(data.paypalOrderId);
+      } catch {
+        localStorage.removeItem(`paypal_pending_${projectId}`);
+      }
+    }
+  }, [projectId]);
+
   // Demo FX rate — matches src/lib/payments/paypal-provider.ts
   const FX_RATE = 1500; // 1 USD = 1500 NGN
 
@@ -376,12 +396,16 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
       if (res.checkoutUrl) {
         setCheckoutUrl(res.checkoutUrl);
         setPaymentTxId(res.transactionId ?? null);
-        // Also extract the PayPal order ID from the checkout URL token
-        // so we can verify even if the page was reloaded (mobile tab unloading)
+        // Extract PayPal order ID from the checkout URL token
         const tokenMatch = res.checkoutUrl.match(/token=([A-Z0-9]+)/);
-        if (tokenMatch) {
-          setPaypalOrderId(tokenMatch[1]);
-        }
+        const orderId = tokenMatch ? tokenMatch[1] : null;
+        if (orderId) setPaypalOrderId(orderId);
+        // Persist to localStorage so it survives mobile tab unloading
+        localStorage.setItem(`paypal_pending_${projectId}`, JSON.stringify({
+          checkoutUrl: res.checkoutUrl,
+          paymentTxId: res.transactionId ?? null,
+          paypalOrderId: orderId,
+        }));
         if (typeof window !== "undefined") {
           window.open(res.checkoutUrl, "_blank", "noopener,noreferrer");
         }
@@ -414,6 +438,8 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
       );
       if (res.verified) {
         setVerified(true);
+        // Clear the pending PayPal payment from localStorage
+        localStorage.removeItem(`paypal_pending_${projectId}`);
       } else {
         setError(res.message ?? "Payment not yet completed. Make sure you approved it in PayPal.");
       }
