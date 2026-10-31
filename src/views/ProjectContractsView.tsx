@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { api, formatDateTime } from "@/lib/client-api";
 import { Plus, Loader2, CheckCircle2, History, GitCompare } from "lucide-react";
+import { ContractRiskAnalyzer } from "@/views/ContractRiskAnalyzer";
 import {
   Select,
   SelectContent,
@@ -193,6 +194,10 @@ export function ProjectContractsView({ projectId }: { projectId: string }) {
                 {v.revisionRules && <Section title="Revision rules">{v.revisionRules}</Section>}
                 {v.cancellationTerms && <Section title="Cancellation terms">{v.cancellationTerms}</Section>}
                 {v.disputeProcedures && <Section title="Dispute procedures">{v.disputeProcedures}</Section>}
+
+                <div className="border-t pt-3">
+                  <ContractRiskAnalyzer contractVersionId={v.id} />
+                </div>
 
                 <div>
                   <div className="text-xs text-muted-foreground mb-2">Acceptances</div>
