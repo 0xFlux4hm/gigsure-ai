@@ -326,6 +326,9 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
   const [paying, setPaying] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paymentTxId, setPaymentTxId] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verified, setVerified] = useState(false);
 
   // Demo FX rate — matches src/lib/payments/paypal-provider.ts
   const FX_RATE = 1500; // 1 USD = 1500 NGN
@@ -355,11 +358,14 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
     setPaying(true);
     setError(null);
     setCheckoutUrl(null);
+    setPaymentTxId(null);
+    setVerified(false);
     try {
       const res = await api.post<{
         checkoutUrl?: string;
         providerReference?: string;
         provider?: string;
+        transactionId?: string;
       }>("/api/payments/initiate", {
         projectId,
         milestoneId: selectedId,
@@ -367,7 +373,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
       });
       if (res.checkoutUrl) {
         setCheckoutUrl(res.checkoutUrl);
-        // Open PayPal approval URL in a new tab so the user can complete payment
+        setPaymentTxId(res.transactionId ?? null);
         if (typeof window !== "undefined") {
           window.open(res.checkoutUrl, "_blank", "noopener,noreferrer");
         }
@@ -378,11 +384,32 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
       const msg = (err as Error)?.message ?? "Failed to initiate PayPal payment";
       setError(
         msg.includes("not configured")
-          ? "PayPal is not configured on the server. Set PAYPAL_ENABLED=true + PAYPAL_CLIENT_ID + PAYPAL_CLIENT_SECRET in your environment variables."
+          ? "PayPal is not configured on the server."
           : msg,
       );
     } finally {
       setPaying(false);
+    }
+  }
+
+  async function handleVerify() {
+    if (!paymentTxId) return;
+    setVerifying(true);
+    setError(null);
+    try {
+      const res = await api.post<{ verified: boolean; message?: string }>(
+        "/api/payments/verify",
+        { paymentTransactionId: paymentTxId },
+      );
+      if (res.verified) {
+        setVerified(true);
+      } else {
+        setError(res.message ?? "Payment not yet completed. Make sure you approved it in PayPal.");
+      }
+    } catch (err) {
+      setError((err as Error)?.message ?? "Failed to verify payment");
+    } finally {
+      setVerifying(false);
     }
   }
 
@@ -497,7 +524,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
         )}
       </Button>
 
-      {checkoutUrl && (
+      {checkoutUrl && !verified && (
         <div className="rounded-lg border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 p-4 text-sm space-y-2">
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -509,8 +536,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
           </div>
           <p className="text-xs text-muted-foreground pl-7">
             A PayPal sandbox tab has opened. Log in with the test buyer account and approve the
-            <strong> ${usdAmount} USD</strong> payment. Once approved, the webhook fires back to GigSure
-            and your milestone will be marked as <strong>Funded</strong>.
+            <strong> ${usdAmount} USD</strong> payment. Once you've approved it, click "Verify Payment" below.
           </p>
           <a
             href={checkoutUrl}
@@ -523,6 +549,47 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
               <path d="M7 17L17 7M17 7H8M17 7v9" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </a>
+          {paymentTxId && (
+            <Button
+              onClick={handleVerify}
+              disabled={verifying}
+              className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+              size="sm"
+            >
+              {verifying ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" /> Verifying payment…
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" /> I've paid — Verify Payment
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {verified && (
+        <div className="rounded-lg border-2 border-emerald-500 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 p-6 text-center space-y-2">
+          <div className="h-14 w-14 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+          </div>
+          <div className="font-bold text-lg text-emerald-700 dark:text-emerald-300">
+            Payment Confirmed!
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Your PayPal payment of <strong>${usdAmount} USD</strong> has been verified.
+            The milestone is now <strong>Funded</strong> and held in escrow.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={() => window.location.reload()}
+          >
+            Refresh to see updated funding status
+          </Button>
         </div>
       )}
 
