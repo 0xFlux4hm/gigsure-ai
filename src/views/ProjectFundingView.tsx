@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Info,
   CheckCircle2,
+  FileText,
 } from "lucide-react";
 
 type FundingRecord = {
@@ -607,7 +608,40 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      {verified && (
+      {verified && paymentTxId && (
+        <div className="rounded-lg border-2 border-emerald-500 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 p-6 text-center space-y-2">
+          <div className="h-14 w-14 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+          </div>
+          <div className="font-bold text-lg text-emerald-700 dark:text-emerald-300">
+            Payment Confirmed!
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Your PayPal payment of <strong>${usdAmount} USD</strong> has been verified.
+            The milestone is now <strong>Funded</strong> and held in escrow.
+          </p>
+          <div className="flex flex-col gap-2 mt-3">
+            <a
+              href={`/api/payments/${paymentTxId}/receipt`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button variant="default" size="sm" className="w-full bg-[#003087] hover:bg-[#002469]">
+                <FileText className="h-4 w-4 mr-2" /> Download Receipt
+              </Button>
+            </a>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.reload()}
+            >
+              Refresh to see updated funding status
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {verified && !paymentTxId && (
         <div className="rounded-lg border-2 border-emerald-500 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 p-6 text-center space-y-2">
           <div className="h-14 w-14 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto">
             <CheckCircle2 className="h-8 w-8 text-emerald-600" />
