@@ -70,9 +70,31 @@ export async function confirmFundingRecord(
   }
 
   // Locate the funding record by provider transaction reference.
-  const record = await db.fundingRecord.findUnique({
+  let record = await db.fundingRecord.findUnique({
     where: { providerTxRef: input.providerTxRef },
   });
+
+  // Fallback for PayPal: if the funding record isn't found by providerTxRef
+  // (which might be the capture ID instead of the order ID), try looking
+  // up via the PaymentTransaction → milestoneId link.
+  if (!record && input.provider === "paypal" && input.paymentTransactionId) {
+    const tx = await db.paymentTransaction.findUnique({
+      where: { id: input.paymentTransactionId },
+      select: { milestoneId: true, projectId: true },
+    });
+    if (tx?.milestoneId) {
+      // Find the most recent INITIATED funding record for this milestone
+      record = await db.fundingRecord.findFirst({
+        where: {
+          milestoneId: tx.milestoneId,
+          projectId: tx.projectId,
+          status: "INITIATED",
+        },
+        orderBy: { initiatedAt: "desc" },
+      });
+    }
+  }
+
   if (!record) {
     // Still record the webhook so we have evidence — but no funding update.
     await db.webhookEvent.create({

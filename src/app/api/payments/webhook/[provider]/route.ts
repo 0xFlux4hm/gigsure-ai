@@ -148,9 +148,31 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   }
 
   // Find the payment transaction by provider reference
-  const transaction = await db.paymentTransaction.findFirst({
+  let transaction = await db.paymentTransaction.findFirst({
     where: { providerReference },
   });
+
+  // If not found by providerReference, try alternate lookups for PayPal.
+  // PayPal webhooks may send the capture ID (resource.id) instead of the
+  // order ID (which is what we stored at initiation time). The capture ID
+  // is linked to the order via supplementary_data, which we already tried
+  // to extract in verifyWebhook(). If that failed, try looking up the
+  // transaction by the raw resource.id (capture ID) as a fallback.
+  if (!transaction && providerName === "paypal") {
+    try {
+      const paypalEvent = JSON.parse(rawBody) as {
+        resource?: { id?: string };
+      };
+      const captureId = paypalEvent.resource?.id;
+      if (captureId && captureId !== providerReference) {
+        transaction = await db.paymentTransaction.findFirst({
+          where: { providerReference: captureId },
+        });
+      }
+    } catch {
+      // Ignore parse errors — already parsed above
+    }
+  }
 
   if (!transaction) {
     // No PaymentTransaction — but there may still be a FundingRecord
@@ -202,15 +224,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   const eventType = verification.eventType || payload.event || "";
   let newStatus: string = transaction.status;
 
-  if (eventType.includes("success") || eventType.includes("confirmed") || payload.status === "SUCCESS" || payload.status === "PAID") {
+  // PayPal event types use UPPERCASE (e.g., "PAYMENT.CAPTURE.COMPLETED")
+  // while Monnify/OPay use lowercase. Normalize for matching.
+  const eventTypeLower = eventType.toLowerCase();
+
+  if (
+    eventTypeLower.includes("success") ||
+    eventTypeLower.includes("confirmed") ||
+    eventTypeLower.includes("completed") ||
+    eventTypeLower.includes("capture") ||
+    payload.status === "SUCCESS" ||
+    payload.status === "PAID" ||
+    payload.status === "COMPLETED"
+  ) {
     newStatus = "SUCCEEDED";
-  } else if (eventType.includes("fail") || payload.status === "FAIL" || payload.status === "FAILED") {
+  } else if (eventTypeLower.includes("fail") || eventTypeLower.includes("denied") || payload.status === "FAIL" || payload.status === "FAILED" || payload.status === "DECLINED") {
     newStatus = "FAILED";
-  } else if (eventType.includes("expire") || payload.status === "CLOSE" || payload.status === "EXPIRED") {
+  } else if (eventTypeLower.includes("expire") || payload.status === "CLOSE" || payload.status === "EXPIRED") {
     newStatus = "EXPIRED";
-  } else if (eventType.includes("cancel") || payload.status === "CANCEL") {
+  } else if (eventTypeLower.includes("cancel") || eventTypeLower.includes("voided") || payload.status === "CANCEL" || payload.status === "VOIDED") {
     newStatus = "CANCELED";
-  } else if (eventType.includes("refund")) {
+  } else if (eventTypeLower.includes("refund")) {
     newStatus = "REFUND_PENDING";
   }
 

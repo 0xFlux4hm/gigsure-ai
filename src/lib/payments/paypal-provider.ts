@@ -398,14 +398,44 @@ export class PayPalProvider implements PaymentProvider {
 
     const verifyData = (await verifyRes.json()) as PayPalVerifyWebhookResponse;
 
-    // Extract the order ID for the result — different events put it in
-    // different fields. For PAYMENT.CAPTURE.COMPLETED, the resource.id is
-    // the capture ID, and the order ID is in supplementary_data.related_ids.order_id.
-    const orderId =
+    // Extract the order ID for the result — PayPal puts it in different places
+    // depending on the event version:
+    //   1. resource.supplementary_data.related_ids.order_id (v2 captures — preferred)
+    //   2. resource.parent_payment (legacy v1 sales)
+    //   3. resource.id (the capture ID itself — last resort, used as a fallback
+    //      but may not match the order ID we stored at initiation time)
+    //   4. links[].href where rel="up" — contains the order ID in the URL path
+    let orderId =
       event.resource?.supplementary_data?.related_ids?.order_id ??
       event.resource?.parent_payment ??
       event.resource?.id ??
       "";
+
+    // If we still don't have an order ID, try to extract it from the links array
+    // PayPal includes a link with rel="up" pointing to the order, e.g.:
+    //   "href": "https://api.sandbox.paypal.com/v2/checkout/orders/8EC322402D808574K"
+    const eventAny = event as unknown as {
+      links?: Array<{ rel?: string; href?: string }>;
+      resource?: { links?: Array<{ rel?: string; href?: string }> };
+    };
+    if (!orderId && eventAny.links && Array.isArray(eventAny.links)) {
+      const upLink = eventAny.links.find((l) => l.rel === "up" || l.rel === "self");
+      if (upLink?.href) {
+        const match = upLink.href.match(/\/orders\/([A-Z0-9]+)/);
+        if (match) orderId = match[1];
+      }
+    }
+
+    // Also check resource.links for the order reference
+    if (!orderId && eventAny.resource?.links && Array.isArray(eventAny.resource.links)) {
+      const orderLink = eventAny.resource.links.find(
+        (l) => l.rel === "up" && l.href?.includes("/orders/"),
+      );
+      if (orderLink?.href) {
+        const match = orderLink.href.match(/\/orders\/([A-Z0-9]+)/);
+        if (match) orderId = match[1];
+      }
+    }
 
     return {
       valid: verifyData.verification_status === "SUCCESS",
