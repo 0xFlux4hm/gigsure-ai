@@ -13,7 +13,11 @@ import {
   Info,
   CheckCircle2,
   FileText,
+  Download,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react";
+import { toast } from "sonner";
 
 type FundingRecord = {
   id: string;
@@ -78,9 +82,13 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
         {},
       );
       setVirtualAccount(result.virtualAccount);
+      toast.success("Funding account generated!", {
+        description: `Account: ${result.virtualAccount.accountNumber} (${result.virtualAccount.bankName})`,
+      });
     } catch (err) {
       const errorObj = err as { message?: string };
       setError(errorObj?.message ?? "Could not generate virtual account. Try again later.");
+      toast.error("Failed to generate account", { description: errorObj?.message });
     } finally {
       setGenerating(false);
     }
@@ -89,6 +97,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
   function copyToClipboard(text: string, field: string) {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(field);
+      toast.success("Copied!", { description: text });
       setTimeout(() => setCopied(null), 1500);
     });
   }
@@ -262,35 +271,55 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
             </div>
           ) : (
             <ul className="divide-y">
-              {records.map((r) => (
+              {records.map((r) => {
+                const isConfirmed = r.status === "PROVIDER_CONFIRMED";
+                const isFailed = r.status === "FAILED" || r.status === "DISPUTED";
+                const displayCurrency = r.provider === "paypal" ? "NGN" : r.currency;
+                return (
                 <li key={r.id} className="p-3 flex flex-wrap items-center gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline" className="text-xs">{r.type}</Badge>
-                      <Badge variant={r.status === "PROVIDER_CONFIRMED" ? "default" : r.status === "FAILED" ? "destructive" : "secondary"}>
+                      <Badge
+                        variant={isConfirmed ? "default" : isFailed ? "destructive" : "secondary"}
+                        className={`text-xs ${isConfirmed ? "bg-emerald-600 hover:bg-emerald-600" : ""}`}
+                      >
+                        {isConfirmed && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                        {isFailed && <XCircle className="h-3 w-3 mr-1" />}
                         {r.status}
                       </Badge>
                     </div>
-                    <div className="text-sm mt-1">
+                    <div className="text-sm mt-1 font-medium">
                       {r.milestone?.title ?? "No milestone"}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Provider: {r.provider} · Ref: {r.providerTxRef ?? "—"}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Initiated {formatDateTime(r.initiatedAt)}
-                      {r.confirmedAt && ` · Confirmed ${formatDateTime(r.confirmedAt)}`}
+                      {r.provider === "paypal" ? "🇺🇸→🇳🇬 " : ""}{r.provider} · {formatDateTime(r.initiatedAt)}
                     </div>
                     {r.failureReason && (
-                      <div className="text-xs text-destructive mt-1">Failure: {r.failureReason}</div>
+                      <div className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-start gap-1">
+                        <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                        <span>{r.failureReason}</span>
+                      </div>
                     )}
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold">{formatMinor(r.amountMinor, r.currency)}</div>
-                    <div className="text-xs text-muted-foreground">{r.currency}</div>
+                  <div className="text-right flex flex-col items-end gap-1">
+                    <div className={`font-bold ${isConfirmed ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+                      {formatMinor(r.amountMinor, displayCurrency)}
+                    </div>
+                    {isConfirmed && (
+                      <a
+                        href={`/api/payments/${r.providerTxRef}/receipt`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-[#003087] hover:underline flex items-center gap-1"
+                      >
+                        <Download className="h-3 w-3" /> Receipt
+                      </a>
+                    )}
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </CardContent>
@@ -420,16 +449,17 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
         if (typeof window !== "undefined") {
           window.open(res.checkoutUrl, "_blank", "noopener,noreferrer");
         }
+        toast.info("PayPal checkout opened", {
+          description: `Complete the $${paidUsd} payment in the new tab, then click "Verify Payment".`,
+        });
       } else {
         setError("PayPal did not return a checkout URL. Check server logs.");
+        toast.error("Failed to start PayPal checkout");
       }
     } catch (err) {
       const msg = (err as Error)?.message ?? "Failed to initiate PayPal payment";
-      setError(
-        msg.includes("not configured")
-          ? "PayPal is not configured on the server."
-          : msg,
-      );
+      setError(msg.includes("not configured") ? "PayPal is not configured on the server." : msg);
+      toast.error("Payment initiation failed", { description: msg });
     } finally {
       setPaying(false);
     }
@@ -449,13 +479,21 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
       );
       if (res.verified) {
         setVerified(true);
-        // Clear the pending PayPal payment from localStorage
         localStorage.removeItem(`paypal_pending_${projectId}`);
+        toast.success("Payment confirmed!", {
+          description: `Your PayPal payment of $${verifiedAmount ?? usdAmount} has been verified. Milestone is now funded.`,
+        });
       } else {
         setError(res.message ?? "Payment not yet completed. Make sure you approved it in PayPal.");
+        toast.warning("Payment not yet confirmed", {
+          description: "Make sure you approved the payment in PayPal, then try again.",
+        });
       }
     } catch (err) {
       setError((err as Error)?.message ?? "Failed to verify payment");
+      toast.error("Verification failed", {
+        description: (err as Error)?.message ?? "Please try again.",
+      });
     } finally {
       setVerifying(false);
     }
