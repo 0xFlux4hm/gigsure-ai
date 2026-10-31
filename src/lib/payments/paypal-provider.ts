@@ -240,7 +240,28 @@ export class PayPalProvider implements PaymentProvider {
       );
     }
 
-    const data = (await res.json()) as PayPalOrderResponse;
+    let data = (await res.json()) as PayPalOrderResponse;
+
+    // If the order is APPROVED (buyer approved in PayPal but we haven't captured yet),
+    // capture the payment now. PayPal's Orders API v2 requires an explicit capture call
+    // to move funds — approval alone doesn't move money.
+    if (data.status === "APPROVED") {
+      const captureRes = await fetch(
+        `${this.baseUrl}/v2/checkout/orders/${providerReference}/capture`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            "PayPal-Request-Id": `capture_${providerReference}`,
+          },
+        },
+      );
+      if (captureRes.ok) {
+        data = (await captureRes.json()) as PayPalOrderResponse;
+      }
+    }
+
     const capture = data.purchase_units?.[0]?.payments?.captures?.[0];
 
     // Convert PayPal amount (string major) → minor units in the original currency
