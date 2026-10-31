@@ -242,9 +242,8 @@ export class PayPalProvider implements PaymentProvider {
 
     let data = (await res.json()) as PayPalOrderResponse;
 
-    // If the order is APPROVED (buyer approved in PayPal but we haven't captured yet),
-    // capture the payment now. PayPal's Orders API v2 requires an explicit capture call
-    // to move funds — approval alone doesn't move money.
+    // If the order is APPROVED (buyer approved in PayPal but we haven't
+    // captured yet), capture the payment now.
     if (data.status === "APPROVED") {
       const captureRes = await fetch(
         `${this.baseUrl}/v2/checkout/orders/${providerReference}/capture`,
@@ -264,22 +263,25 @@ export class PayPalProvider implements PaymentProvider {
 
     const capture = data.purchase_units?.[0]?.payments?.captures?.[0];
 
-    // Convert PayPal amount (string major) → minor units in the original currency
-    const amountPaidMinor = capture
+    // Get the raw PayPal capture amount (in USD for cross-border, or the
+    // original currency for same-currency payments)
+    const rawAmountMinor = capture
       ? Math.round(parseFloat(capture.amount.value) * 100)
       : undefined;
+    const rawCurrency = capture?.amount.currency_code;
 
-    // so the rest of the platform (which expects NGN) works unchanged.
-    const isCrossBorder = capture?.amount.currency_code === "USD";
-    const amountPaidMinorInProjectCurrency = isCrossBorder && amountPaidMinor
-      ? amountPaidMinor * 1500
-      : amountPaidMinor;
+    // For cross-border (USD capture for an NGN project), convert to NGN
+    // so the rest of the platform works unchanged.
+    const isCrossBorder = rawCurrency === "USD";
+    const amountPaidMinor = isCrossBorder && rawAmountMinor
+      ? rawAmountMinor * 1500  // USD minor → NGN minor (1 USD = ₦1500 demo rate)
+      : rawAmountMinor;
 
     return {
       providerReference: data.id,
       status: this.mapStatus(data.status),
-      amountPaidMinor: amountPaidMinorInProjectCurrency,
-      currency: isCrossBorder ? "NGN" : capture?.amount.currency_code,
+      amountPaidMinor,
+      currency: isCrossBorder ? "NGN" : rawCurrency,
       paidAt: capture?.create_time ? new Date(capture.create_time) : undefined,
       paymentMethod: "paypal",
       rawResponse: data as unknown as Record<string, unknown>,

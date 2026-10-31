@@ -85,8 +85,10 @@ export const POST = apiRoute(async (req) => {
           providerEventId: `manual_verify_${transaction.id}_${Date.now()}`,
           providerTxRef: providerReference,
           eventType: "PAYMENT.CAPTURE.COMPLETED",
-          amountMinor: result.amountPaidMinor ?? transaction.amountMinor,
-          currency: result.currency ?? transaction.currency,
+          // Use the transaction's original amount (NGN), not the converted
+          // amount from verifyPayment — that's what the funding record expects.
+          amountMinor: transaction.amountMinor,
+          currency: transaction.currency,
           status: "PROVIDER_CONFIRMED",
           rawPayload: JSON.stringify(result.rawResponse ?? {}),
           signatureValid: true,

@@ -111,23 +111,19 @@ export async function confirmFundingRecord(
     return { processed: false, reason: "funding_record_not_found" };
   }
 
-  // SECURITY: Validate webhook amount matches funding record amount.
-  // For PayPal cross-border (USD→NGN), the webhook amount is in USD minor
-  // units while the funding record is in NGN. Allow a cross-border tolerance
-  // by converting the USD amount using the same FX rate (1 USD = 1500 NGN).
+  // Amount validation: for PayPal cross-border payments, the webhook may
+  // send the amount in USD (minor units) while the funding record is in NGN.
+  // The verify endpoint already passes the correct NGN amount (from the
+  // transaction), so we only need to handle the raw webhook case.
   const CROSS_BORDER_FX_RATE = 1500;
   let expectedAmount = input.amountMinor;
-  // If provider is PayPal and amounts don't match directly, try cross-border conversion
   if (input.provider === "paypal" && input.amountMinor !== record.amountMinor) {
-    // The webhook amount might be in USD (minor units) — convert to NGN
-    const convertedAmount = input.amountMinor * CROSS_BORDER_FX_RATE;
-    if (convertedAmount === record.amountMinor) {
-      // Cross-border match — use the funding record's amount
+    // Check if it's a raw USD amount that needs conversion
+    if (input.amountMinor * CROSS_BORDER_FX_RATE === record.amountMinor) {
       expectedAmount = record.amountMinor;
     }
-    // Also check if the amount was ALREADY converted (double-conversion bug)
-    // 45,000,000,000 / 1500 = 30,000,000 — if dividing by FX rate matches, it was double-converted
-    if (input.amountMinor / CROSS_BORDER_FX_RATE === record.amountMinor) {
+    // Check if it was double-converted
+    else if (input.amountMinor / CROSS_BORDER_FX_RATE === record.amountMinor) {
       expectedAmount = record.amountMinor;
     }
   }
