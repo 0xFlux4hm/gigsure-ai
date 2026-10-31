@@ -442,18 +442,32 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
       </div>
 
       {selected && (
-        <div className="rounded-md bg-muted/40 p-3 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">NGN amount</span>
-            <span className="font-medium">{formatMinor(selected.amountMinor, "NGN")}</span>
+        <div className="rounded-lg border bg-gradient-to-br from-muted/40 to-muted/10 p-4 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">🇳🇬 Nigerian freelancer receives</span>
+            <span className="font-semibold">{formatMinor(selected.amountMinor, "NGN")}</span>
           </div>
-          <div className="flex justify-between mt-1">
-            <span className="text-muted-foreground">FX rate (demo)</span>
+
+          {/* Visual conversion arrow */}
+          <div className="flex items-center justify-center py-1">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#003087]/10 text-[#003087] font-medium">
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                </svg>
+                Cross-border via PayPal
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">🇺🇸 International client pays</span>
+            <span className="text-2xl font-bold text-[#003087]">${usdAmount}</span>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t text-xs text-muted-foreground">
+            <span>FX rate (demo)</span>
             <span>1 USD = ₦{FX_RATE.toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between mt-1 pt-1 border-t">
-            <span className="font-medium">You pay (USD)</span>
-            <span className="font-bold text-[#003087]">${usdAmount}</span>
           </div>
         </div>
       )}
@@ -461,7 +475,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
       <Button
         onClick={handlePay}
         disabled={paying || !selectedId}
-        className="w-full bg-[#003087] hover:bg-[#002469] text-white"
+        className="w-full bg-[#003087] hover:bg-[#002469] text-white h-12 text-base"
       >
         {paying ? (
           <>
@@ -469,28 +483,45 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
           </>
         ) : (
           <>
-            <span className="mr-2 inline-flex items-center justify-center h-5 w-5 rounded bg-white text-[#003087] font-bold text-xs">P</span>
+            {/* Official PayPal wordmark */}
+            <svg className="mr-2 h-5" viewBox="0 0 100 24" fill="currentColor" aria-hidden="true">
+              <path d="M9.96 0H5.36c-.31 0-.58.23-.63.53L2.81 14.03c-.04.22.13.42.36.42h2.2c.31 0 .58-.23.63-.53l.51-3.23c.05-.31.31-.53.63-.53h1.45c3.01 0 4.75-1.46 5.2-4.34.2-1.26.01-2.25-.57-2.94C13.55.51 12.06 0 9.96 0zm.61 4.28c.27 1.66-.93 2.78-2.78 2.78H6.49l.52-3.27c.03-.21.21-.36.42-.36h1.62c1.42 0 2.32.41 2.52 1.85z"/>
+              <path d="M21.6 4.05h-2.2c-.21 0-.39.15-.42.36l-.11.69-.17-.25c-.54-.78-1.74-1.04-2.94-1.04-2.75 0-5.09 2.08-5.55 5.01-.27 1.45.1 2.84.97 3.81.79.89 1.91 1.26 3.25 1.26 2.3 0 3.57-1.48 3.57-1.48l-.11.69c-.04.22.13.42.36.42h1.99c.31 0 .58-.23.63-.53l1.2-7.6c.04-.22-.13-.42-.36-.42zm-2.81 4.85c-.27 1.42-1.37 2.37-2.81 2.37-.72 0-1.3-.23-1.67-.67-.37-.43-.51-1.05-.39-1.74.25-1.43 1.37-2.43 2.79-2.43.71 0 1.29.24 1.67.68.38.44.53 1.06.41 1.79z"/>
+              <path d="M34.6 4.05h-2.21c-.21 0-.4.1-.52.28l-3.06 4.51-1.3-4.34c-.08-.27-.32-.45-.6-.45h-2.17c-.26 0-.45.26-.36.51l2.44 7.16-2.29 3.23c-.18.25 0 .59.3.59h2.2c.2 0 .4-.1.51-.27l7.36-10.63c.18-.25 0-.59-.3-.59z"/>
+              <path d="M41.13.38l-1.92 12.16c-.04.22.13.42.36.42h1.94c.31 0 .58-.23.63-.53L44.04.42c.04-.22-.13-.42-.36-.42h-2.17c-.21 0-.39.15-.42.38z"/>
+              <path d="M58.18 4.05h-2.2c-.21 0-.39.15-.42.36l-.11.69-.17-.25c-.54-.78-1.74-1.04-2.94-1.04-2.75 0-5.09 2.08-5.55 5.01-.27 1.45.1 2.84.97 3.81.79.89 1.91 1.26 3.25 1.26 2.3 0 3.57-1.48 3.57-1.48l-.11.69c-.04.22.13.42.36.42h1.99c.31 0 .58-.23.63-.53l1.2-7.6c.04-.22-.13-.42-.36-.42zm-2.81 4.85c-.27 1.42-1.37 2.37-2.81 2.37-.72 0-1.3-.23-1.67-.67-.37-.43-.51-1.05-.39-1.74.25-1.43 1.37-2.43 2.79-2.43.71 0 1.29.24 1.67.68.38.44.53 1.06.41 1.79z"/>
+              <path d="M63.34 4.41l-1.98 12.58c-.04.22.13.42.36.42h1.99c.31 0 .58-.23.63-.53l1.96-12.41c.04-.22-.13-.42-.36-.42h-2.22c-.21 0-.39.15-.42.36z"/>
+            </svg>
             Pay ${usdAmount} with PayPal
           </>
         )}
       </Button>
 
       {checkoutUrl && (
-        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm">
-          <div className="font-medium text-emerald-700 dark:text-emerald-300 mb-1">
-            PayPal checkout opened
+        <div className="rounded-lg border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 p-4 text-sm space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+            </div>
+            <div className="font-semibold text-emerald-700 dark:text-emerald-300">
+              PayPal checkout opened — complete your payment
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Complete the payment in the PayPal tab. Once approved, the webhook will confirm the funding
+          <p className="text-xs text-muted-foreground pl-7">
+            A PayPal sandbox tab has opened. Log in with the test buyer account and approve the
+            <strong> ${usdAmount} USD</strong> payment. Once approved, the webhook fires back to GigSure
             and your milestone will be marked as <strong>Funded</strong>.
           </p>
           <a
             href={checkoutUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-[#003087] underline mt-1 inline-block"
+            className="inline-flex items-center gap-1 text-xs text-[#003087] font-medium underline mt-1 pl-7"
           >
-            Reopen PayPal checkout →
+            Reopen PayPal checkout
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M7 17L17 7M17 7H8M17 7v9" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </a>
         </div>
       )}
