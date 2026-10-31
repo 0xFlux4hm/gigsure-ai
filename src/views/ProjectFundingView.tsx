@@ -331,6 +331,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
   const [paypalOrderId, setPaypalOrderId] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [verifiedAmount, setVerifiedAmount] = useState<string | null>(null);
 
   // On mount, check if there's a pending PayPal payment in localStorage
   // (survives mobile tab unloading + page reloads)
@@ -342,10 +343,12 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
           checkoutUrl?: string;
           paymentTxId?: string;
           paypalOrderId?: string;
+          verifiedAmount?: string;
         };
         if (data.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
         if (data.paymentTxId) setPaymentTxId(data.paymentTxId);
         if (data.paypalOrderId) setPaypalOrderId(data.paypalOrderId);
+        if (data.verifiedAmount) setVerifiedAmount(data.verifiedAmount);
       } catch {
         localStorage.removeItem(`paypal_pending_${projectId}`);
       }
@@ -383,6 +386,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
     setPaymentTxId(null);
     setPaypalOrderId(null);
     setVerified(false);
+    setVerifiedAmount(null);
     try {
       const res = await api.post<{
         checkoutUrl?: string;
@@ -406,6 +410,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
           checkoutUrl: res.checkoutUrl,
           paymentTxId: res.transactionId ?? null,
           paypalOrderId: orderId,
+          verifiedAmount: usdAmount,
         }));
         if (typeof window !== "undefined") {
           window.open(res.checkoutUrl, "_blank", "noopener,noreferrer");
@@ -574,7 +579,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
           </div>
           <p className="text-xs text-muted-foreground pl-7">
             A PayPal sandbox tab has opened. Log in with the test buyer account and approve the
-            <strong> ${usdAmount} USD</strong> payment. Once you've approved it, click "Verify Payment" below.
+            <strong> ${verifiedAmount ?? usdAmount} USD</strong> payment. Once you've approved it, click "Verify Payment" below.
           </p>
           <a
             href={checkoutUrl}
@@ -617,7 +622,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
             Payment Confirmed!
           </div>
           <p className="text-sm text-muted-foreground">
-            Your PayPal payment of <strong>${usdAmount} USD</strong> has been verified.
+            Your PayPal payment of <strong>${verifiedAmount ?? usdAmount} USD</strong> has been verified.
             The milestone is now <strong>Funded</strong> and held in escrow.
           </p>
           <div className="flex flex-col gap-2 mt-3">
@@ -650,7 +655,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
             Payment Confirmed!
           </div>
           <p className="text-sm text-muted-foreground">
-            Your PayPal payment of <strong>${usdAmount} USD</strong> has been verified.
+            Your PayPal payment of <strong>${verifiedAmount ?? usdAmount} USD</strong> has been verified.
             The milestone is now <strong>Funded</strong> and held in escrow.
           </p>
           <Button
