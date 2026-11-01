@@ -130,13 +130,20 @@ function NewProjectDialog({ onCreated }: { onCreated: (id: string) => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Inline validation that mirrors the server Zod schema so the user
+  // gets immediate feedback instead of a generic 422 "Invalid project data".
+  const titleValid = title.trim().length >= 3 && title.trim().length <= 160;
+  const descriptionValid = description.trim().length >= 10 && description.trim().length <= 8000;
+  const canSubmit = titleValid && descriptionValid && !loading;
+
   const submit = async () => {
+    if (!canSubmit) return;
     setLoading(true);
     setError(null);
     try {
       const project = await api.post<{ id: string }>("/api/projects", {
-        title,
-        description,
+        title: title.trim(),
+        description: description.trim(),
         currency,
         budget: Number(budget) || 0,
         fundingArrangement,
@@ -145,8 +152,12 @@ function NewProjectDialog({ onCreated }: { onCreated: (id: string) => void }) {
       toast.success("Project created", { description: `"${title}" is ready.` });
       onCreated(project.id);
     } catch (err) {
-      setError((err as Error).message);
-      toast.error("Failed to create project", { description: (err as Error).message });
+      const msg = (err as Error).message || "";
+      const friendly = msg.includes("Invalid project data")
+        ? "Title must be at least 3 characters and description at least 10 characters."
+        : msg;
+      setError(friendly);
+      toast.error("Failed to create project", { description: friendly });
     } finally {
       setLoading(false);
     }
@@ -161,6 +172,9 @@ function NewProjectDialog({ onCreated }: { onCreated: (id: string) => void }) {
         <div className="space-y-1.5">
           <Label htmlFor="title">Project title</Label>
           <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Lagos Bakery Website Redesign" />
+          {title.trim().length > 0 && !titleValid && (
+            <p className="text-xs text-destructive">Title must be at least 3 characters.</p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="description">Description / scope</Label>
@@ -171,6 +185,9 @@ function NewProjectDialog({ onCreated }: { onCreated: (id: string) => void }) {
             placeholder="Brief description of what the client needs delivered."
             rows={4}
           />
+          {description.trim().length > 0 && !descriptionValid && (
+            <p className="text-xs text-destructive">Description must be at least 10 characters.</p>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
@@ -214,7 +231,7 @@ function NewProjectDialog({ onCreated }: { onCreated: (id: string) => void }) {
         )}
       </div>
       <DialogFooter>
-        <Button onClick={submit} disabled={loading || !title || !description}>
+        <Button onClick={submit} disabled={!canSubmit}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
           Create project
         </Button>

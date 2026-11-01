@@ -211,26 +211,41 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
 function NewMilestoneDialog({ projectId, onCreated }: { projectId: string; onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("0");
+  const [amount, setAmount] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Inline validation — prevents the silent 422 that happens when the
+  // schema's min(1) check on amountMinor fails because the user left
+  // the amount at its previous default of "0".
+  const titleValid = title.trim().length >= 2;
+  const amountNum = Number(amount || "0");
+  const amountValid = amount.trim() !== "" && amountNum > 0 && Number.isFinite(amountNum);
+  const canSubmit = titleValid && amountValid && !loading;
+
   const submit = async () => {
+    if (!canSubmit) return;
     setLoading(true);
     setError(null);
     try {
       await api.post(`/api/projects/${projectId}/milestones`, {
-        title,
-        description,
-        amountMinor: Math.round(Number(amount) * 100),
+        title: title.trim(),
+        description: description.trim() || undefined,
+        amountMinor: Math.round(amountNum * 100),
         dueDate: dueDate ? new Date(dueDate).toISOString() : null,
       });
       toast.success("Milestone created", { description: `"${title}" has been added to the project.` });
       onCreated();
     } catch (err) {
-      setError((err as Error).message);
-      toast.error("Failed to create milestone", { description: (err as Error).message });
+      const msg = (err as Error).message || "";
+      // The server returns a generic "Invalid milestone" on Zod failure (by design,
+      // to prevent schema probing). Translate it back to a useful hint for the user.
+      const friendly = msg.includes("Invalid milestone")
+        ? "Please enter a valid title and an amount greater than zero."
+        : msg;
+      setError(friendly);
+      toast.error("Failed to create milestone", { description: friendly });
     } finally {
       setLoading(false);
     }
@@ -251,7 +266,10 @@ function NewMilestoneDialog({ projectId, onCreated }: { projectId: string; onCre
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="amount">Amount (major units)</Label>
-            <Input className="input-premium" id="amount" type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <Input className="input-premium" id="amount" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 50000" />
+            {amount.trim() !== "" && !amountValid && (
+              <p className="text-xs text-destructive">Enter an amount greater than 0.</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="due">Due date</Label>
@@ -261,7 +279,7 @@ function NewMilestoneDialog({ projectId, onCreated }: { projectId: string; onCre
         {error && <div className="text-sm text-destructive">{error}</div>}
       </div>
       <DialogFooter>
-        <Button onClick={submit} disabled={loading || !title}>
+        <Button onClick={submit} disabled={!canSubmit}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
           Create milestone
         </Button>
