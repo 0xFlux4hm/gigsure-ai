@@ -7,7 +7,11 @@ export const GET = apiRoute(async (req, { params }) => {
   const userId = await requireUserId();
   const { transactionId } = await params;
 
-  const transaction = await db.paymentTransaction.findUnique({
+  // The URL param might be either:
+  // - A PaymentTransaction ID (CUID like 'clxxx...')
+  // - A providerTxRef (PayPal order ID like '3UH33236RW5487452')
+  // Try looking up by ID first, then by providerReference.
+  let transaction = await db.paymentTransaction.findUnique({
     where: { id: transactionId },
     include: {
       project: { select: { title: true, currency: true } },
@@ -15,6 +19,31 @@ export const GET = apiRoute(async (req, { params }) => {
       user: { select: { displayName: true, email: true } },
     },
   });
+
+  // If not found by ID, try by providerReference (PayPal order ID)
+  if (!transaction) {
+    transaction = await db.paymentTransaction.findFirst({
+      where: { providerReference: transactionId },
+      include: {
+        project: { select: { title: true, currency: true } },
+        milestone: { select: { title: true } },
+        user: { select: { displayName: true, email: true } },
+      },
+    });
+  }
+
+  // Fallback: find the most recent SUCCEEDED PayPal transaction for this user
+  if (!transaction) {
+    transaction = await db.paymentTransaction.findFirst({
+      where: { userId, provider: "paypal", status: "SUCCEEDED" },
+      include: {
+        project: { select: { title: true, currency: true } },
+        milestone: { select: { title: true } },
+        user: { select: { displayName: true, email: true } },
+      },
+      orderBy: { paidAt: "desc" },
+    });
+  }
 
   if (!transaction) return fail("Transaction not found", 404);
   if (transaction.userId !== userId) return fail("Unauthorized", 403);

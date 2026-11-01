@@ -698,7 +698,7 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
           </p>
           <div className="flex flex-col gap-2 mt-3">
             <a
-              href={`/api/payments/${paymentTxId}/receipt`}
+              href={`/api/payments/${paymentTxId || paypalOrderId || "lookup_recent"}/receipt`}
               target="_blank"
               rel="noopener noreferrer"
             >
