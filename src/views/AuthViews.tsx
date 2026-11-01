@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api } from "@/lib/client-api";
-import { ShieldCheck, Loader2, Lock, FileCheck, Wallet, Scale, Bot } from "lucide-react";
+import { ShieldCheck, Loader2, FileCheck, Wallet, Scale, Bot } from "lucide-react";
 import { toast } from "sonner";
 
 /**
@@ -140,12 +140,8 @@ export function AuthViews() {
 
       {/* Footer */}
       <footer className="border-t py-4 px-4">
-        <div className="container mx-auto max-w-7xl flex items-center justify-between text-xs text-muted-foreground">
+        <div className="container mx-auto max-w-7xl flex items-center justify-center text-xs text-muted-foreground">
           <span>© {new Date().getFullYear()} GigSure AI</span>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Secure</span>
-            <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Protected</span>
-          </div>
         </div>
       </footer>
     </div>
