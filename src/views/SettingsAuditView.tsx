@@ -36,7 +36,7 @@ export function SettingsAuditView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Audit log"
         description="Security-relevant actions taken on your account."
@@ -51,7 +51,7 @@ export function SettingsAuditView() {
         }
       />
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader><CardTitle className="text-base">Recent events ({events.length})</CardTitle></CardHeader>
         <CardContent className="p-0">
           {events.length === 0 ? (
@@ -68,8 +68,8 @@ export function SettingsAuditView() {
                 return (
                   <li key={e.id} className="p-3 text-sm">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <Badge variant="outline" className="text-xs">{e.action}</Badge>
-                      {e.targetType && <Badge variant="secondary" className="text-xs">{e.targetType}</Badge>}
+                      <Badge variant="outline" className="text-xs badge-info">{e.action}</Badge>
+                      {e.targetType && <Badge variant="secondary" className="text-xs badge-warning">{e.targetType}</Badge>}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {formatDateTime(e.createdAt)}

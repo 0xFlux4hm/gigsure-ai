@@ -45,7 +45,7 @@ export function NotificationsView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Notifications"
         description="Recent activity across your account."
@@ -59,7 +59,7 @@ export function NotificationsView() {
           description="You're all caught up. New activity will appear here."
         />
       ) : (
-        <Card>
+        <Card className="premium-card">
           <CardContent className="p-0">
             <ul className="divide-y">
               {items.map((n) => (
@@ -68,8 +68,8 @@ export function NotificationsView() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm">{n.title}</span>
-                      <Badge variant="outline" className="text-[10px]">{n.type}</Badge>
-                      {!n.readAt && <Badge variant="secondary" className="text-[10px]">new</Badge>}
+                      <Badge variant="outline" className="text-[10px] badge-info">{n.type}</Badge>
+                      {!n.readAt && <Badge variant="secondary" className="text-[10px] badge-warning">new</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground mt-0.5">{n.body}</p>
                     <div className="text-xs text-muted-foreground mt-1">{timeAgo(n.createdAt)}</div>

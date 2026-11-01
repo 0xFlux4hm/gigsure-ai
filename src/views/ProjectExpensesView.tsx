@@ -192,7 +192,7 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Project expenses"
         description="Service providers can request funds from funded milestones for project-related expenses (domain, hosting, software)."
@@ -227,7 +227,7 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
-                <Input
+                <Input className="input-premium"
                   id="title"
                   value={formState.title}
                   onChange={(e) => setFormState((s) => ({ ...s, title: e.target.value }))}
@@ -248,7 +248,7 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="amount">Amount (₦)</Label>
-                <Input
+                <Input className="input-premium"
                   id="amount"
                   type="number"
                   step="0.01"
@@ -293,7 +293,7 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
         </Alert>
       )}
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base">All Expenses ({expenses.length})</CardTitle>
           <CardDescription>
@@ -316,7 +316,7 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">{exp.title}</span>
                         <StatusBadge status={exp.status} />
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs badge-info">
                           {CATEGORIES.find((c) => c.value === exp.category)?.label ?? exp.category}
                         </Badge>
                       </div>

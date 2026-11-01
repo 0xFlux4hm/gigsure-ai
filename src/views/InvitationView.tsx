@@ -72,21 +72,21 @@ export function InvitationView({ token }: { token?: string }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+      <div className="page-enter min-h-screen flex items-center justify-center bg-muted/30">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
+    <div className="page-enter min-h-screen flex items-center justify-center p-4 bg-muted/30">
       <div className="w-full max-w-lg">
         <div className="flex items-center gap-2 mb-6 justify-center">
           <Users className="h-6 w-6 text-primary" />
           <span className="font-semibold">Project Invitation</span>
         </div>
 
-        <Card>
+        <Card className="premium-card">
           <CardHeader>
             <CardTitle>{error ? "Invitation not available" : info?.projectTitle ?? "Invitation"}</CardTitle>
             <CardDescription>

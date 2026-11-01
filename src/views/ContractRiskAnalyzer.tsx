@@ -90,7 +90,7 @@ export function ContractRiskAnalyzer({ contractVersionId }: { contractVersionId:
     : "text-red-500";
 
   return (
-    <div className="space-y-3">
+    <div className="page-enter space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-primary" />

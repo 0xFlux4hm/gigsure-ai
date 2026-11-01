@@ -58,14 +58,14 @@ export function ProjectAiView({ projectId }: { projectId: string }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="AI assistants"
         description="Advisory only. AI cannot authorize payments or make binding decisions."
         icon={Bot}
       />
 
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-4 flex items-start gap-3 bg-amber-50 dark:bg-amber-950/30 border-amber-500">
           <AlertTriangle className="h-4 w-4 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
           <div className="text-sm">
@@ -98,7 +98,7 @@ export function ProjectAiView({ projectId }: { projectId: string }) {
         </div>
 
         <div className="md:col-span-2 space-y-4">
-          <Card>
+          <Card className="premium-card">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
@@ -121,15 +121,15 @@ export function ProjectAiView({ projectId }: { projectId: string }) {
           </Card>
 
           {error && (
-            <Card><CardContent className="p-3 text-sm text-destructive">{error}</CardContent></Card>
+            <Card className="premium-card"><CardContent className="p-3 text-sm text-destructive">{error}</CardContent></Card>
           )}
 
           {response && (
-            <Card>
+            <Card className="premium-card">
               <CardHeader>
                 <CardTitle className="text-base flex items-center justify-between">
                   <span>Response</span>
-                  {fallbackUsed && <Badge variant="outline" className="text-xs text-amber-700 border-amber-500">Fallback (deterministic)</Badge>}
+                  {fallbackUsed && <Badge variant="outline" className="text-xs text-amber-700 border-amber-500 badge-info">Fallback (deterministic)</Badge>}
                 </CardTitle>
               </CardHeader>
               <CardContent>

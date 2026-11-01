@@ -96,8 +96,8 @@ export function GoogleRegistrationView() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
+      <div className="page-enter min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md w-full premium-card">
           <CardContent className="py-12 text-center">
             <div className="h-16 w-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
               <Check className="h-8 w-8 text-emerald-600" />
@@ -114,7 +114,7 @@ export function GoogleRegistrationView() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="page-enter min-h-screen flex flex-col bg-background">
       {/* Header */}
       <header className="border-b">
         <div className="container mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
@@ -128,7 +128,7 @@ export function GoogleRegistrationView() {
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4">
-        <Card className="max-w-lg w-full">
+        <Card className="max-w-lg w-full premium-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-primary" />

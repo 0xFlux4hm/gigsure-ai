@@ -55,7 +55,7 @@ export function AdminView() {
 
   if (isAdmin === null) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="page-enter flex items-center justify-center py-12">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -72,7 +72,7 @@ export function AdminView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Admin dashboard"
         description="Platform-wide oversight. All actions are audited."
@@ -181,7 +181,7 @@ function OverviewTab() {
       </div>
 
       {/* 7-day trend */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Last 7 days</CardTitle>
           <CardDescription>Platform activity over the past week</CardDescription>
@@ -195,7 +195,7 @@ function OverviewTab() {
       </Card>
 
       {/* Financial overview */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base">Financial overview</CardTitle>
           <CardDescription>Transaction history and payment records</CardDescription>
@@ -247,7 +247,7 @@ function StatCard({ label, value, sub, icon: Icon, accent = "default" }: {
     destructive: "bg-destructive/10 text-destructive",
   };
   return (
-    <Card>
+    <Card className="premium-card">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -275,7 +275,7 @@ function TrendCard({ label, value }: { label: string; value: number }) {
 
 function MiniStat({ label, value, accent = "default" }: { label: string; value: string; accent?: "default" | "warning" }) {
   return (
-    <Card>
+    <Card className="premium-card">
       <CardContent className="p-3">
         <div className="text-xs text-muted-foreground">{label}</div>
         <div className={`font-semibold mt-0.5 ${accent === "warning" ? "text-amber-700 dark:text-amber-400" : ""}`}>{value}</div>
@@ -338,14 +338,14 @@ function UsersTab() {
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-3 flex flex-wrap gap-2 items-end">
           <div className="flex-1 min-w-[200px] space-y-1">
             <Label className="text-xs">Search</Label>
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                className="pl-8"
+                className="pl-8 input-premium"
                 placeholder="Email or name…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -379,7 +379,7 @@ function UsersTab() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center justify-between">
             <span>Users ({total})</span>
@@ -494,7 +494,7 @@ function ProjectsTab() {
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-3 flex gap-2 items-end">
           <div className="space-y-1">
             <Label className="text-xs">Status filter</Label>
@@ -513,7 +513,7 @@ function ProjectsTab() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Projects ({total})</CardTitle>
         </CardHeader>
@@ -548,7 +548,7 @@ function ProjectsTab() {
                         <div>{p.owner.displayName}</div>
                         <div className="text-muted-foreground">{p.owner.email}</div>
                       </td>
-                      <td className="p-2"><Badge variant="outline" className="text-xs">{p.status}</Badge></td>
+                      <td className="p-2"><Badge variant="outline" className="text-xs badge-info">{p.status}</Badge></td>
                       <td className="p-2 text-right">{p.budgetMinor > 0 ? formatMinor(p.budgetMinor, p.currency) : "—"}</td>
                       <td className="p-2 text-right">{p._count.tasks}</td>
                       <td className="p-2 text-right">{p._count.milestones}</td>
@@ -625,7 +625,7 @@ function FundingTab() {
           {aggregates.byStatus.map((s) => {
             const vol = aggregates.volumeByStatus.find((v) => v.status === s.status);
             return (
-              <Card key={s.status}>
+              <Card className="premium-card" key={s.status}>
                 <CardContent className="p-3">
                   <div className="text-xs text-muted-foreground">{s.status}</div>
                   <div className="font-semibold mt-0.5">{s.count} records</div>
@@ -639,7 +639,7 @@ function FundingTab() {
         </div>
       )}
 
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-3 flex gap-2 items-end">
           <div className="space-y-1">
             <Label className="text-xs">Status</Label>
@@ -670,7 +670,7 @@ function FundingTab() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Funding records ({total})</CardTitle>
           <CardDescription>Transaction history and payment records.</CardDescription>
@@ -695,7 +695,7 @@ function FundingTab() {
                     <tr key={r.id} className="border-t hover:bg-muted/30 align-top">
                       <td className="p-2">
                         <div className="flex items-center gap-1 flex-wrap">
-                          <Badge variant="outline" className="text-xs">{r.type}</Badge>
+                          <Badge variant="outline" className="text-xs badge-info">{r.type}</Badge>
                           <Badge variant={r.status === "PROVIDER_CONFIRMED" ? "default" : r.status === "FAILED" ? "destructive" : "secondary"} className="text-xs">{r.status}</Badge>
                           
                         </div>
@@ -782,7 +782,7 @@ function DisputesTab() {
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-3 flex gap-2 items-end">
           <div className="space-y-1">
             <Label className="text-xs">Status filter</Label>
@@ -801,7 +801,7 @@ function DisputesTab() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Disputes ({total})</CardTitle>
         </CardHeader>
@@ -816,7 +816,7 @@ function DisputesTab() {
                 >
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-medium">{d.title}</h3>
-                    <Badge variant="outline" className="text-xs">{d.category}</Badge>
+                    <Badge variant="outline" className="text-xs badge-info">{d.category}</Badge>
                     <Badge variant={d.status === "OPEN" ? "destructive" : d.status === "RESOLVED" ? "default" : "secondary"} className="text-xs">{d.status}</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{d.description}</p>
@@ -881,20 +881,20 @@ function AuditTab() {
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-3 flex gap-2 items-end">
           <div className="flex-1 space-y-1">
             <Label className="text-xs">Filter by action</Label>
-            <Input value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} placeholder="e.g. auth, project, payment" />
+            <Input className="input-premium" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} placeholder="e.g. auth, project, payment" />
           </div>
           <div className="flex-1 space-y-1">
             <Label className="text-xs">Filter by user ID</Label>
-            <Input value={actorFilter} onChange={(e) => setActorFilter(e.target.value)} placeholder="cmv…" />
+            <Input className="input-premium" value={actorFilter} onChange={(e) => setActorFilter(e.target.value)} placeholder="cmv…" />
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Audit Log ({total})</CardTitle>
         </CardHeader>
@@ -921,7 +921,7 @@ function AuditTab() {
                     return (
                       <tr key={e.id} className="border-t hover:bg-muted/30">
                         <td className="p-2">
-                          <Badge variant="outline" className="text-xs">{e.action}</Badge>
+                          <Badge variant="outline" className="text-xs badge-info">{e.action}</Badge>
                         </td>
                         <td className="p-2">
                           <div className="font-medium">{e.actor?.displayName ?? "System"}</div>
@@ -929,7 +929,7 @@ function AuditTab() {
                         </td>
                         <td className="p-2">
                           {e.targetType ? (
-                            <Badge variant="secondary" className="text-xs">{e.targetType}</Badge>
+                            <Badge variant="secondary" className="text-xs badge-warning">{e.targetType}</Badge>
                           ) : "—"}
                         </td>
                         <td className="p-2 text-xs text-muted-foreground font-mono">{e.ipAddress ?? "—"}</td>
@@ -991,15 +991,15 @@ function AiTab() {
     <div className="space-y-4">
       {aggregates && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Total calls</div><div className="font-semibold mt-0.5">{total}</div></CardContent></Card>
-          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Total tokens used</div><div className="font-semibold mt-0.5">{aggregates.totalTokensUsed.toLocaleString()}</div></CardContent></Card>
-          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Fallback count</div><div className="font-semibold mt-0.5 text-amber-700 dark:text-amber-400">{aggregates.fallbackCount}</div></CardContent></Card>
-          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Fallback rate</div><div className="font-semibold mt-0.5">{(aggregates.fallbackRate * 100).toFixed(1)}%</div></CardContent></Card>
+          <Card className="premium-card"><CardContent className="p-3"><div className="text-xs text-muted-foreground">Total calls</div><div className="font-semibold mt-0.5">{total}</div></CardContent></Card>
+          <Card className="premium-card"><CardContent className="p-3"><div className="text-xs text-muted-foreground">Total tokens used</div><div className="font-semibold mt-0.5">{aggregates.totalTokensUsed.toLocaleString()}</div></CardContent></Card>
+          <Card className="premium-card"><CardContent className="p-3"><div className="text-xs text-muted-foreground">Fallback count</div><div className="font-semibold mt-0.5 text-amber-700 dark:text-amber-400">{aggregates.fallbackCount}</div></CardContent></Card>
+          <Card className="premium-card"><CardContent className="p-3"><div className="text-xs text-muted-foreground">Fallback rate</div><div className="font-semibold mt-0.5">{(aggregates.fallbackRate * 100).toFixed(1)}%</div></CardContent></Card>
         </div>
       )}
 
       {aggregates && aggregates.byAssistant.length > 0 && (
-        <Card>
+        <Card className="premium-card">
           <CardHeader className="pb-3"><CardTitle className="text-base">By assistant</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {aggregates.byAssistant.map((a) => (
@@ -1015,7 +1015,7 @@ function AiTab() {
         </Card>
       )}
 
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-3 flex gap-2 items-end flex-wrap">
           <div className="space-y-1">
             <Label className="text-xs">Assistant</Label>
@@ -1040,7 +1040,7 @@ function AiTab() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader className="pb-3"><CardTitle className="text-base">Recent AI activity</CardTitle></CardHeader>
         <CardContent className="p-0">
           {loading ? <LoadingState /> : (
@@ -1048,8 +1048,8 @@ function AiTab() {
               {activities.map((a) => (
                 <li key={a.id} className="p-3 text-sm">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <Badge variant="outline" className="text-xs">{a.assistantType}</Badge>
-                    {a.fallbackUsed && <Badge variant="outline" className="text-xs text-amber-700 border-amber-500">fallback</Badge>}
+                    <Badge variant="outline" className="text-xs badge-info">{a.assistantType}</Badge>
+                    {a.fallbackUsed && <Badge variant="outline" className="text-xs text-amber-700 border-amber-500 badge-info">fallback</Badge>}
                     <span className="text-xs text-muted-foreground">{a.tokensUsed} tokens</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
@@ -1125,7 +1125,7 @@ function PrivacyTab() {
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-3 flex gap-2 items-end">
           <div className="space-y-1">
             <Label className="text-xs">Status</Label>
@@ -1144,7 +1144,7 @@ function PrivacyTab() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader className="pb-3"><CardTitle className="text-base">Privacy requests ({total})</CardTitle></CardHeader>
         <CardContent className="p-0">
           {loading ? <LoadingState /> : (
@@ -1154,7 +1154,7 @@ function PrivacyTab() {
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="outline" className="text-xs">{r.type}</Badge>
+                        <Badge variant="outline" className="text-xs badge-info">{r.type}</Badge>
                         <Badge variant={r.status === "PENDING" ? "destructive" : r.status === "COMPLETED" ? "default" : "secondary"} className="text-xs">{r.status}</Badge>
                       </div>
                       <div className="mt-1">
@@ -1247,10 +1247,10 @@ function WebhooksTab() {
     <div className="space-y-4">
       {aggregates && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Total</div><div className="font-semibold mt-0.5">{total}</div></CardContent></Card>
-          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Invalid signatures</div><div className="font-semibold mt-0.5 text-destructive">{aggregates.invalidSignatureCount}</div></CardContent></Card>
-          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Unprocessed</div><div className="font-semibold mt-0.5 text-amber-700 dark:text-amber-400">{aggregates.unprocessedCount}</div></CardContent></Card>
-          <Card><CardContent className="p-3">
+          <Card className="premium-card"><CardContent className="p-3"><div className="text-xs text-muted-foreground">Total</div><div className="font-semibold mt-0.5">{total}</div></CardContent></Card>
+          <Card className="premium-card"><CardContent className="p-3"><div className="text-xs text-muted-foreground">Invalid signatures</div><div className="font-semibold mt-0.5 text-destructive">{aggregates.invalidSignatureCount}</div></CardContent></Card>
+          <Card className="premium-card"><CardContent className="p-3"><div className="text-xs text-muted-foreground">Unprocessed</div><div className="font-semibold mt-0.5 text-amber-700 dark:text-amber-400">{aggregates.unprocessedCount}</div></CardContent></Card>
+          <Card className="premium-card"><CardContent className="p-3">
             <div className="text-xs text-muted-foreground">By provider</div>
             <div className="text-xs mt-0.5">
               {aggregates.byProvider.map((p) => `${p.provider}: ${p.count}`).join(" · ")}
@@ -1259,7 +1259,7 @@ function WebhooksTab() {
         </div>
       )}
 
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-3 flex gap-4 items-end flex-wrap">
           <div className="space-y-1">
             <Label className="text-xs">Signature</Label>
@@ -1279,7 +1279,7 @@ function WebhooksTab() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader className="pb-3"><CardTitle className="text-base">Webhook events ({total})</CardTitle></CardHeader>
         <CardContent className="p-0">
           {loading ? <LoadingState /> : (
@@ -1287,10 +1287,10 @@ function WebhooksTab() {
               {events.map((e) => (
                 <li key={e.id} className="p-3 text-sm">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-xs">{e.provider}</Badge>
-                    <Badge variant="secondary" className="text-xs">{e.eventType}</Badge>
-                    {!e.signatureValid && <Badge variant="destructive" className="text-xs">invalid signature</Badge>}
-                    {e.processedAt ? <Badge variant="default" className="text-xs">processed</Badge> : <Badge variant="outline" className="text-xs text-amber-700 border-amber-500">unprocessed</Badge>}
+                    <Badge variant="outline" className="text-xs badge-info">{e.provider}</Badge>
+                    <Badge variant="secondary" className="text-xs badge-warning">{e.eventType}</Badge>
+                    {!e.signatureValid && <Badge variant="destructive" className="text-xs badge-danger">invalid signature</Badge>}
+                    {e.processedAt ? <Badge variant="default" className="text-xs badge-success">processed</Badge> : <Badge variant="outline" className="text-xs text-amber-700 border-amber-500 badge-info">unprocessed</Badge>}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {timeAgo(e.createdAt)}
@@ -1331,7 +1331,7 @@ function LoadingState() {
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <Card>
+    <Card className="premium-card">
       <CardContent className="py-12 text-center">
         <AlertTriangle className="h-10 w-10 mx-auto text-destructive mb-3" />
         <h3 className="font-semibold mb-1">Failed to load</h3>
@@ -1384,7 +1384,7 @@ function KycTab() {
       {aggregates && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {aggregates.byStatus.map((s) => (
-            <Card key={s.status}>
+            <Card className="premium-card" key={s.status}>
               <CardContent className="p-3">
                 <div className="text-xs text-muted-foreground">{s.status}</div>
                 <div className="font-semibold mt-0.5">{s.count}</div>
@@ -1394,7 +1394,7 @@ function KycTab() {
         </div>
       )}
 
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-3 flex gap-2 items-end">
           <div className="space-y-1">
             <Label className="text-xs">Status filter</Label>
@@ -1413,7 +1413,7 @@ function KycTab() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">KYC Verifications ({total})</CardTitle>
         </CardHeader>
@@ -1566,7 +1566,7 @@ function PayoutsTab() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card className="premium-card">
           <CardHeader className="pb-2">
             <CardDescription>Pending payouts</CardDescription>
             <CardTitle className="text-2xl">{pending?.count ?? 0}</CardTitle>
@@ -1577,7 +1577,7 @@ function PayoutsTab() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="premium-card">
           <CardHeader className="pb-2">
             <CardDescription>Successful payouts</CardDescription>
             <CardTitle className="text-2xl text-emerald-600">{succeeded?.count ?? 0}</CardTitle>
@@ -1588,7 +1588,7 @@ function PayoutsTab() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="premium-card">
           <CardHeader className="pb-2">
             <CardDescription>Failed payouts</CardDescription>
             <CardTitle className="text-2xl text-destructive">{failed?.count ?? 0}</CardTitle>
@@ -1601,7 +1601,7 @@ function PayoutsTab() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base flex items-center justify-between">
             <span>All payouts</span>
@@ -1779,7 +1779,7 @@ function PaymentsTab() {
   return (
     <div className="space-y-4">
       {/* Provider status */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Payment Providers</CardTitle>
         </CardHeader>
@@ -1810,19 +1810,19 @@ function PaymentsTab() {
       {/* Aggregates */}
       {aggregates && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card><CardContent className="p-3">
+          <Card className="premium-card"><CardContent className="p-3">
             <div className="text-xs text-muted-foreground">Total Volume</div>
             <div className="font-semibold mt-0.5">{formatMinor(aggregates.totalAmountMinor, "NGN")}</div>
           </CardContent></Card>
-          <Card><CardContent className="p-3">
+          <Card className="premium-card"><CardContent className="p-3">
             <div className="text-xs text-muted-foreground">Platform Fees</div>
             <div className="font-semibold mt-0.5 text-primary">{formatMinor(aggregates.totalFeeMinor, "NGN")}</div>
           </CardContent></Card>
-          <Card><CardContent className="p-3">
+          <Card className="premium-card"><CardContent className="p-3">
             <div className="text-xs text-muted-foreground">Net to Service Providers</div>
             <div className="font-semibold mt-0.5">{formatMinor(aggregates.totalNetMinor, "NGN")}</div>
           </CardContent></Card>
-          <Card><CardContent className="p-3">
+          <Card className="premium-card"><CardContent className="p-3">
             <div className="text-xs text-muted-foreground">Transactions</div>
             <div className="font-semibold mt-0.5">{aggregates.totalCount}</div>
           </CardContent></Card>
@@ -1830,7 +1830,7 @@ function PaymentsTab() {
       )}
 
       {/* Status filter */}
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-3">
           <div className="space-y-1">
             <Label className="text-xs">Status filter</Label>
@@ -1851,7 +1851,7 @@ function PaymentsTab() {
       </Card>
 
       {/* Transactions table */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Payment Transactions ({total})</CardTitle>
         </CardHeader>
@@ -2014,13 +2014,13 @@ function GatewayTab() {
       </div>
 
       {/* Fee Configuration */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader><CardTitle className="text-base">Platform Fee</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Fee Rate (basis points)</Label>
-              <Input value={feeRate} onChange={(e) => setFeeRate(e.target.value.replace(/\D/g, ""))} placeholder="150" />
+              <Input className="input-premium" value={feeRate} onChange={(e) => setFeeRate(e.target.value.replace(/\D/g, ""))} placeholder="150" />
               <p className="text-xs text-muted-foreground">150 bps = 1.5% | 200 bps = 2%</p>
             </div>
             <div className="space-y-1">
@@ -2046,7 +2046,7 @@ function GatewayTab() {
       </Card>
 
       {/* Monnify Configuration */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Monnify</CardTitle>
@@ -2071,16 +2071,16 @@ function GatewayTab() {
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Contract Code</Label>
-              <Input value={monnifyContractCode} onChange={(e) => setMonnifyContractCode(e.target.value)} placeholder="5867418298" />
+              <Input className="input-premium" value={monnifyContractCode} onChange={(e) => setMonnifyContractCode(e.target.value)} placeholder="5867418298" />
             </div>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">API Key {settings?.monnify.hasApiKey && !monnifyApiKey ? "(already set — leave blank to keep)" : ""}</Label>
-            <Input value={monnifyApiKey} onChange={(e) => setMonnifyApiKey(e.target.value)} placeholder="MK_TEST_xxxxxxxx" type="password" />
+            <Input className="input-premium" value={monnifyApiKey} onChange={(e) => setMonnifyApiKey(e.target.value)} placeholder="MK_TEST_xxxxxxxx" type="password" />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Secret Key {settings?.monnify.hasSecretKey && !monnifySecretKey ? "(already set — leave blank to keep)" : ""}</Label>
-            <Input value={monnifySecretKey} onChange={(e) => setMonnifySecretKey(e.target.value)} placeholder="xxxxxxxxxxxx" type="password" />
+            <Input className="input-premium" value={monnifySecretKey} onChange={(e) => setMonnifySecretKey(e.target.value)} placeholder="xxxxxxxxxxxx" type="password" />
           </div>
           <p className="text-xs text-muted-foreground">
             Get credentials at <a href="https://developers.monnify.com" target="_blank" rel="noopener" className="text-primary hover:underline">developers.monnify.com</a> → Settings → API Keys & Webhooks
@@ -2089,7 +2089,7 @@ function GatewayTab() {
       </Card>
 
       {/* OPay Configuration */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">OPay</CardTitle>
@@ -2114,16 +2114,16 @@ function GatewayTab() {
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Merchant ID</Label>
-              <Input value={opayMerchantId} onChange={(e) => setOpayMerchantId(e.target.value)} placeholder="256622040884147" />
+              <Input className="input-premium" value={opayMerchantId} onChange={(e) => setOpayMerchantId(e.target.value)} placeholder="256622040884147" />
             </div>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Public Key {settings?.opay.hasPublicKey && !opayPublicKey ? "(already set)" : ""}</Label>
-            <Input value={opayPublicKey} onChange={(e) => setOpayPublicKey(e.target.value)} placeholder="OPAYPUBxxxxxxxxxxxx" type="password" />
+            <Input className="input-premium" value={opayPublicKey} onChange={(e) => setOpayPublicKey(e.target.value)} placeholder="OPAYPUBxxxxxxxxxxxx" type="password" />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Private Key {settings?.opay.hasPrivateKey && !opayPrivateKey ? "(already set)" : ""}</Label>
-            <Input value={opayPrivateKey} onChange={(e) => setOpayPrivateKey(e.target.value)} placeholder="OPAYPRVxxxxxxxxxxxx" type="password" />
+            <Input className="input-premium" value={opayPrivateKey} onChange={(e) => setOpayPrivateKey(e.target.value)} placeholder="OPAYPRVxxxxxxxxxxxx" type="password" />
           </div>
           <p className="text-xs text-muted-foreground">
             Get credentials at <a href="https://documentation.opaycheckout.com" target="_blank" rel="noopener" className="text-primary hover:underline">documentation.opaycheckout.com</a> → Developer Tools
@@ -2132,7 +2132,7 @@ function GatewayTab() {
       </Card>
 
       {/* Webhook URLs */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader><CardTitle className="text-base">Webhook URLs</CardTitle></CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p className="text-muted-foreground">Configure these URLs in your provider dashboards:</p>

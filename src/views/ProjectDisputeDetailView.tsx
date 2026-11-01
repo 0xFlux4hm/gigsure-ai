@@ -89,14 +89,14 @@ export function ProjectDisputeDetailView({ projectId, disputeId }: { projectId: 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title={dispute.title}
         description={`Opened by ${dispute.opener.displayName ?? "—"} · ${timeAgo(dispute.createdAt)}${dispute.milestone ? ` · Milestone: ${dispute.milestone.title}` : ""}`}
         icon={Scale}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline">{dispute.category}</Badge>
+            <Badge className="badge-info" variant="outline">{dispute.category}</Badge>
             <Badge variant={dispute.status === "OPEN" ? "destructive" : "secondary"}>{dispute.status}</Badge>
           </div>
         }
@@ -105,7 +105,7 @@ export function ProjectDisputeDetailView({ projectId, disputeId }: { projectId: 
       <p className="text-muted-foreground -mt-4 whitespace-pre-wrap">{dispute.description}</p>
 
       {dispute.status === "OPEN" && dispute.milestone && (
-        <Card className="border-amber-500">
+        <Card className="border-amber-500 premium-card">
           <CardContent className="p-3 flex items-center gap-2 text-sm">
             <AlertTriangle className="h-4 w-4 text-amber-700" />
             <span>This dispute blocks the normal release flow for the milestone.</span>
@@ -114,7 +114,7 @@ export function ProjectDisputeDetailView({ projectId, disputeId }: { projectId: 
       )}
 
       <div className="grid md:grid-cols-2 gap-6">
-        <Card>
+        <Card className="premium-card">
           <CardHeader><CardTitle className="text-base">Messages ({dispute.messages.length})</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {dispute.messages.length === 0 ? (
@@ -147,7 +147,7 @@ export function ProjectDisputeDetailView({ projectId, disputeId }: { projectId: 
         </Card>
 
         <div className="space-y-6">
-          <Card>
+          <Card className="premium-card">
             <CardHeader><CardTitle className="text-base">Evidence ({dispute.evidence.length})</CardTitle></CardHeader>
             <CardContent>
               {dispute.evidence.length === 0 ? (
@@ -165,7 +165,7 @@ export function ProjectDisputeDetailView({ projectId, disputeId }: { projectId: 
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="premium-card">
             <CardHeader><CardTitle className="text-base">Reviewer notes</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {dispute.reviews.length > 0 && (
@@ -174,7 +174,7 @@ export function ProjectDisputeDetailView({ projectId, disputeId }: { projectId: 
                     <li key={r.id} className="border-l-2 pl-3">
                       <div className="text-xs text-muted-foreground mb-1">
                         {r.reviewer.displayName} · {formatDateTime(r.decidedAt ?? r.createdAt)}
-                        {r.outcome && <Badge variant="outline" className="ml-2 text-xs">{r.outcome}</Badge>}
+                        {r.outcome && <Badge variant="outline" className="ml-2 text-xs badge-info">{r.outcome}</Badge>}
                       </div>
                       {r.note && <p className="text-sm">{r.note}</p>}
                       {r.proposedResolution && <p className="text-sm text-muted-foreground italic">Proposed: {r.proposedResolution}</p>}

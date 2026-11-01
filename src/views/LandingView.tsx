@@ -68,7 +68,7 @@ export function LandingView() {
   const { navigate } = useNav();
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="page-enter min-h-screen flex flex-col bg-background">
       {/* Top nav */}
       <header className="border-b sticky top-0 z-30 bg-background/95 backdrop-blur">
         <div className="container mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
@@ -142,7 +142,7 @@ export function LandingView() {
           <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">Six pillars of trust, collaboration, and accountability — engineered for service providers and clients in Nigeria.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map((f) => (
-              <Card key={f.title} className="overflow-hidden hover:shadow-lg transition-shadow group">
+              <Card key={f.title} className="overflow-hidden hover:shadow-lg transition-shadow group premium-card">
                 <div className="aspect-[4/3] overflow-hidden bg-muted/30">
                   <img
                     src={f.image}

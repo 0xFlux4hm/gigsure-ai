@@ -111,7 +111,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Funding & payments"
         description="Fund your project by bank transfer to a dedicated virtual account. The platform holds the funds under GigSure Payment Protection until milestones are completed."
@@ -125,7 +125,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
       )}
 
       {/* Virtual account funding card */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Landmark className="h-4 w-4" /> Project funding account
@@ -242,7 +242,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <span className="inline-flex items-center justify-center h-7 w-7 rounded bg-[#003087]/10 text-[#003087] font-bold text-xs">P</span>
@@ -259,7 +259,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
       </Card>
 
       {/* Transaction history */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base">Transaction history ({records.length})</CardTitle>
         </CardHeader>
@@ -280,7 +280,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
                 <li key={r.id} className="p-3 flex flex-wrap items-center gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className="text-xs">{r.type}</Badge>
+                      <Badge variant="outline" className="text-xs badge-info">{r.type}</Badge>
                       <Badge
                         variant={isConfirmed ? "default" : isFailed ? "destructive" : "secondary"}
                         className={`text-xs ${isConfirmed ? "bg-emerald-600 hover:bg-emerald-600" : ""}`}

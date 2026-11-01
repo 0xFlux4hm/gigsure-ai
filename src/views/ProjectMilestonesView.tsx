@@ -69,7 +69,7 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Milestones"
         description="Fund, submit, approve, release. State transitions enforced on the backend."
@@ -101,14 +101,14 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
             );
             const disputed = m.status === "DISPUTED";
             return (
-              <Card key={m.id} className={disputed ? "border-amber-500" : ""}>
+              <Card key={m.id} className={disputed ? "border-amber-500 premium-card" : " premium-card"}>
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="font-semibold">{m.title}</h3>
                         <Badge variant={disputed ? "destructive" : m.status === "RELEASED" ? "default" : "outline"}>{m.status}</Badge>
-                        {fundingConfirmed && <Badge variant="secondary" className="text-xs">funded</Badge>}
+                        {fundingConfirmed && <Badge variant="secondary" className="text-xs badge-warning">funded</Badge>}
                       </div>
                       {m.description && <p className="text-sm text-muted-foreground">{m.description}</p>}
                       <div className="text-xs text-muted-foreground mt-1">
@@ -189,9 +189,9 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
                       <ul className="space-y-1">
                         {m.fundingRecords.map((f) => (
                           <li key={f.id} className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-[10px]">{f.type}</Badge>
+                            <Badge variant="outline" className="text-[10px] badge-info">{f.type}</Badge>
                             <span>{formatMinor(f.amountMinor, project?.currency ?? "NGN")}</span>
-                            <Badge variant="secondary" className="text-[10px]">{f.status}</Badge>
+                            <Badge variant="secondary" className="text-[10px] badge-warning">{f.status}</Badge>
                             
                           </li>
                         ))}
@@ -242,7 +242,7 @@ function NewMilestoneDialog({ projectId, onCreated }: { projectId: string; onCre
       <div className="space-y-3 py-2">
         <div className="space-y-1.5">
           <Label htmlFor="title">Title</Label>
-          <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Design mockups" />
+          <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Design mockups" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="desc">Description</Label>
@@ -251,11 +251,11 @@ function NewMilestoneDialog({ projectId, onCreated }: { projectId: string; onCre
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="amount">Amount (major units)</Label>
-            <Input id="amount" type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <Input className="input-premium" id="amount" type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="due">Due date</Label>
-            <Input id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <Input className="input-premium" id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
         </div>
         {error && <div className="text-sm text-destructive">{error}</div>}

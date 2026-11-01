@@ -136,7 +136,7 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Tasks"
         description="Drag state-machine enforced on the backend."
@@ -168,11 +168,11 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
               <div key={col.key} className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium">{col.label}</span>
-                  <Badge variant="secondary" className="text-xs">{colTasks.length}</Badge>
+                  <Badge variant="secondary" className="text-xs badge-warning">{colTasks.length}</Badge>
                 </div>
                 <div className="space-y-2">
                   {colTasks.map((t) => (
-                    <Card key={t.id}>
+                    <Card className="premium-card" key={t.id}>
                       <CardContent className="p-3">
                         <button
                           onClick={() => toggleExpand(t.id)}
@@ -186,7 +186,7 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
                               {t.dueDate && ` · ${formatDate(t.dueDate)}`}
                             </div>
                             {t.milestone && (
-                              <Badge variant="outline" className="text-[10px] mt-1">{t.milestone.title}</Badge>
+                              <Badge variant="outline" className="text-[10px] mt-1 badge-info">{t.milestone.title}</Badge>
                             )}
                           </div>
                         </button>
@@ -207,7 +207,7 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
                                         <span className="truncate">{d.filename}</span>
                                       </button>
                                       <span className="text-muted-foreground text-[10px] shrink-0">{formatFileSize(d.sizeBytes)}</span>
-                                      <Badge variant="outline" className="text-[10px] shrink-0">{d.status}</Badge>
+                                      <Badge variant="outline" className="text-[10px] shrink-0 badge-info">{d.status}</Badge>
                                       <button
                                         onClick={() => deleteDeliverable(t.id, d.id)}
                                         className="text-destructive hover:text-destructive/80 shrink-0"
@@ -235,7 +235,7 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
                               />
                             </label>
                             <div className="flex items-center gap-1 flex-wrap">
-                              <Badge variant="outline" className="text-[10px]">{t.priority}</Badge>
+                              <Badge variant="outline" className="text-[10px] badge-info">{t.priority}</Badge>
                               {(NEXT_STATUS[t.status] ?? []).map((next) => (
                                 <Button
                                   key={next.value}
@@ -300,7 +300,7 @@ function NewTaskDialog({ projectId, onCreated }: { projectId: string; onCreated:
       <div className="space-y-3 py-2">
         <div className="space-y-1.5">
           <Label htmlFor="title">Title</Label>
-          <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="desc">Description</Label>
@@ -320,7 +320,7 @@ function NewTaskDialog({ projectId, onCreated }: { projectId: string; onCreated:
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="due">Due date</Label>
-            <Input id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <Input className="input-premium" id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
         </div>
         {error && <div className="text-sm text-destructive">{error}</div>}

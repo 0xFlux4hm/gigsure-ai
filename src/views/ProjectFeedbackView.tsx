@@ -147,7 +147,7 @@ export function ProjectFeedbackView({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Feedback & reviews"
         description="Share your experience working with others on this project."
@@ -237,7 +237,7 @@ export function ProjectFeedbackView({ projectId }: { projectId: string }) {
       {success && <Alert><AlertDescription>{success}</AlertDescription></Alert>}
 
       {feedback.length > 0 && (
-        <Card>
+        <Card className="premium-card">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-3">
               <span>Project Rating</span>
@@ -252,7 +252,7 @@ export function ProjectFeedbackView({ projectId }: { projectId: string }) {
         </Card>
       )}
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base">All Reviews ({feedback.length})</CardTitle>
           <CardDescription>Reviews are visible to all project members.</CardDescription>
@@ -289,7 +289,7 @@ export function ProjectFeedbackView({ projectId }: { projectId: string }) {
                         {f.quality && <span>Quality: {f.quality}/5</span>}
                       </div>
                       {f.wouldRecommend && (
-                        <Badge variant="default" className="text-xs">✓ Recommended</Badge>
+                        <Badge variant="default" className="text-xs badge-success">✓ Recommended</Badge>
                       )}
                       <div className="text-xs text-muted-foreground">{formatDateTime(f.createdAt)}</div>
                     </div>

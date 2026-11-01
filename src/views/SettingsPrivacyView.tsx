@@ -65,14 +65,14 @@ export function SettingsPrivacyView() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Privacy & data"
         description="Export your data or delete your account."
         icon={ShieldCheck}
       />
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="h-4 w-4" /> Data export (PDF)
@@ -99,7 +99,7 @@ export function SettingsPrivacyView() {
         </CardContent>
       </Card>
 
-      <Card className="border-destructive/50">
+      <Card className="border-destructive/50 premium-card">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-4 w-4" /> Delete account
@@ -113,7 +113,7 @@ export function SettingsPrivacyView() {
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="confirm">Type: DELETE MY ACCOUNT</Label>
-            <Input
+            <Input className="input-premium"
               id="confirm"
               value={confirmPhrase}
               onChange={(e) => setConfirmPhrase(e.target.value)}
@@ -122,7 +122,7 @@ export function SettingsPrivacyView() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="pwd">Current password (if password sign-in is set)</Label>
-            <Input
+            <Input className="input-premium"
               id="pwd"
               type="password"
               value={currentPassword}

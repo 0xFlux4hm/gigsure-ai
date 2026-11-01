@@ -50,14 +50,14 @@ export function SettingsNotificationsView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Notification preferences"
         description="Choose what we email and push to you."
         icon={Bell}
       />
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader><CardTitle className="text-base">Currency</CardTitle></CardHeader>
         <CardContent>
           <div className="space-y-1.5">
@@ -78,7 +78,7 @@ export function SettingsNotificationsView() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader><CardTitle className="text-base">Notifications</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <ToggleRow

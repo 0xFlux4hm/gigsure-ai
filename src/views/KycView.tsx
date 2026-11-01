@@ -167,7 +167,7 @@ export function KycView() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="page-enter space-y-6 max-w-2xl">
       <PageHeader
         title="Identity verification (KYC)"
         description="Verify your identity with your National Identification Number (NIN). Required before participating in funding transactions."
@@ -175,7 +175,7 @@ export function KycView() {
       />
 
       {/* Status card */}
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-6">
           {status?.verified ? (
             <div className="flex items-center gap-4">
@@ -192,7 +192,7 @@ export function KycView() {
                   {status.expiresAt && ` · Expires ${formatDateTime(status.expiresAt)}`}
                 </p>
               </div>
-              <Badge variant="default" className="flex items-center gap-1">
+              <Badge variant="default" className="flex items-center gap-1 badge-success">
                 <ShieldCheck className="h-3 w-3" /> Verified
               </Badge>
             </div>
@@ -240,7 +240,7 @@ export function KycView() {
 
       {/* Verification form */}
       {showForm && !status?.verified && (
-        <Card>
+        <Card className="premium-card">
           <CardHeader>
             <CardTitle className="text-base">NIN Verification</CardTitle>
             <CardDescription>
@@ -251,7 +251,7 @@ export function KycView() {
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="nin">National Identification Number (NIN)</Label>
-              <Input
+              <Input className="input-premium"
                 id="nin"
                 type="text"
                 inputMode="numeric"
@@ -356,7 +356,7 @@ export function KycView() {
       )}
 
       {/* Info section */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base">Why KYC?</CardTitle>
         </CardHeader>

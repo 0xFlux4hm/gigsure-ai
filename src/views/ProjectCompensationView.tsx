@@ -66,7 +66,7 @@ export function ProjectCompensationView({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Compensation agreements"
         description="Internal allocations among service providers. Versioned. Each recipient must accept their own."
@@ -79,7 +79,7 @@ export function ProjectCompensationView({ projectId }: { projectId: string }) {
         }
       />
 
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-4 flex items-start gap-3 bg-muted/30">
           <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
           <div className="text-sm text-muted-foreground">
@@ -108,7 +108,7 @@ export function ProjectCompensationView({ projectId }: { projectId: string }) {
             const sum = a.allocations.reduce((s, x) => s + x.amountMinor, 0);
             const matches = sum === a.totalDistributableMinor;
             return (
-              <Card key={a.id}>
+              <Card className="premium-card" key={a.id}>
                 <CardHeader>
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <CardTitle className="text-base">Version {a.versionNumber}</CardTitle>
@@ -152,9 +152,9 @@ export function ProjectCompensationView({ projectId }: { projectId: string }) {
                         <TableCell className="text-right">{formatMinor(sum, a.currency)}</TableCell>
                         <TableCell className="text-right" colSpan={2}>
                           {matches ? (
-                            <Badge variant="outline" className="text-xs text-primary">matches total</Badge>
+                            <Badge variant="outline" className="text-xs text-primary badge-info">matches total</Badge>
                           ) : (
-                            <Badge variant="destructive" className="text-xs">mismatch</Badge>
+                            <Badge variant="destructive" className="text-xs badge-danger">mismatch</Badge>
                           )}
                         </TableCell>
                       </TableRow>
@@ -236,7 +236,7 @@ function NewAgreementDialog({ projectId, members, onCreated }: { projectId: stri
           </div>
           <div className="space-y-1.5">
             <Label>Total distributable</Label>
-            <Input type="number" min="0" value={total} onChange={(e) => setTotal(e.target.value)} />
+            <Input className="input-premium" type="number" min="0" value={total} onChange={(e) => setTotal(e.target.value)} />
           </div>
         </div>
 
@@ -268,11 +268,11 @@ function NewAgreementDialog({ projectId, members, onCreated }: { projectId: stri
                 </div>
                 <div className="col-span-3 space-y-1">
                   <Label className="text-xs">Amount</Label>
-                  <Input className="text-sm" type="number" value={a.amount} onChange={(e) => updateAllocation(i, "amount", e.target.value)} />
+                  <Input className="text-sm input-premium" type="number" value={a.amount} onChange={(e) => updateAllocation(i, "amount", e.target.value)} />
                 </div>
                 <div className="col-span-3 space-y-1">
                   <Label className="text-xs">Percentage</Label>
-                  <Input className="text-sm" type="number" value={a.percentage} onChange={(e) => updateAllocation(i, "percentage", e.target.value)} />
+                  <Input className="text-sm input-premium" type="number" value={a.percentage} onChange={(e) => updateAllocation(i, "percentage", e.target.value)} />
                 </div>
                 <div className="col-span-1">
                   <Button size="sm" variant="ghost" onClick={() => removeAllocation(i)}>×</Button>

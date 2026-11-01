@@ -104,7 +104,7 @@ export function SettingsProfileView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Profile"
         description="Public-facing info. All fields optional except display name."
@@ -112,7 +112,7 @@ export function SettingsProfileView() {
       />
 
       {/* Profile completion card */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base">Account Setup Progress</CardTitle>
           <CardDescription>
@@ -151,16 +151,16 @@ export function SettingsProfileView() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader><CardTitle className="text-base">Basic info</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
             <Label>Display name</Label>
-            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+            <Input className="input-premium" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label>Headline</Label>
-            <Input
+            <Input className="input-premium"
               value={profile.headline ?? ""}
               onChange={(e) => setProfile({ ...profile, headline: e.target.value })}
               placeholder="Senior Frontend Developer"
@@ -178,12 +178,12 @@ export function SettingsProfileView() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader><CardTitle className="text-base">Location &amp; language</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label>Country</Label>
-            <Input
+            <Input className="input-premium"
               value={profile.country ?? ""}
               onChange={(e) => setProfile({ ...profile, country: e.target.value })}
               placeholder="Nigeria"
@@ -191,7 +191,7 @@ export function SettingsProfileView() {
           </div>
           <div className="space-y-1.5">
             <Label>Region</Label>
-            <Input
+            <Input className="input-premium"
               value={profile.region ?? ""}
               onChange={(e) => setProfile({ ...profile, region: e.target.value })}
               placeholder="Lagos"
@@ -199,21 +199,21 @@ export function SettingsProfileView() {
           </div>
           <div className="space-y-1.5">
             <Label>Preferred language</Label>
-            <Input value={profile.preferredLanguage} onChange={(e) => setProfile({ ...profile, preferredLanguage: e.target.value })} />
+            <Input className="input-premium" value={profile.preferredLanguage} onChange={(e) => setProfile({ ...profile, preferredLanguage: e.target.value })} />
           </div>
           <div className="space-y-1.5">
             <Label>Timezone</Label>
-            <Input value={profile.timezone} onChange={(e) => setProfile({ ...profile, timezone: e.target.value })} />
+            <Input className="input-premium" value={profile.timezone} onChange={(e) => setProfile({ ...profile, timezone: e.target.value })} />
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader><CardTitle className="text-base">Professional info</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
             <Label>Professional role</Label>
-            <Input
+            <Input className="input-premium"
               value={profile.professionalRole ?? ""}
               onChange={(e) => setProfile({ ...profile, professionalRole: e.target.value })}
               placeholder="Software Developer"
@@ -221,7 +221,7 @@ export function SettingsProfileView() {
           </div>
           <div className="space-y-1.5">
             <Label>Skills (comma-separated)</Label>
-            <Input
+            <Input className="input-premium"
               value={(JSON.parse(profile.skills || "[]") as string[]).join(", ")}
               onChange={(e) => setProfile({ ...profile, skills: JSON.stringify(e.target.value.split(",").map((s) => s.trim()).filter(Boolean)) })}
               placeholder="React, TypeScript, Node.js"
@@ -229,7 +229,7 @@ export function SettingsProfileView() {
           </div>
           <div className="space-y-1.5">
             <Label>Specialization</Label>
-            <Input
+            <Input className="input-premium"
               value={profile.specialization ?? ""}
               onChange={(e) => setProfile({ ...profile, specialization: e.target.value })}
               placeholder="SaaS dashboards, fintech"

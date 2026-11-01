@@ -220,14 +220,14 @@ export function SettingsSecurityView() {
   const hasGoogle = googleIdentities.length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Security"
         description="Manage authentication methods and password."
         icon={ShieldCheck}
       />
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base">Account status</CardTitle>
         </CardHeader>
@@ -238,7 +238,7 @@ export function SettingsSecurityView() {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Email verified</span>
-            {user.emailVerifiedAt ? <Badge variant="default">Verified</Badge> : <Badge variant="outline">Pending</Badge>}
+            {user.emailVerifiedAt ? <Badge className="badge-success" variant="default">Verified</Badge> : <Badge className="badge-info" variant="outline">Pending</Badge>}
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Last login</span>
@@ -247,7 +247,7 @@ export function SettingsSecurityView() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base">Authentication methods</CardTitle>
           <CardDescription>Link multiple methods for recovery. You must keep at least one.</CardDescription>
@@ -262,7 +262,7 @@ export function SettingsSecurityView() {
                   <div className="text-xs text-muted-foreground">Set {new Date(passwordIdentity.createdAt).toLocaleDateString()}</div>
                 </div>
               </div>
-              <Badge variant="default">Active</Badge>
+              <Badge className="badge-success" variant="default">Active</Badge>
             </div>
           )}
           {googleIdentities.map((g) => (
@@ -312,7 +312,7 @@ export function SettingsSecurityView() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base">
             {passwordIdentity ? "Change password" : "Set password"}
@@ -327,7 +327,7 @@ export function SettingsSecurityView() {
           {passwordIdentity && (
             <div className="space-y-1.5">
               <Label htmlFor="current">Current password</Label>
-              <Input
+              <Input className="input-premium"
                 id="current"
                 type="password"
                 value={currentPassword}
@@ -338,7 +338,7 @@ export function SettingsSecurityView() {
           )}
           <div className="space-y-1.5">
             <Label htmlFor="new">New password</Label>
-            <Input
+            <Input className="input-premium"
               id="new"
               type="password"
               value={newPassword}
@@ -374,7 +374,7 @@ export function SettingsSecurityView() {
             </p>
             <div className="space-y-1.5">
               <Label htmlFor="sudo-pw">Password</Label>
-              <Input
+              <Input className="input-premium"
                 id="sudo-pw"
                 type="password"
                 value={sudoPassword}

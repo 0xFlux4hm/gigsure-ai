@@ -45,7 +45,7 @@ export function ProjectsView() {
   useEffect(load, []);
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Projects"
         description="Create and manage your client collaborations."
@@ -60,7 +60,7 @@ export function ProjectsView() {
         }
       />
 
-      <Card>
+      <Card className="premium-card">
         <CardContent className="p-0">
           {loading ? (
             <LoadingState label="Loading projects…" />
@@ -89,8 +89,8 @@ export function ProjectsView() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="font-semibold truncate">{p.title}</h3>
-                        <Badge variant="outline" className="text-xs">{p.status}</Badge>
-                        <Badge variant="secondary" className="text-xs">{p.myRole}</Badge>
+                        <Badge variant="outline" className="text-xs badge-info">{p.status}</Badge>
+                        <Badge variant="secondary" className="text-xs badge-warning">{p.myRole}</Badge>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{p.description}</p>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -160,7 +160,7 @@ function NewProjectDialog({ onCreated }: { onCreated: (id: string) => void }) {
       <div className="space-y-4 py-2">
         <div className="space-y-1.5">
           <Label htmlFor="title">Project title</Label>
-          <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Lagos Bakery Website Redesign" />
+          <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Lagos Bakery Website Redesign" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="description">Description / scope</Label>
@@ -189,7 +189,7 @@ function NewProjectDialog({ onCreated }: { onCreated: (id: string) => void }) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="budget">Budget (major units)</Label>
-            <Input id="budget" type="number" min="0" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0" />
+            <Input className="input-premium" id="budget" type="number" min="0" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0" />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -206,7 +206,7 @@ function NewProjectDialog({ onCreated }: { onCreated: (id: string) => void }) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="due">Due date</Label>
-            <Input id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <Input className="input-premium" id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
         </div>
         {error && (

@@ -220,7 +220,7 @@ export function SettingsPayoutsView() {
   const kycPending = !loading && bankDetails.length === 0;
 
   return (
-    <div className="container max-w-5xl py-8 px-4 sm:px-6 lg:px-8 space-y-8">
+    <div className="page-enter container max-w-5xl py-8 px-4 sm:px-6 lg:px-8 space-y-8">
       <PageHeader
         title="Payouts"
         description="Manage the bank accounts where you receive project payouts, and track your payout history."
@@ -243,7 +243,7 @@ export function SettingsPayoutsView() {
       )}
 
       {/* Bank accounts */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
             <CardTitle className="flex items-center gap-2">
@@ -270,7 +270,7 @@ export function SettingsPayoutsView() {
               <form onSubmit={handleAddAccount} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="accountName">Account name</Label>
-                  <Input
+                  <Input className="input-premium"
                     id="accountName"
                     value={formState.accountName}
                     onChange={(e) => setFormState((s) => ({ ...s, accountName: e.target.value }))}
@@ -280,7 +280,7 @@ export function SettingsPayoutsView() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="accountNumber">Account number (10 digits)</Label>
-                  <Input
+                  <Input className="input-premium"
                     id="accountNumber"
                     value={formState.accountNumber}
                     onChange={(e) =>
@@ -359,16 +359,16 @@ export function SettingsPayoutsView() {
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{bd.bankName}</span>
                       {bd.isDefault && (
-                        <Badge variant="default" className="text-xs">
+                        <Badge variant="default" className="text-xs badge-success">
                           <Star className="h-3 w-3 mr-1" /> Default
                         </Badge>
                       )}
                       {bd.isVerified ? (
-                        <Badge variant="outline" className="text-xs text-emerald-700 border-emerald-500/40 bg-emerald-500/10">
+                        <Badge variant="outline" className="text-xs text-emerald-700 border-emerald-500/40 bg-emerald-500/10 badge-info">
                           <CheckCircle2 className="h-3 w-3 mr-1" /> Verified
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs badge-info">
                           Unverified
                         </Badge>
                       )}
@@ -409,7 +409,7 @@ export function SettingsPayoutsView() {
       </Card>
 
       {/* Payout history */}
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ArrowDownToLine className="h-5 w-5" /> Payout history

@@ -80,15 +80,15 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title={project.title}
         description={project.description}
         icon={FolderKanban}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline">{project.status}</Badge>
-            <Badge variant="secondary">{project.myRole}</Badge>
+            <Badge className="badge-info" variant="outline">{project.status}</Badge>
+            <Badge className="badge-warning" variant="secondary">{project.myRole}</Badge>
           </div>
         }
       />
@@ -143,7 +143,7 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
         </div>
       </div>
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader>
           <CardTitle className="text-base">Project metadata</CardTitle>
         </CardHeader>
@@ -188,7 +188,7 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <Card>
+    <Card className="premium-card">
       <CardContent className="p-4">
         <div className="text-xs text-muted-foreground">{label}</div>
         <div className="text-lg font-semibold mt-1 truncate">{value}</div>
@@ -214,7 +214,7 @@ function ProgressCard({
 }) {
   const pct = total > 0 ? Math.min(100, Math.round((value / total) * 100)) : 0;
   return (
-    <Card>
+    <Card className="premium-card">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-muted-foreground">{label}</span>

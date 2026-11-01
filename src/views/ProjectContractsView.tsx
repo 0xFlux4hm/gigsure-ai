@@ -71,7 +71,7 @@ export function ProjectContractsView({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Contracts"
         description="Versioned. Accepted terms are preserved."
@@ -172,7 +172,7 @@ export function ProjectContractsView({ projectId }: { projectId: string }) {
       ) : (
         <div className="space-y-4">
           {versions.map((v) => (
-            <Card key={v.id}>
+            <Card className="premium-card" key={v.id}>
               <CardHeader>
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <CardTitle className="text-base flex items-center gap-2">

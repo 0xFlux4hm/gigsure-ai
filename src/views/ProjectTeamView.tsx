@@ -69,7 +69,7 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Team"
         description="Members and pending invitations."
@@ -84,7 +84,7 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
         }
       />
 
-      <Card>
+      <Card className="premium-card">
         <CardHeader><CardTitle className="text-base">Members ({members.length})</CardTitle></CardHeader>
         <CardContent className="p-0">
           {members.length === 0 ? (
@@ -123,7 +123,7 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
       </Card>
 
       {invitations.length > 0 && (
-        <Card>
+        <Card className="premium-card">
           <CardHeader><CardTitle className="text-base">Pending invitations ({invitations.length})</CardTitle></CardHeader>
           <CardContent className="p-0">
             <ul className="divide-y">
@@ -194,7 +194,7 @@ function InviteDialog({ projectId, onCreated }: { projectId: string; onCreated: 
       <div className="space-y-3 py-2">
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" value={inviteeEmail} onChange={(e) => setInviteeEmail(e.target.value)} placeholder="service-provider@example.com" />
+          <Input className="input-premium" id="email" type="email" value={inviteeEmail} onChange={(e) => setInviteeEmail(e.target.value)} placeholder="service-provider@example.com" />
           <p className="text-xs text-muted-foreground">If they don&apos;t have an account, they can register first.</p>
         </div>
         <div className="space-y-1.5">

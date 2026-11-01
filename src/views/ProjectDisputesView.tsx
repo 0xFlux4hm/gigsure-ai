@@ -44,7 +44,7 @@ export function ProjectDisputesView({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <PageHeader
         title="Disputes"
         description="Open disputes with evidence + reviewer notes."
@@ -69,7 +69,7 @@ export function ProjectDisputesView({ projectId }: { projectId: string }) {
           }
         />
       ) : (
-        <Card>
+        <Card className="premium-card">
           <CardContent className="p-0">
             <ul className="divide-y">
               {disputes.map((d) => (
@@ -81,7 +81,7 @@ export function ProjectDisputesView({ projectId }: { projectId: string }) {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold">{d.title}</h3>
-                        <Badge variant="outline" className="text-xs">{d.category}</Badge>
+                        <Badge variant="outline" className="text-xs badge-info">{d.category}</Badge>
                         <Badge variant={d.status === "OPEN" ? "destructive" : d.status === "RESOLVED" ? "default" : "secondary"} className="text-xs">{d.status}</Badge>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{d.description}</p>
@@ -134,7 +134,7 @@ function NewDisputeDialog({ projectId, onCreated }: { projectId: string; onCreat
       <div className="space-y-3 py-2">
         <div className="space-y-1.5">
           <Label htmlFor="title">Title</Label>
-          <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Brief summary of the issue" />
+          <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Brief summary of the issue" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="cat">Category</Label>

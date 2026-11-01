@@ -40,7 +40,7 @@ export function AuthViews() {
   const { view, token, navigate } = useNav();
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="page-enter min-h-screen flex flex-col bg-background">
       {/* Top bar */}
       <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto max-w-7xl px-4 h-16 flex items-center justify-between">
@@ -255,7 +255,7 @@ function LoginForm() {
   };
 
   return (
-    <Card>
+    <Card className="premium-card">
       <CardHeader>
         <CardTitle>Welcome back</CardTitle>
         <CardDescription>Sign in to your GigSure AI account.</CardDescription>
@@ -266,7 +266,7 @@ function LoginForm() {
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
-            <Input
+            <Input className="input-premium"
               id="email"
               type="email"
               autoComplete="email"
@@ -278,7 +278,7 @@ function LoginForm() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
-            <Input
+            <Input className="input-premium"
               id="password"
               type="password"
               autoComplete="current-password"
@@ -390,7 +390,7 @@ function RegisterForm() {
   };
 
   return (
-    <Card>
+    <Card className="premium-card">
       <CardHeader>
         <CardTitle>Create your account</CardTitle>
         <CardDescription>
@@ -403,7 +403,7 @@ function RegisterForm() {
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="displayName">Display name</Label>
-            <Input
+            <Input className="input-premium"
               id="displayName"
               type="text"
               value={displayName}
@@ -415,7 +415,7 @@ function RegisterForm() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
-            <Input
+            <Input className="input-premium"
               id="email"
               type="email"
               autoComplete="email"
@@ -427,7 +427,7 @@ function RegisterForm() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
-            <Input
+            <Input className="input-premium"
               id="password"
               type="password"
               autoComplete="new-password"
@@ -507,7 +507,7 @@ function VerifyEmailForm({ token }: { token?: string }) {
   };
 
   return (
-    <Card>
+    <Card className="premium-card">
       <CardHeader>
         <CardTitle>Verify your email</CardTitle>
         <CardDescription>
@@ -518,7 +518,7 @@ function VerifyEmailForm({ token }: { token?: string }) {
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="token">Verification token</Label>
-            <Input
+            <Input className="input-premium"
               id="token"
               type="text"
               value={enteredToken}
@@ -571,7 +571,7 @@ function ForgotPasswordForm() {
   };
 
   return (
-    <Card>
+    <Card className="premium-card">
       <CardHeader>
         <CardTitle>Reset your password</CardTitle>
         <CardDescription>We&apos;ll send a reset link if the email is registered.</CardDescription>
@@ -587,7 +587,7 @@ function ForgotPasswordForm() {
           <form onSubmit={submit} className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
-              <Input
+              <Input className="input-premium"
                 id="email"
                 type="email"
                 autoComplete="email"
@@ -642,7 +642,7 @@ function ResendVerificationForm() {
   };
 
   return (
-    <Card>
+    <Card className="premium-card">
       <CardHeader>
         <CardTitle>Resend verification email</CardTitle>
         <CardDescription>
@@ -661,7 +661,7 @@ function ResendVerificationForm() {
           <form onSubmit={submit} className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
-              <Input
+              <Input className="input-premium"
                 id="email"
                 type="email"
                 autoComplete="email"
@@ -718,7 +718,7 @@ function ResetPasswordForm({ token }: { token?: string }) {
   };
 
   return (
-    <Card>
+    <Card className="premium-card">
       <CardHeader>
         <CardTitle>Set a new password</CardTitle>
         <CardDescription>Use a strong password you haven&apos;t used before.</CardDescription>
@@ -732,7 +732,7 @@ function ResetPasswordForm({ token }: { token?: string }) {
           <form onSubmit={submit} className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="token">Reset token</Label>
-              <Input
+              <Input className="input-premium"
                 id="token"
                 type="text"
                 value={enteredToken}
@@ -743,7 +743,7 @@ function ResetPasswordForm({ token }: { token?: string }) {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="newpassword">New password</Label>
-              <Input
+              <Input className="input-premium"
                 id="newpassword"
                 type="password"
                 value={newPassword}
