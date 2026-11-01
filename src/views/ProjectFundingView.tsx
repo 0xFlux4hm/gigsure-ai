@@ -254,7 +254,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PayPalFundingCard projectId={projectId} />
+          <PayPalFundingCard projectId={projectId} onPaymentConfirmed={load} />
         </CardContent>
       </Card>
 
@@ -350,7 +350,7 @@ type Milestone = {
   status: string;
 };
 
-function PayPalFundingCard({ projectId }: { projectId: string }) {
+function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: string; onPaymentConfirmed?: () => void }) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -526,7 +526,7 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
         });
         // Reload the funding records so the transaction history shows
         // the new PROVIDER_CONFIRMED record.
-        load();
+        onPaymentConfirmed?.();
         // Keep the verified state visible (with Download Receipt button)
         // until the user navigates away or starts a new payment.
         // Do NOT auto-clear after 3 seconds — the user needs time to
