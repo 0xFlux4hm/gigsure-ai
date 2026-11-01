@@ -511,29 +511,40 @@ export const POST = apiRoute(async (req) => {
     const isAuthError = errStatus === 401 || sanitizedErrMsg.includes("401") || sanitizedErrMsg.toLowerCase().includes("invalid api key");
     const isRateLimit = sanitizedErrMsg.includes("1302") || sanitizedErrMsg.includes("1305") || sanitizedErrMsg.includes("429") || errStatus === 429;
     if (isAuthError) {
-      const providerHelp = provider === "agentrouter"
-        ? `AgentRouter rejected the API key (401 Invalid API Key). This usually means:\n` +
-          `  • The key was regenerated since you copied it — generate a fresh one at\n` +
-          `    https://agentrouter.org/console/token and copy the new key.\n` +
-          `  • You copied a session token instead of the API Key field — make sure\n` +
-          `    the value starts with "sk-".\n` +
-          `  • Your GitHub sign-in on agentrouter.org wasn't completed.\n\n` +
-          `Update AGENTROUTER_API_KEY in Vercel env vars with the fresh key, then redeploy.`
-        : `Z.AI rejected the API key (401). Regenerate the key at\n` +
-          `https://z.ai/manage-apikey/apikey-list and update ZAI_API_KEY in Vercel\n` +
-          `env vars, then redeploy.`;
+      const providerHelp =
+        provider === "gemini"
+          ? `Google Gemini rejected the API key (401). Get a free key at\n` +
+            `https://aistudio.google.com/apikey — sign in with any Google account,\n` +
+            `click "Create API key", and update GEMINI_API_KEY in Vercel env vars,\n` +
+            `then redeploy. The free tier gives 15 RPM / 1,500 RPD on gemini-2.0-flash.`
+          : provider === "agentrouter"
+          ? `AgentRouter rejected the API key (401 Invalid API Key). This usually means:\n` +
+            `  • The key was regenerated since you copied it — generate a fresh one at\n` +
+            `    https://agentrouter.org/console/token and copy the new key.\n` +
+            `  • You copied a session token instead of the API Key field — make sure\n` +
+            `    the value starts with "sk-".\n` +
+            `  • Your GitHub sign-in on agentrouter.org wasn't completed.\n\n` +
+            `Update AGENTROUTER_API_KEY in Vercel env vars with the fresh key, then redeploy.`
+          : `Z.AI rejected the API key (401). Regenerate the key at\n` +
+            `https://z.ai/manage-apikey/apikey-list and update ZAI_API_KEY in Vercel\n` +
+            `env vars, then redeploy.`;
       response =
         `🔒 AI authentication failed.\n\n${providerHelp}\n\n` +
         `Until fixed, this deterministic fallback is shown:\n\n` +
         generateFallback(parsed.data.assistant, context);
     } else if (isRateLimit) {
-      const providerHelp = provider === "agentrouter"
-        ? `AgentRouter is rate-limiting your account. Wait ~1 minute and try again,\n` +
-          `or check your AgentRouter dashboard for quota/credit status.`
-        : `Z.AI's free-tier model (glm-4.7-flash) limits how many requests your\n` +
-          `account can make per minute. Wait ~1 minute and try again, or add\n` +
-          `credit at https://z.ai/manage-apikey and set AI_MODEL=glm-4.5-air\n` +
-          `in Vercel env vars for the paid tier (100× the rate limit).`;
+      const providerHelp =
+        provider === "gemini"
+          ? `Gemini's free tier is rate-limiting you. The free tier allows\n` +
+            `15 requests/minute and 1,500/day on gemini-2.0-flash — wait ~1 minute\n` +
+            `and try again, or check your quota at https://aistudio.google.com/apikey.`
+          : provider === "agentrouter"
+          ? `AgentRouter is rate-limiting your account. Wait ~1 minute and try again,\n` +
+            `or check your AgentRouter dashboard for quota/credit status.`
+          : `Z.AI's free-tier model (glm-4.7-flash) limits how many requests your\n` +
+            `account can make per minute. Wait ~1 minute and try again, or add\n` +
+            `credit at https://z.ai/manage-apikey and set AI_MODEL=glm-4.5-air\n` +
+            `in Vercel env vars for the paid tier (100× the rate limit).`;
       response =
         `⏳ The AI service is busy right now. I've already retried 4 times with\n` +
         `exponential backoff.\n\n${providerHelp}\n\n` +

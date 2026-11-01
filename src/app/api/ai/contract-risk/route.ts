@@ -14,7 +14,7 @@
 import { db } from "@/lib/db";
 import { apiRoute, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
-import { getOpenAiClient, getAiModel, aiCacheKey, aiCacheGet, aiCacheSet, type ChatMessage } from "@/lib/ai/ai-provider";
+import { getOpenAiClient, getAiModel, getAiProvider, aiCacheKey, aiCacheGet, aiCacheSet, type ChatMessage } from "@/lib/ai/ai-provider";
 import { isPlatformAdmin } from "@/lib/auth/admin-access";
 import { AuthzError } from "@/lib/auth/authorization";
 import { recordAuditEvent } from "@/lib/auth/audit";
@@ -149,6 +149,7 @@ export const POST = apiRoute(async (req) => {
   }
 
   const model = getAiModel();
+  const provider = getAiProvider();
   const maxRetries = 4;
   let analysis: RiskAnalysis | null = null;
 
@@ -246,16 +247,23 @@ export const POST = apiRoute(async (req) => {
     const errStatus = (err as { status?: number })?.status ?? 0;
     const errMsg = (err as Error)?.message ?? "Unknown error";
     if (errStatus === 401 || errMsg.includes("401") || errMsg.toLowerCase().includes("invalid api key")) {
+      const providerHint =
+        provider === "gemini"
+          ? "Get a free key at https://aistudio.google.com/apikey and update GEMINI_API_KEY."
+          : provider === "agentrouter"
+          ? "Generate a fresh key at https://agentrouter.org/console/token (the old one was likely regenerated)."
+          : "Regenerate the key at https://z.ai/manage-apikey/apikey-list and update ZAI_API_KEY.";
       providerErrorMessage =
-        "AI authentication failed — the API key was rejected. If using " +
-        "AgentRouter, generate a fresh key at https://agentrouter.org/console/token " +
-        "(keys are often invalidated when regenerated). If using Z.AI, check " +
-        "ZAI_API_KEY in Vercel env vars.";
+        "AI authentication failed — the API key was rejected. " + providerHint;
     } else if (errMsg.includes("1302") || errMsg.includes("1305") || errMsg.includes("429") || errStatus === 429) {
+      const providerHint =
+        provider === "gemini"
+          ? "Gemini free tier allows 15 RPM / 1,500 RPD on gemini-2.0-flash. Wait ~1 minute and try again."
+          : provider === "agentrouter"
+          ? "Check your AgentRouter dashboard for quota/credit status."
+          : "For higher limits, switch to AI_MODEL=glm-4.5-air (paid Z.AI tier) or AI_PROVIDER=gemini (free, 15 RPM).";
       providerErrorMessage =
-        "AI rate limit reached after 4 retries with backoff. Wait ~1 minute " +
-        "and try again. For higher limits, switch to a paid tier (Z.AI: " +
-        "AI_MODEL=glm-4.5-air; AgentRouter: check dashboard for quota).";
+        "AI rate limit reached after 4 retries with backoff. " + providerHint;
     } else {
       providerErrorMessage = `AI provider error: ${errMsg.slice(0, 200)}. Check Vercel function logs for details.`;
     }
