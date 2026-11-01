@@ -292,8 +292,8 @@ function SidebarContent({
   projectCtx,
 }: {
   view: ViewName;
-  navigate: ReturnType<typeof useNav>["navigate"];
-  goBack: ReturnType<typeof useNav>["goBack"];
+  navigate: (s: Partial<{ view: ViewName; projectId?: string; disputeId?: string; token?: string }>) => void;
+  goBack: () => void;
   inProject: boolean;
   isAdmin: boolean;
   unread: number;
