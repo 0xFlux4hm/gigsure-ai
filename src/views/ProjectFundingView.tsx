@@ -364,41 +364,62 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
   const [verifiedAmount, setVerifiedAmount] = useState<string | null>(null);
 
   // On mount, check if there's a pending PayPal payment in localStorage.
-  // Only restore if the payment hasn't been verified yet — once verified,
-  // clear the state so it doesn't show stale data on next visit.
+  // Then verify with the server whether it's already been confirmed —
+  // if so, clear the stale localStorage and don't show the verify UI.
   useEffect(() => {
     const stored = localStorage.getItem(`paypal_pending_${projectId}`);
-    if (stored) {
-      try {
-        const data = JSON.parse(stored) as {
-          checkoutUrl?: string;
-          paymentTxId?: string;
-          paypalOrderId?: string;
-          verifiedAmount?: string;
-          verified?: boolean;
-        };
-        // If already verified, clear the state — don't show stale UI
-        if (data.verified) {
-          localStorage.removeItem(`paypal_pending_${projectId}`);
-          return;
-        }
-        if (data.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
-        if (data.paymentTxId) setPaymentTxId(data.paymentTxId);
-        if (data.paypalOrderId) setPaypalOrderId(data.paypalOrderId);
-        if (data.verifiedAmount) setVerifiedAmount(data.verifiedAmount);
-      } catch {
+    if (!stored) return;
+
+    try {
+      const data = JSON.parse(stored) as {
+        checkoutUrl?: string;
+        paymentTxId?: string;
+        paypalOrderId?: string;
+        verifiedAmount?: string;
+      };
+
+      // Check with the server if this transaction is already confirmed
+      if (data.paymentTxId) {
+        api.get<{ status?: string }>(`/api/payments/${data.paymentTxId}/status`)
+          .then((res) => {
+            if (res.status === "SUCCEEDED") {
+              // Already confirmed on server — clear stale localStorage
+              localStorage.removeItem(`paypal_pending_${projectId}`);
+              setCheckoutUrl(null);
+              setPaymentTxId(null);
+              setPaypalOrderId(null);
+              setVerified(false);
+              setVerifiedAmount(null);
+              toast.success("Payment already confirmed", {
+                description: "Your previous PayPal payment was verified. Check the transaction history below.",
+              });
+            } else {
+              // Still pending — restore the verify UI
+              if (data.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
+              if (data.paymentTxId) setPaymentTxId(data.paymentTxId);
+              if (data.paypalOrderId) setPaypalOrderId(data.paypalOrderId);
+              if (data.verifiedAmount) setVerifiedAmount(data.verifiedAmount);
+            }
+          })
+          .catch(() => {
+            // Can't check server — clear stale data to be safe
+            localStorage.removeItem(`paypal_pending_${projectId}`);
+          });
+      } else {
         localStorage.removeItem(`paypal_pending_${projectId}`);
       }
+    } catch {
+      localStorage.removeItem(`paypal_pending_${projectId}`);
     }
-    // Clear on unmount if not verified (user navigated away without completing)
+
     return () => {
+      // Clean up localStorage if verified
       const s = localStorage.getItem(`paypal_pending_${projectId}`);
       if (s) {
         try {
           const d = JSON.parse(s);
-          if (d.verified) {
-            localStorage.removeItem(`paypal_pending_${projectId}`);
-          }
+          // Always clear on unmount — the pending state is ephemeral
+          localStorage.removeItem(`paypal_pending_${projectId}`);
         } catch { /* ignore */ }
       }
     };
