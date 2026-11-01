@@ -524,7 +524,12 @@ export const POST = apiRoute(async (req) => {
     const isRateLimit = sanitizedErrMsg.includes("1302") || sanitizedErrMsg.includes("1305") || sanitizedErrMsg.includes("429") || errStatus === 429;
     if (isAuthError) {
       const providerHelp =
-        provider === "gemini"
+        provider === "deepseek"
+          ? `DeepSeek rejected the API key (401). Sign up at\n` +
+            `https://platform.deepseek.com/usage to get $8 in free credits (no card needed),\n` +
+            `then update DEEPSEEK_API_KEY in Vercel env vars and redeploy.\n` +
+            `Free credit gives ~50K+ AI calls; no rate limits (only concurrency caps).`
+          : provider === "gemini"
           ? `Google Gemini rejected the API key (401). Get a free key at\n` +
             `https://aistudio.google.com/apikey — sign in with any Google account,\n` +
             `click "Create API key", and update GEMINI_API_KEY in Vercel env vars,\n` +
@@ -547,7 +552,12 @@ export const POST = apiRoute(async (req) => {
         generateFallback(parsed.data.assistant, context);
     } else if (isRateLimit) {
       const providerHelp =
-        provider === "gemini"
+        provider === "deepseek"
+          ? `DeepSeek is rate-limiting you (concurrency cap reached). DeepSeek has no\n` +
+            `per-minute or daily caps — only a concurrency limit of 2,500 for Flash\n` +
+            `and 500 for V4-Pro. This error is rare. Check your quota/credit at\n` +
+            `https://platform.deepseek.com/usage.`
+          : provider === "gemini"
           ? `Gemini's free tier is rate-limiting you (15 RPM / 1,500 RPD).\n` +
             `Wait ~60 seconds for the per-minute quota to reset, then try again.\n` +
             `Check your quota at https://aistudio.google.com/apikey.\n\n` +

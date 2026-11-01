@@ -255,7 +255,9 @@ export const POST = apiRoute(async (req) => {
     const errMsg = (err as Error)?.message ?? "Unknown error";
     if (errStatus === 401 || errMsg.includes("401") || errMsg.toLowerCase().includes("invalid api key")) {
       const providerHint =
-        provider === "gemini"
+        provider === "deepseek"
+          ? "Sign up at https://platform.deepseek.com/usage to get $8 in free credits (no card needed) and update DEEPSEEK_API_KEY."
+          : provider === "gemini"
           ? "Get a free key at https://aistudio.google.com/apikey and update GEMINI_API_KEY."
           : provider === "agentrouter"
           ? "Generate a fresh key at https://agentrouter.org/console/token (the old one was likely regenerated)."
@@ -265,11 +267,13 @@ export const POST = apiRoute(async (req) => {
         ` (Error detail: ${errMsg.slice(0, 150)})`;
     } else if (errMsg.includes("1302") || errMsg.includes("1305") || errMsg.includes("429") || errStatus === 429) {
       const providerHint =
-        provider === "gemini"
+        provider === "deepseek"
+          ? "DeepSeek has no per-minute or daily caps — only concurrency (2,500 for Flash). This error is rare; check your credit balance at https://platform.deepseek.com/usage."
+          : provider === "gemini"
           ? "Gemini free tier allows 15 RPM / 1,500 RPD. Wait ~60 seconds for the per-minute quota to reset, then try again. Avoid rapid-fire calls during demos."
           : provider === "agentrouter"
           ? "Check your AgentRouter dashboard for quota/credit status."
-          : "For higher limits, switch to AI_MODEL=glm-4.5-air (paid Z.AI tier) or AI_PROVIDER=gemini (free, 15 RPM).";
+          : "For higher limits, switch to AI_MODEL=glm-4.5-air (paid Z.AI tier) or AI_PROVIDER=deepseek (free $8 credit, no rate limits).";
       providerErrorMessage =
         "AI rate limit reached. " + providerHint +
         ` (Error detail: ${errMsg.slice(0, 150)})`;

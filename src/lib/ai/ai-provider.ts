@@ -21,7 +21,7 @@
 import OpenAI from "openai";
 import { AuthnError } from "@/lib/auth/authorization";
 
-export type AiProvider = "agentrouter" | "zai" | "gemini";
+export type AiProvider = "agentrouter" | "zai" | "gemini" | "deepseek";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -44,7 +44,39 @@ export interface ChatOptions {
 
 /** Default model per provider. Override via AI_MODEL env var. */
 const DEFAULT_MODEL_PER_PROVIDER: Record<AiProvider, string> = {
-  // ─── Google Gemini (RECOMMENDED for free-tier use) ────────────────
+  // ─── DeepSeek (BEST FOR HACKATHON DEMO — free $8 credit + no rate limits) ─
+  // deepseek-flash is the cheapest production-tier model we've found.
+  // Per https://api-docs.deepseek.com/quick_start/pricing:
+  //   - Off-peak (most hours): $0.15/1M input cache-miss, $0.60/1M output
+  //   - Peak (01:00-04:00 + 06:00-10:00 UTC weekdays): 2× the off-peak rate
+  //   - Cache hit: $0.003/1M (basically free for repeated prompts)
+  //   - Context: 1M tokens
+  //   - Max output: 384K tokens
+  //   - Vision supported
+  //
+  // FREE TIER: 5 million tokens on signup (~$8 of usage), no credit card
+  // required, valid 30 days. Sign up at https://platform.deepseek.com/usage
+  //
+  // RATE LIMITS: NO per-minute or daily caps — only concurrency limits
+  // (2,500 concurrent requests for Flash, 500 for V4-Pro). For our use
+  // case this means effectively unlimited throughput — no 1302 errors
+  // like Z.AI, no 15 RPM cap like Gemini.
+  //
+  // PAID UPGRADE for higher quality reasoning:
+  //   AI_MODEL=deepseek-v4-pro   (~$0.66/$1.98 per 1M off-peak)
+  //
+  // NOTE: "DeepSeek Harness" (dsh) is a separate open-source coding
+  // agent CLI released August 2026. We DON'T use that — we use the
+  // standard DeepSeek API which is OpenAI-compatible.
+  deepseek: "deepseek-flash",
+
+  // ─── Z.AI direct (DEFAULT — works with existing ZAI_API_KEY) ──────
+  // glm-4.7-flash is the only genuinely free Z.AI model. Suffers from
+  // undocumented "1302 high concurrency" rate limiting under load.
+  // If you have Z.AI balance, switch to glm-4.5-air via the AI_MODEL env var.
+  zai: "glm-4.7-flash",
+
+  // ─── Google Gemini ───────────────────────────────────────────────
   // gemini-3.8-flash is the latest free-tier Flash model from Google.
   // Older gemini-2.0-flash was deprecated in 2026 — Gemini now returns
   // "This model is no longer available. Please use gemini-3.8-flash."
@@ -54,44 +86,15 @@ const DEFAULT_MODEL_PER_PROVIDER: Record<AiProvider, string> = {
   //    ~1,000,000 tokens/minute (TPM) — practically unlimited
   //    ~1,500 requests/day (RPD) — resets at midnight Pacific time
   //
-  // The Gemini API exposes an OpenAI-compatible endpoint at
-  // https://generativelanguage.googleapis.com/v1beta/openai/ — so the
-  // standard `openai` SDK works out of the box, no code rewrite needed.
-  //
-  // Available free models (per https://ai.google.dev/gemini-api/docs/pricing):
-  //   - gemini-3.8-flash        (default — latest, 1M ctx, multimodal)
-  //   - gemini-3.5-flash-lite   (smaller, faster, also free)
-  //   - gemini-2.5-flash        (still free for now, ~$0.30/$2.50 if paid)
-  //
   // IMPORTANT — Supported regions: Gemini API is geo-restricted. Hong Kong,
   // China, Macau, Iran, North Korea, Russia, Syria are NOT supported.
   // Nigeria, US, EU, most of Africa, and most of Asia ARE supported.
-  // Vercel serverless functions run from supported regions (US/EU), so
-  // production deployments work fine.
-  //
-  // For higher quality (paid), use:
-  //   AI_MODEL=gemini-2.5-pro    (best Gemini reasoning, ~$1.25/1M in/out)
-  //   AI_MODEL=gemini-4-argon    (premium flagship, requires paid tier)
   gemini: "gemini-3.8-flash",
 
   // ─── AgentRouter ────────────────────────────────────────────────
   // glm-4.5-air is on AgentRouter's Tier 1 — FREE (consumes $0 from credit
-  // balance). Per https://agentrouter.org/docs/index.html the model catalog
-  // also offers: glm-4.6 (free), deepseek-r1 (~$0.55/1M), gpt-4o (~$2.50/1M),
-  // claude-sonnet-4-5-20250929 (~$3/1M), and more. New sign-ups get $200 in
-  // free credits via referral.
-  //
-  // If you want maximum quality + have credits to spare, try:
-  //   AI_MODEL=claude-sonnet-4-5-20250929  (best for complex reasoning)
-  //   AI_MODEL=gpt-4o                      (best for structured outputs)
-  //   AI_MODEL=deepseek-r1                 (best free-tier reasoning)
+  // balance). New sign-ups get $200 in free credits via referral.
   agentrouter: "glm-4.5-air",
-
-  // ─── Z.AI direct (legacy default) ────────────────────────────────
-  // glm-4.7-flash is the only genuinely free Z.AI model. Suffers from
-  // undocumented "1302 high concurrency" rate limiting under load.
-  // If you have Z.AI balance, switch to glm-4.5-air via the AI_MODEL env var.
-  zai: "glm-4.7-flash",
 };
 
 let _cachedOpenAi: OpenAI | null = null;
@@ -99,22 +102,29 @@ let _cachedOpenAi: OpenAI | null = null;
 /**
  * Resolve the active AI provider from env vars.
  *
+ *   AI_PROVIDER=deepseek     → DeepSeek (RECOMMENDED — $8 free credit, no rate limits)
  *   AI_PROVIDER=zai          → Z.AI direct (DEFAULT — free glm-4.7-flash)
  *   AI_PROVIDER=gemini       → Google Gemini (15 RPM / 1,500 RPD free tier)
  *   AI_PROVIDER=agentrouter  → AgentRouter (multi-model gateway, $200 free credits)
  *   (unset)                  → defaults to "zai" for backwards compat
  *
- * The default is Z.AI because:
- *   - The user's ZAI_API_KEY is already configured on Vercel (no env var changes needed)
- *   - glm-4.7-flash is genuinely free ($0 in + $0 out, no daily cap)
- *   - The retry logic + 5-min response cache handles the 1302 throttle gracefully
+ * The default is Z.AI because the user's ZAI_API_KEY is already on Vercel.
+ * But DeepSeek is the best option for the hackathon demo — sign up at
+ * https://platform.deepseek.com/usage to get $8 in free credits (no card),
+ * then set:
+ *   AI_PROVIDER=deepseek
+ *   DEEPSEEK_API_KEY=<your key>
  *
- * To switch to Gemini for higher rate limits (15 RPM vs Z.AI's ~1 RPM), set:
- *   AI_PROVIDER=gemini
- *   GEMINI_API_KEY=<free key from https://aistudio.google.com/apikey>
+ * DeepSeek advantages over the alternatives:
+ *   - No 1302 'high concurrency' throttle like Z.AI's free tier
+ *   - No 15 RPM cap like Gemini's free tier (DeepSeek only caps concurrency,
+ *     at 2,500 concurrent for Flash — basically unlimited for our use case)
+ *   - No geo-blocks like Gemini (works from HK, China, anywhere)
+ *   - $8 free credit on signup = ~50,000+ AI calls before you'd pay anything
  */
 export function getAiProvider(): AiProvider {
   const v = (process.env.AI_PROVIDER ?? "zai").toLowerCase();
+  if (v === "deepseek") return "deepseek";
   if (v === "agentrouter") return "agentrouter";
   if (v === "gemini" || v === "google") return "gemini";
   if (v === "zai") return "zai";
@@ -133,11 +143,12 @@ export function getAiModel(): string {
 /**
  * Returns a cached OpenAI client configured for the active provider.
  *
- * For Gemini:       base URL = https://generativelanguage.googleapis.com/v1beta/openai/, key = GEMINI_API_KEY
- * For AgentRouter:  base URL = https://co.agentrouter.org/v1, key = AGENTROUTER_API_KEY
- * For Z.AI direct:  base URL = https://api.z.ai/api/paas/v4/, key = ZAI_API_KEY
+ * For DeepSeek:      base URL = https://api.deepseek.com, key = DEEPSEEK_API_KEY
+ * For Gemini:        base URL = https://generativelanguage.googleapis.com/v1beta/openai/, key = GEMINI_API_KEY
+ * For AgentRouter:   base URL = https://co.agentrouter.org/v1, key = AGENTROUTER_API_KEY
+ * For Z.AI direct:   base URL = https://api.z.ai/api/paas/v4/, key = ZAI_API_KEY
  *
- * All three providers expose an OpenAI-compatible /chat/completions
+ * All four providers expose an OpenAI-compatible /chat/completions
  * endpoint, so the standard `openai` SDK works for all of them — only
  * the baseURL + apiKey differ.
  *
@@ -150,7 +161,26 @@ export function getOpenAiClient(): OpenAI {
   let apiKey: string | undefined;
   let baseURL: string;
 
-  if (provider === "gemini") {
+  if (provider === "deepseek") {
+    // DeepSeek — OpenAI-compatible endpoint.
+    // Sign up at https://platform.deepseek.com/usage to get $8 in free credits.
+    // No credit card required. Free credits valid for 30 days.
+    // Rate limits: no RPM/RPD caps — only concurrency (2500 for Flash).
+    apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      throw new AuthnError(
+        "AI_PROVIDER=deepseek is set, but DEEPSEEK_API_KEY is missing. " +
+          "Sign up at https://platform.deepseek.com/usage to get $8 in free " +
+          "credits (no credit card required), then add DEEPSEEK_API_KEY to " +
+          "Vercel Project Settings → Environment Variables, then redeploy.",
+        503,
+      );
+    }
+    // Per https://api-docs.deepseek.com the OpenAI-compatible base URL is
+    // https://api.deepseek.com (the standard OpenAI SDK appends /chat/completions).
+    // No WAF, no captcha, no geo-blocks — works from anywhere.
+    baseURL = process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com";
+  } else if (provider === "gemini") {
     // Google Gemini — OpenAI-compatible endpoint.
     // Get a free API key at https://aistudio.google.com/apikey
     // The free tier gives you 15 RPM / 1M TPM / 1,500 RPD on gemini-2.0-flash.
@@ -214,6 +244,7 @@ export function getOpenAiClient(): OpenAI {
  */
 export function isAiConfigured(): boolean {
   const provider = getAiProvider();
+  if (provider === "deepseek") return !!process.env.DEEPSEEK_API_KEY;
   if (provider === "gemini") return !!process.env.GEMINI_API_KEY;
   if (provider === "agentrouter") return !!process.env.AGENTROUTER_API_KEY;
   return !!process.env.ZAI_API_KEY;
