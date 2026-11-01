@@ -524,14 +524,13 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
         toast.success("Payment confirmed!", {
           description: `Your PayPal payment of $${verifiedAmount ?? usdAmount} has been verified. Milestone is now funded.`,
         });
-        // Clear the PayPal UI state after 3 seconds so the page resets
-        setTimeout(() => {
-          setVerified(false);
-          setCheckoutUrl(null);
-          setPaymentTxId(null);
-          setPaypalOrderId(null);
-          setVerifiedAmount(null);
-        }, 3000);
+        // Reload the funding records so the transaction history shows
+        // the new PROVIDER_CONFIRMED record.
+        load();
+        // Keep the verified state visible (with Download Receipt button)
+        // until the user navigates away or starts a new payment.
+        // Do NOT auto-clear after 3 seconds — the user needs time to
+        // download the receipt.
       } else {
         setError(res.message ?? "Payment not yet completed. Make sure you approved it in PayPal.");
         toast.warning("Payment not yet confirmed", {
