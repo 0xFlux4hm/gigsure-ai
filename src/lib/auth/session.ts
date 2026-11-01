@@ -65,9 +65,28 @@ export async function requireUserId(): Promise<string> {
 async function getRequestPath(): Promise<string> {
   try {
     const h = await headers();
-    return h.get("x-invoke-path") ?? h.get("x-url") ?? "/";
+    // On Vercel, x-invoke-path is set by the Next.js serverless runtime
+    const invokePath = h.get("x-invoke-path");
+    if (invokePath) return invokePath;
+
+    // Fallback: extract path from the referer header (set by the browser)
+    const referer = h.get("referer");
+    if (referer) {
+      try {
+        const url = new URL(referer);
+        return url.pathname;
+      } catch { /* invalid URL */ }
+    }
+
+    // Fallback: x-url header
+    const xUrl = h.get("x-url");
+    if (xUrl) return xUrl;
+
+    // If we can't determine the path, return a safe default that will
+    // block PENDING_REGISTRATION users from calling non-whitelisted endpoints
+    return "/unknown";
   } catch {
-    return "/";
+    return "/unknown";
   }
 }
 
