@@ -5,7 +5,6 @@ import { useNav } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { api, timeAgo, formatMinor } from "@/lib/client-api";
 import {
@@ -13,9 +12,6 @@ import {
   Plus,
   ArrowRight,
   Wallet,
-  ShieldCheck,
-  Building2,
-  CheckCircle2,
   LayoutDashboard,
   Clock,
   Users,
@@ -27,6 +23,10 @@ import {
   StatCard,
   formatStatus,
 } from "@/components/shared/page-components";
+import {
+  AccountSetupCard,
+  buildStandardSetupSteps,
+} from "@/components/shared/AccountSetupCard";
 
 type DashboardData = {
   projects: Array<{
@@ -113,14 +113,14 @@ export function DashboardView() {
         }
       />
 
-      {/* Premium stat cards — 2 cols mobile, 4 cols desktop */}
+      {/* Stat cards — 2 cols mobile, 4 cols desktop */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="premium-stat">
           <StatCard
             label="Active projects"
             value={String(stats?.activeProjects ?? 0)}
             icon={FolderKanban}
-            accent="success"
+            accent="default"
             onClick={() => navigate({ view: "projects" })}
           />
         </div>
@@ -128,8 +128,8 @@ export function DashboardView() {
           <StatCard
             label="Completed projects"
             value={String(stats?.completedProjects ?? 0)}
-            icon={CheckCircle2}
-            accent="default"
+            icon={FolderKanban}
+            accent="success"
             onClick={() => navigate({ view: "projects" })}
           />
         </div>
@@ -153,58 +153,17 @@ export function DashboardView() {
         </div>
       </div>
 
-      {/* KYC warning — premium amber alert with CTA */}
-      {stats && !stats.kycVerified && (
-        <Alert className="border-amber-500/30 bg-gradient-to-br from-amber-50 to-amber-50/30 dark:from-amber-950/40 dark:to-amber-900/20 shadow-[var(--shadow-sm)] py-4 pr-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
-              <ShieldCheck className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-              <div className="font-semibold text-sm text-amber-900 dark:text-amber-200">
-                KYC verification required
-              </div>
-              <AlertDescription className="text-xs text-amber-700 dark:text-amber-400">
-                Complete identity verification (NIN + selfie) to fund milestones and receive payouts.
-              </AlertDescription>
-              <Button
-                size="sm"
-                className="mt-2 w-fit bg-amber-600 hover:bg-amber-700 text-white border-amber-600"
-                onClick={() => navigate({ view: "kyc" })}
-              >
-                Verify now
-                <ArrowRight className="ml-1.5 h-3 w-3" />
-              </Button>
-            </div>
-          </div>
-        </Alert>
-      )}
-
-      {/* Bank account warning — preserved & restyled to match premium amber aesthetic */}
-      {stats && !stats.bankAccountAdded && (
-        <Alert className="border-amber-500/30 bg-gradient-to-br from-amber-50 to-amber-50/30 dark:from-amber-950/40 dark:to-amber-900/20 shadow-[var(--shadow-sm)] py-4 pr-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
-              <Building2 className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-              <div className="font-semibold text-sm text-amber-900 dark:text-amber-200">
-                Add a bank account
-              </div>
-              <AlertDescription className="text-xs text-amber-700 dark:text-amber-400">
-                You need a bank account on file to receive payouts.
-              </AlertDescription>
-              <Button
-                size="sm"
-                className="mt-2 w-fit bg-amber-600 hover:bg-amber-700 text-white border-amber-600"
-                onClick={() => navigate({ view: "settings-payouts" })}
-              >
-                Add bank account
-                <ArrowRight className="ml-1.5 h-3 w-3" />
-              </Button>
-            </div>
-          </div>
-        </Alert>
+      {/* Account setup checklist — unified KYC + bank account card.
+          Auto-hides once both steps are complete. */}
+      {stats && (!stats.kycVerified || !stats.bankAccountAdded) && (
+        <AccountSetupCard
+          steps={buildStandardSetupSteps({
+            kycVerified: stats.kycVerified,
+            bankAccountAdded: stats.bankAccountAdded,
+            onKycClick: () => navigate({ view: "kyc" }),
+            onBankAccountClick: () => navigate({ view: "settings-payouts" }),
+          })}
+        />
       )}
 
       {/* Recent projects */}
