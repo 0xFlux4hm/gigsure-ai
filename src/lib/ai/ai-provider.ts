@@ -99,24 +99,26 @@ let _cachedOpenAi: OpenAI | null = null;
 /**
  * Resolve the active AI provider from env vars.
  *
- *   AI_PROVIDER=gemini       → Google Gemini (RECOMMENDED — most generous free tier)
+ *   AI_PROVIDER=zai          → Z.AI direct (DEFAULT — free glm-4.7-flash)
+ *   AI_PROVIDER=gemini       → Google Gemini (15 RPM / 1,500 RPD free tier)
  *   AI_PROVIDER=agentrouter  → AgentRouter (multi-model gateway, $200 free credits)
- *   AI_PROVIDER=zai          → Z.AI direct (legacy default, free but heavily throttled)
- *   (unset)                  → defaults to "gemini" for new deployments
+ *   (unset)                  → defaults to "zai" for backwards compat
  *
- * Recommendation: use Gemini. It has the highest published free-tier rate
- * limits (15 RPM / 1M TPM / 1,500 RPD) and a stable, well-documented API.
- * Per https://ai.google.dev/gemini-api/docs/rate-limits the free tier is
- * genuinely free forever — no credit card, no expiring credits.
+ * The default is Z.AI because:
+ *   - The user's ZAI_API_KEY is already configured on Vercel (no env var changes needed)
+ *   - glm-4.7-flash is genuinely free ($0 in + $0 out, no daily cap)
+ *   - The retry logic + 5-min response cache handles the 1302 throttle gracefully
+ *
+ * To switch to Gemini for higher rate limits (15 RPM vs Z.AI's ~1 RPM), set:
+ *   AI_PROVIDER=gemini
+ *   GEMINI_API_KEY=<free key from https://aistudio.google.com/apikey>
  */
 export function getAiProvider(): AiProvider {
-  const v = (process.env.AI_PROVIDER ?? "gemini").toLowerCase();
+  const v = (process.env.AI_PROVIDER ?? "zai").toLowerCase();
   if (v === "agentrouter") return "agentrouter";
-  if (v === "zai") return "zai";
   if (v === "gemini" || v === "google") return "gemini";
-  // Default for backwards-compat: existing deployments that don't set
-  // AI_PROVIDER were originally on Z.AI. Keep them on Z.AI so they don't
-  // break — new deployments should explicitly set AI_PROVIDER=gemini.
+  if (v === "zai") return "zai";
+  // Default: Z.AI (works with the existing ZAI_API_KEY env var on Vercel)
   return "zai";
 }
 
