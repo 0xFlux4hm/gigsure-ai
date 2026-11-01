@@ -616,6 +616,28 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
         )}
       </Button>
 
+      {/* Always-visible "Verify Last Payment" button — works even after
+          page reload on mobile (when checkoutUrl state is lost). */}
+      {!verified && (
+        <Button
+          onClick={handleVerify}
+          disabled={verifying}
+          variant="outline"
+          className="w-full border-emerald-500/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/5"
+          size="sm"
+        >
+          {verifying ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" /> Verifying…
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="h-4 w-4 mr-2" /> I've paid — Verify Payment
+            </>
+          )}
+        </Button>
+      )}
+
       {checkoutUrl && !verified && (
         <div className="rounded-lg border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 p-4 text-sm space-y-2">
           <div className="flex items-center gap-2">

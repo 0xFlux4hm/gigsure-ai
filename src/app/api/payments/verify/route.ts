@@ -48,16 +48,16 @@ export const POST = apiRoute(async (req) => {
     });
   }
 
-  // Fallback: if no transaction found, try the most recent CREATED PayPal
-  // transaction for this user. This handles the case where the frontend
-  // lost the paymentTxId (e.g., page reload on mobile after returning
-  // from PayPal checkout).
+  // Fallback: if no transaction found, try the most recent PayPal
+  // transaction for this user (CREATED or SUCCEEDED). This handles:
+  // - Page reload on mobile (paymentTxId lost)
+  // - Already-verified payment whose FundingRecord wasn't confirmed
   if (!transaction) {
     transaction = await db.paymentTransaction.findFirst({
       where: {
         userId,
         provider: "paypal",
-        status: "CREATED",
+        status: { in: ["CREATED", "SUCCEEDED"] },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -72,7 +72,42 @@ export const POST = apiRoute(async (req) => {
   }
 
   if (transaction.status === "SUCCEEDED") {
-    return { verified: true, message: "Payment already confirmed" };
+    // Payment is already verified — but the FundingRecord might not be
+    // confirmed yet (if the previous verify call failed to confirm it).
+    // Try to confirm it now.
+    let fundingConfirmed = false;
+    let fundingError: string | undefined;
+    try {
+      const confirmResult = await confirmFundingRecord({
+        provider: "paypal",
+        providerEventId: `manual_verify_${transaction.id}`,
+        providerTxRef: transaction.providerReference!,
+        eventType: "PAYMENT.CAPTURE.COMPLETED",
+        amountMinor: transaction.amountMinor,
+        currency: transaction.currency,
+        status: "PROVIDER_CONFIRMED",
+        rawPayload: "{}",
+        signatureValid: true,
+        paymentTransactionId: transaction.id,
+      });
+      fundingConfirmed = confirmResult.processed;
+      if (!confirmResult.processed && confirmResult.reason !== "duplicate_event") {
+        fundingError = `Funding record not confirmed: ${confirmResult.reason}`;
+      } else if (confirmResult.reason === "duplicate_event") {
+        // Already processed — this is fine
+        fundingConfirmed = true;
+      }
+    } catch (err) {
+      fundingError = (err as Error)?.message ?? "Unknown error";
+    }
+    return {
+      verified: true,
+      message: fundingConfirmed
+        ? "Payment already confirmed."
+        : `Payment confirmed but funding issue: ${fundingError}`,
+      fundingConfirmed,
+      fundingError,
+    };
   }
 
   const provider = getProvider("paypal");
