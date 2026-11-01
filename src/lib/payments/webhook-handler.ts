@@ -198,7 +198,7 @@ export async function confirmFundingRecord(
   ) {
     const milestone = await db.milestone.findUnique({
       where: { id: record.milestoneId },
-      select: { id: true, status: true, title: true, amountMinor: true, currency: true },
+      select: { id: true, status: true, title: true, amountMinor: true },
     });
     if (milestone && milestone.status === "AWAITING_FUNDING") {
       await db.milestone.update({
@@ -210,7 +210,7 @@ export async function confirmFundingRecord(
       const { notifyProjectMembers } = await import("@/lib/notifications");
       const amount = (milestone.amountMinor / 100).toLocaleString("en-NG", {
         style: "currency",
-        currency: milestone.currency,
+        currency: record.currency,
       });
       await notifyProjectMembers(record.projectId, record.initiatedById, {
         type: "MILESTONE_FUNDED",
