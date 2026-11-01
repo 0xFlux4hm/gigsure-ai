@@ -462,17 +462,21 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
       if (!paymentTxId && !paypalOrderId) {
         body.paypalOrderId = "lookup_recent";
       }
-      const res = await api.post<{ verified: boolean; message?: string; status?: string; detail?: string }>(
+      const res = await api.post<{ verified: boolean; message?: string; status?: string; detail?: string; fundingConfirmed?: boolean; fundingError?: string }>(
         "/api/payments/verify",
         body,
       );
       if (res.verified) {
         setVerified(true);
-        toast.success("Payment confirmed!", {
-          description: `Your PayPal payment of $${verifiedAmount ?? usdAmount} has been verified. Milestone is now funded.`,
-        });
-        // Reload the funding records so the transaction history shows
-        // the new PROVIDER_CONFIRMED record.
+        if (res.fundingConfirmed) {
+          toast.success("Payment confirmed!", {
+            description: `Your PayPal payment of $${verifiedAmount ?? usdAmount} has been verified. Milestone is now funded.`,
+          });
+        } else {
+          toast.warning("Payment verified, but funding record issue", {
+            description: res.fundingError ?? "The payment was confirmed but the funding record could not be updated.",
+          });
+        }
         onPaymentConfirmed?.();
         // Keep the verified state visible (with Download Receipt button)
         // until the user navigates away or starts a new payment.

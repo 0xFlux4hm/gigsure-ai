@@ -94,14 +94,14 @@ export const POST = apiRoute(async (req) => {
         },
       });
 
+      let fundingConfirmed = false;
+      let fundingError: string | undefined;
       try {
-        await confirmFundingRecord({
+        const confirmResult = await confirmFundingRecord({
           provider: "paypal",
           providerEventId: `manual_verify_${transaction.id}`,
           providerTxRef: providerReference,
           eventType: "PAYMENT.CAPTURE.COMPLETED",
-          // Use the transaction's original amount (NGN), not the converted
-          // amount from verifyPayment — that's what the funding record expects.
           amountMinor: transaction.amountMinor,
           currency: transaction.currency,
           status: "PROVIDER_CONFIRMED",
@@ -109,10 +109,15 @@ export const POST = apiRoute(async (req) => {
           signatureValid: true,
           paymentTransactionId: transaction.id,
         });
+        fundingConfirmed = confirmResult.processed;
+        if (!confirmResult.processed) {
+          fundingError = `Funding record not confirmed: ${confirmResult.reason}`;
+        }
       } catch (err) {
+        fundingError = (err as Error)?.message ?? "Unknown error";
         logSecurityEvent("warn", "payment.manual_verify_funding_failed", {
           transactionId: transaction.id,
-          message: (err as Error)?.message,
+          message: fundingError,
         });
       }
 
@@ -131,9 +136,13 @@ export const POST = apiRoute(async (req) => {
 
       return {
         verified: true,
-        message: "Payment confirmed successfully",
+        message: fundingConfirmed
+          ? "Payment confirmed and funding record updated."
+          : `Payment confirmed but funding record issue: ${fundingError ?? "unknown"}`,
         status: result.status,
         amountPaidMinor: result.amountPaidMinor,
+        fundingConfirmed,
+        fundingError,
       };
     } else {
       return {
