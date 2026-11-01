@@ -110,17 +110,14 @@ export const POST = apiRoute(async (req, { params }) => {
     metadata: { role: data.role, inviteeEmail },
   });
 
-  // In dev: surface the token via response (in prod: email link).
-  const isProd = process.env.NODE_ENV === "production";
-  const inviteUrl = isProd
-    ? null
-    : `${process.env.NEXTAUTH_URL ?? ""}/?view=invitation&token=${rawToken}&project=${params.id}`;
+  // Always generate the invite URL — in production it's also emailed,
+  // but we return it so the frontend can display it for copying.
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://gigsure-ai.vercel.app";
+  const inviteUrl = `${baseUrl}/?view=invitation&token=${rawToken}&project=${params.id}`;
 
   return {
     invitationId: invitation.id,
     inviteUrl,
-    message: isProd
-      ? "Invitation sent."
-      : "Invitation created. Share the invite link with the recipient.",
+    message: "Invitation created. Share the invite link with the recipient.",
   };
 });

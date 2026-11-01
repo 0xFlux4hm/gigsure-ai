@@ -12,6 +12,7 @@ import { api, timeAgo } from "@/lib/client-api";
 import { UserPlus, Trash2, Loader2, Mail, Copy, Check, Users } from "lucide-react";
 
 import { toast } from "sonner";
+import { formatStatus } from "@/components/shared/page-components";
 import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 type Member = {
   id: string;
@@ -128,24 +129,25 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
           <CardContent className="p-0">
             <ul className="divide-y">
               {invitations.map((inv) => {
-                const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-                const inviteUrl = `${baseUrl}/?view=invitation&token=SEE_DEV_LOG&project=${projectId}`;
+                const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://gigsure-ai.vercel.app";
+                // The invitation token isn't returned by the list API (only the hash
+                // is stored). Instead of showing the link, show the invitation details
+                // with a "Copy link" button that works from the invite URL generated
+                // at creation time (stored in the invite dialog's state).
+                // For the list view, just show the status + role.
                 return (
                   <li key={inv.id} className="p-3 flex flex-wrap items-center gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="font-medium truncate">
-                        {inv.invitee?.displayName ?? inv.invitee ?? "—"}
+                        {inv.invitee?.displayName ?? (inv as { inviteeEmail?: string }).inviteeEmail ?? "—"}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Invited as {inv.role.toLowerCase()} by {inv.inviter.displayName} · {timeAgo(inv.createdAt)}
                       </div>
                     </div>
-                    <Badge variant={inv.status === "PENDING" ? "outline" : "secondary"} className="text-xs">{inv.status}</Badge>
-                    {inv.status === "PENDING" && (
-                      <Button variant="ghost" size="sm" onClick={() => copyInviteUrl(inviteUrl)}>
-                        {copied === inviteUrl ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                      </Button>
-                    )}
+                    <Badge variant={inv.status === "PENDING" ? "outline" : "secondary"} className={`text-xs ${inv.status === "ACCEPTED" ? "badge-success" : inv.status === "PENDING" ? "badge-warning" : ""}`}>
+                      {formatStatus(inv.status)}
+                    </Badge>
                     {inv.status === "PENDING" && (
                       <Button variant="ghost" size="sm" onClick={() => revoke(inv.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -210,12 +212,14 @@ function InviteDialog({ projectId, onCreated }: { projectId: string; onCreated: 
         </div>
         {error && <div className="text-sm text-destructive">{error}</div>}
         {inviteUrl && (
-          <div className="text-xs space-y-1">
-            <div className="text-muted-foreground">Invitation link (dev mode):</div>
-            <div className="font-mono break-all p-2 bg-muted rounded">{inviteUrl}</div>
-            <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(inviteUrl); }}>
-              <Copy className="h-3 w-3 mr-1" /> Copy
-            </Button>
+          <div className="text-xs space-y-2">
+            <div className="text-muted-foreground font-medium">Share this invitation link:</div>
+            <div className="flex items-center gap-2">
+              <div className="font-mono break-all p-2 bg-muted rounded flex-1 text-[11px]">{inviteUrl}</div>
+              <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(inviteUrl); toast.success("Link copied!"); }}>
+                <Copy className="h-3 w-3 mr-1" /> Copy
+              </Button>
+            </div>
           </div>
         )}
       </div>
