@@ -101,10 +101,7 @@ export function AuthViews() {
           <div className="relative z-10 space-y-3">
             <div className="flex items-center gap-2 text-sm text-primary-foreground/90">
               <ShieldCheck className="h-4 w-4" />
-              <span>NDPR-compliant · Bank-grade encryption · Smile ID KYC</span>
-            </div>
-            <div className="flex items-center gap-3 text-xs text-primary-foreground/60">
-              <span>Powered by Monnify &amp; OPay</span>
+              <span>Secure payments · AI-powered contracts · Built for Africa</span>
             </div>
           </div>
         </aside>
@@ -146,8 +143,8 @@ export function AuthViews() {
         <div className="container mx-auto max-w-7xl flex items-center justify-between text-xs text-muted-foreground">
           <span>© {new Date().getFullYear()} GigSure AI</span>
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Encrypted</span>
-            <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> NDPR-compliant</span>
+            <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Secure</span>
+            <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Protected</span>
           </div>
         </div>
       </footer>
