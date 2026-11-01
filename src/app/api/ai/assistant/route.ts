@@ -1,4 +1,4 @@
-import { getZai, isZaiConfigured, ZAI_MODEL } from "@/lib/ai/zai-client";
+import { getZai, isZaiConfigured, ZAI_MODEL, aiCacheKey, aiCacheGet, aiCacheSet } from "@/lib/ai/zai-client";
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
@@ -323,6 +323,54 @@ export const POST = apiRoute(async (req) => {
   let tokensUsed = 0;
   const startedAt = Date.now();
 
+  // ─── Cache check ───────────────────────────────────────────────────
+  // The free glm-4.7-flash model has aggressive per-account throttling
+  // (1302 "high concurrency" errors). Skip the call entirely if we've
+  // already answered the same (model + messages) within the last 5 min.
+  const messages: Array<{ role: "system" | "user"; content: string }> = [
+    { role: "system", content: hardenedSystemPrompt },
+    { role: "user", content: fullPrompt },
+  ];
+  const cacheKey = await aiCacheKey(ZAI_MODEL, messages);
+  const cached = aiCacheGet(cacheKey);
+  if (cached) {
+    response = cached;
+    // Skip the Z.AI call entirely — log + persist as a cache hit.
+    logSecurityEvent("info", "ai.cache_hit", {
+      assistant: parsed.data.assistant,
+      userId,
+    });
+    // Persist activity log so the user sees the assistant was "used".
+    const activity = await db.aiActivity.create({
+      data: {
+        userId,
+        projectId: parsed.data.projectId ?? null,
+        assistantType: parsed.data.assistant,
+        prompt: sanitizedPrompt,
+        response,
+        tokensUsed: 0,
+        fallbackUsed: false,
+      },
+    });
+    await recordAuditEvent({
+      actorId: userId,
+      projectId: parsed.data.projectId ?? null,
+      action: `ai.${parsed.data.assistant.toLowerCase()}`,
+      targetType: "AiActivity",
+      targetId: activity.id,
+      metadata: { tokensUsed: 0, fallbackUsed: false, cacheHit: true, latencyMs: Date.now() - startedAt },
+    });
+    return {
+      assistant: parsed.data.assistant,
+      name: cfg.name,
+      response,
+      advisoryOnly: true,
+      fallbackUsed: false,
+      tokensUsed: 0,
+      activityId: activity.id,
+    };
+  }
+
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -330,9 +378,9 @@ export const POST = apiRoute(async (req) => {
     // on Vercel serverless. ZAI.create() reads from /etc/.z-ai-config which
     // doesn't exist on serverless → throws → fallback was always used.
     //
-    // The model identifier is now configured via the ZAI_MODEL env var
-    // (see src/lib/ai/zai-client.ts). Default: glm-4.5-air — paid tier,
-    // stable throughput, no free-tier "high concurrency" 1302 errors.
+    // The model identifier is configured via ZAI_MODEL env var
+    // (see src/lib/ai/zai-client.ts). Default: glm-4.7-flash — the only
+    // genuinely free Z.AI model ($0 in + $0 out, no daily cap).
     //
     // THINKING DISABLED:
     //   GLM models default to chain-of-thought reasoning, which eats
@@ -340,22 +388,24 @@ export const POST = apiRoute(async (req) => {
     //   thinking: { type: "disabled" } so the response contains only the
     //   final answer, not the reasoning steps.
     const zai = getZai();
-    // Retry up to 3 times with exponential backoff on Z.AI rate-limit errors
-    // (1302 / 1305 / 429 / overloaded). The model is configured via ZAI_MODEL
-    // env var (default: glm-4.5-air — paid tier, no free-tier throttle).
+    // Retry up to 4 times with longer exponential backoff + jitter.
+    // The 1302 "high concurrency" error is TRANSIENT — waiting longer
+    // actually works. Previous 500ms/1s/1.5s backoff was too short for
+    // the per-account throttle to clear.
+    //   Attempt 1: immediate
+    //   Attempt 2: wait ~2s (with ±500ms jitter)
+    //   Attempt 3: wait ~4s (with ±500ms jitter)
+    //   Attempt 4: wait ~8s (with ±500ms jitter)
+    // Total worst-case wait before fallback: ~14s — well within the 30s
+    // Vercel function timeout.
     type CompletionShape = { choices?: Array<{ message?: { content?: string } }>; usage?: { total_tokens?: number } };
     let completion: CompletionShape | null = null;
-    const maxRetries = 3;
+    const maxRetries = 4;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         completion = await zai.chat.completions.create({
           model: ZAI_MODEL,
-          messages: [
-            // Use the hardened system prompt (with disclosure-resistance clause)
-            // instead of the raw cfg.systemPrompt.
-            { role: "system", content: hardenedSystemPrompt },
-            { role: "user", content: fullPrompt },
-          ],
+          messages,
           temperature: 0.4,
           max_tokens: 1200,
           thinking: { type: "disabled" } as never,
@@ -364,18 +414,23 @@ export const POST = apiRoute(async (req) => {
         if (completion?.choices?.[0]?.message?.content) break;
         // Empty content (all tokens went to reasoning) — retry with bigger max_tokens
         if (attempt < maxRetries - 1) {
-          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+          const backoff = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
+          const jitter = (Math.random() - 0.5) * 1000; // ±500ms
+          await new Promise((r) => setTimeout(r, backoff + jitter));
         }
       } catch (retryErr) {
-        // 429 or transient error — retry if attempts remain.
-        // Z.AI rate-limit codes:
-        //   1302 = "High concurrency usage" (free-tier throttle, most common on Flash)
+        // Z.AI rate-limit / transient error codes:
+        //   1302 = "High concurrency usage" / "Rate limit reached for requests"
+        //          (free-tier per-account throttle — most common on glm-4.7-flash)
         //   1305 = model-level rate limit
         //   429  = standard HTTP rate limit
         //   "overloaded" = provider-side capacity error
         const errMsg = (retryErr as Error)?.message ?? "";
-        if (attempt < maxRetries - 1 && (errMsg.includes("1302") || errMsg.includes("1305") || errMsg.includes("overloaded") || errMsg.includes("429"))) {
-          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        const isRetryable = errMsg.includes("1302") || errMsg.includes("1305") || errMsg.includes("overloaded") || errMsg.includes("429");
+        if (attempt < maxRetries - 1 && isRetryable) {
+          const backoff = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
+          const jitter = (Math.random() - 0.5) * 1000; // ±500ms
+          await new Promise((r) => setTimeout(r, backoff + jitter));
           continue;
         }
         throw retryErr;  // Re-throw on final attempt or non-retryable error
@@ -384,6 +439,12 @@ export const POST = apiRoute(async (req) => {
     clearTimeout(timer);
     response = completion?.choices?.[0]?.message?.content ?? "";
     tokensUsed = completion?.usage?.total_tokens ?? 0;
+
+    // Cache the successful response so duplicate calls within 5 min skip
+    // Z.AI entirely (huge win for the free tier — no 1302 risk on re-calls).
+    if (response) {
+      aiCacheSet(cacheKey, response);
+    }
 
     // Even with all upstream defenses, the LLM may comply with an injection
     // and produce a response that contains leak indicators or unauthorized
@@ -437,19 +498,33 @@ export const POST = apiRoute(async (req) => {
       promptHash: hashToken(parsed.data.prompt).slice(0, 16),
     });
     fallbackUsed = true;
-    const errName = (err as Error)?.name ?? "Error";
-    const errStatus = (err as { status?: number })?.status;
-    response =
-      `[AI provider error — ${errName}${errStatus ? ` (${errStatus})` : ""}]: ${sanitizedErrMsg}\n\n` +
-      `This means the Z.AI SDK was loaded (so ZAI_API_KEY is set), but the actual ` +
-      `chat completion call failed. Common causes:\n` +
-      `  • Invalid ZAI_API_KEY value\n` +
-      `  • Wrong ZAI_BASE_URL (should be https://api.z.ai/api/paas/v4/)\n` +
-      `  • Network/firewall issue reaching api.z.ai\n` +
-      `  • Rate limit exceeded (retry in a minute)\n\n` +
-      `Check the Vercel function logs (Project → Functions → Logs) for the full stack trace.\n\n` +
-      `Until fixed, this deterministic fallback is shown:\n\n` +
-      generateFallback(parsed.data.assistant, context);
+    // Detect rate-limit specifically so we can give the user an actionable
+    // message instead of dumping SDK internals.
+    const isRateLimit = sanitizedErrMsg.includes("1302") || sanitizedErrMsg.includes("1305") || sanitizedErrMsg.includes("429");
+    if (isRateLimit) {
+      response =
+        `⏳ The AI service is busy right now. I've already retried 4 times with ` +
+        `exponential backoff — Z.AI's free-tier model (glm-4.7-flash) limits ` +
+        `how many requests your account can make per minute.\n\n` +
+        `**What you can do:**\n` +
+        `  • Wait ~1 minute and try again — the limit resets automatically.\n` +
+        `  • If you keep seeing this during demos, add credit to your Z.AI ` +
+        `account at https://z.ai/manage-apikey and set the env var ` +
+        `\`ZAI_MODEL=glm-4.5-air\` in Vercel — paid tier has 100× the rate limit.\n\n` +
+        `For now, here's the deterministic fallback:\n\n` +
+        generateFallback(parsed.data.assistant, context);
+    } else {
+      response =
+        `[AI provider error]: ${sanitizedErrMsg}\n\n` +
+        `This means the Z.AI SDK was loaded (ZAI_API_KEY is set), but the ` +
+        `chat completion call failed. Common causes:\n` +
+        `  • Invalid ZAI_API_KEY value\n` +
+        `  • Wrong ZAI_BASE_URL (should be https://api.z.ai/api/paas/v4/)\n` +
+        `  • Network/firewall issue reaching api.z.ai\n\n` +
+        `Check the Vercel function logs (Project → Functions → Logs) for the full stack trace.\n\n` +
+        `Until fixed, this deterministic fallback is shown:\n\n` +
+        generateFallback(parsed.data.assistant, context);
+    }
   }
 
   // Persist activity log (no sensitive PII in prompt body — already sanitized).

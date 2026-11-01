@@ -88,33 +88,105 @@ export function getZai(): ZAI {
 /**
  * The model identifier to use for chat completions.
  *
- * Default: `glm-4.5-air` — paid tier (~$0.13/1M input + $0.85/1M output).
- * Chosen over the previous `glm-4.7-flash` (free) because:
+ * Default: `glm-4.7-flash` — the only genuinely FREE model on Z.AI's API
+ * (no daily cap, no credit card required, $0 for input + output tokens).
  *
- *   1. Free-tier Flash models suffer from "high concurrency" 1302 errors
- *      under real-world load (multiple users, retries, parallel calls).
- *      Reddit/r/ZaiGLM users report "aggressive rate limiting on the Free
- *      tier" even with light traffic.
- *   2. `glm-4.5-air` is on the paid tier — Z.AI's documented per-minute
- *      rate limits apply instead of the undocumented free-tier throttle.
- *      Independent trackers report stable throughput up to ~100 RPM.
- *   3. Cost is negligible: a typical contract-risk call with ~3K input +
- *      ~1.5K output tokens costs ~$0.001. Even at 10K calls/month the bill
- *      would be ~$10.
- *   4. Same hybrid thinking/non-thinking mode we already use — no code
- *      changes needed beyond the model identifier.
+ * IMPORTANT: Free-tier Flash models are rate-limited by Z.AI's undocumented
+ * per-account throttle. When concurrency exceeds the limit (which can be
+ * as low as 1 RPM under load), Z.AI returns:
+ *   429 + { "error": { "code": "1302", "message": "Rate limit reached" } }
+ * or
+ *   429 + { "error": { "code": "1302", "message": "High concurrency usage" } }
  *
- * Override with the `ZAI_MODEL` env var if you want to switch to a
- * different model without redeploying the codebase. Supported values:
- *   - `glm-4.5-air`     (default, best value, 128K context)
- *   - `glm-4.7-flash`   (free, but rate-limited — testing only)
- *   - `glm-4.7-flashx`  ($0.07/$0.40 — cheaper than Air, smaller context)
- *   - `glm-5.3-flash`   ($0.05/$0.18 — newest Aug 2026, multimodal, 1M ctx)
+ * Mitigations applied in the AI routes:
+ *   1. Aggressive exponential backoff (2s → 4s → 8s) with jitter — the
+ *      1302 error is transient; waiting actually works.
+ *   2. In-memory response cache (5 min TTL) — duplicate AI calls within
+ *      a single deployment reuse the previous result instead of hitting
+ *      Z.AI again.
+ *   3. The deterministic fallback is shown if all retries fail.
+ *
+ * If you have a paid Z.AI account, set `ZAI_MODEL=glm-4.5-air` in env vars
+ * to switch to the paid tier (~$0.13/1M input, ~$0.85/1M output) which
+ * has stable throughput up to ~100 RPM and no 1302 errors.
+ *
+ * Other model options (all require a paid Z.AI balance):
+ *   - `glm-4.7-flashx`  ($0.07/$0.40 — cheapest paid)
+ *   - `glm-5.3-flash`   ($0.05/$0.18 — newest Aug 2026, 1M context, multimodal)
  *   - `glm-5.3`         (flagship, ~$0.50+/1M — highest quality)
  *
  * See https://docs.z.ai for the full model catalog.
  */
-export const ZAI_MODEL = process.env.ZAI_MODEL ?? "glm-4.5-air";
+export const ZAI_MODEL = process.env.ZAI_MODEL ?? "glm-4.7-flash";
+
+/**
+ * In-memory response cache for AI calls. Keyed by a hash of
+ * (model + messages). 5-minute TTL.
+ *
+ * Why this matters for the free tier:
+ *   Z.AI's free glm-4.7-flash model has aggressive per-account throttling
+ *   (1302 "high concurrency" errors). The same contract analysis or
+ *   assistant prompt called twice within 5 minutes would normally hit
+ *   Z.AI twice, doubling the risk of triggering the throttle. With this
+ *   cache, the second call returns instantly from memory — zero Z.AI
+ *   requests, zero throttling risk.
+ *
+ * Cache entries are short-lived because:
+ *   - Contract text rarely changes within a 5-min window during a demo
+ *   - Assistant context (project state) changes are minor within 5 min
+ *   - Forcing a refresh after 5 min ensures the user sees updates
+ *
+ * The cache is per-server-instance (Vercel serverless function instance).
+ * It is NOT shared across instances — that's fine because the goal is
+ * to deduplicate calls within a single instance's lifecycle, which is
+ * where the burst-pattern throttle risk is highest.
+ */
+interface CacheEntry {
+  response: string;
+  expiresAt: number;
+}
+const _responseCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Generate a stable cache key from model + messages.
+ * Uses the same hashToken() we use for security event correlation.
+ */
+export async function aiCacheKey(
+  model: string,
+  messages: Array<{ role: string; content: string }>,
+): Promise<string> {
+  const { createHash } = await import("crypto");
+  const hash = createHash("sha256");
+  hash.update(model);
+  for (const m of messages) {
+    hash.update(`\n${m.role}:\n${m.content}`);
+  }
+  return hash.digest("hex").slice(0, 32);
+}
+
+/**
+ * Read a cached AI response. Returns null if not cached or expired.
+ */
+export function aiCacheGet(key: string): string | null {
+  const entry = _responseCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    _responseCache.delete(key);
+    return null;
+  }
+  return entry.response;
+}
+
+/**
+ * Store an AI response in the cache with a 5-min TTL.
+ */
+export function aiCacheSet(key: string, response: string): void {
+  _responseCache.set(key, {
+    response,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  });
+}
 
 /**
  * Returns true if the Z.AI SDK is configured (env vars are set).

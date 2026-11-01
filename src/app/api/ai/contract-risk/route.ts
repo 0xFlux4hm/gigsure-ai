@@ -14,7 +14,7 @@
 import { db } from "@/lib/db";
 import { apiRoute, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
-import { getZai, ZAI_MODEL } from "@/lib/ai/zai-client";
+import { getZai, ZAI_MODEL, aiCacheKey, aiCacheGet, aiCacheSet } from "@/lib/ai/zai-client";
 import { isPlatformAdmin } from "@/lib/auth/admin-access";
 import { AuthzError } from "@/lib/auth/authorization";
 import { recordAuditEvent } from "@/lib/auth/audit";
@@ -149,17 +149,46 @@ export const POST = apiRoute(async (req) => {
   }
 
   const zai = getZai();
-  const maxRetries = 3;
+  const maxRetries = 4;
   let analysis: RiskAnalysis | null = null;
+
+  // ─── Cache check ───────────────────────────────────────────────────
+  // Free-tier glm-4.7-flash throttles aggressively (1302 errors). Skip
+  // the call entirely if we've already analyzed the same contract text
+  // within the last 5 min.
+  const cacheMessages: Array<{ role: "system" | "user"; content: string }> = [
+    { role: "system", content: SYSTEM_PROMPT },
+    { role: "user", content: `Analyze this contract for risks:\n\n${contractText}` },
+  ];
+  const cacheKey = await aiCacheKey(ZAI_MODEL, cacheMessages);
+  const cached = aiCacheGet(cacheKey);
+  if (cached) {
+    // Try to parse the cached response as JSON (it was originally JSON).
+    const fromCache = extractJson(cached);
+    if (fromCache) {
+      await recordAuditEvent({
+        actorId: userId,
+        projectId: contract.projectId,
+        action: "ai.contract_risk_analysis",
+        targetType: "ContractVersion",
+        targetId: contract.id,
+        metadata: {
+          score: fromCache.score,
+          riskLevel: fromCache.riskLevel,
+          flagCount: fromCache.flags.length,
+          cacheHit: true,
+        },
+      });
+      return fromCache;
+    }
+    // If parsing failed, fall through and call Z.AI fresh.
+  }
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const completion = await zai.chat.completions.create({
         model: ZAI_MODEL,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: `Analyze this contract for risks:\n\n${contractText}` },
-        ],
+        messages: cacheMessages,
         temperature: 0.3,
         max_tokens: 1500,
         thinking: { type: "disabled" } as never,
@@ -169,19 +198,31 @@ export const POST = apiRoute(async (req) => {
         ?.choices?.[0]?.message?.content ?? "";
       analysis = extractJson(content);
 
-      if (analysis) break;
+      if (analysis) {
+        // Cache the raw response text (not the parsed object) so the
+        // cache layer stays simple. extractJson() will re-parse on read.
+        aiCacheSet(cacheKey, content);
+        break;
+      }
 
       if (attempt < maxRetries - 1) {
-        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        // Empty/unparseable content — retry with longer backoff.
+        const backoff = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
+        const jitter = (Math.random() - 0.5) * 1000;
+        await new Promise((r) => setTimeout(r, backoff + jitter));
       }
     } catch (err) {
       const errMsg = (err as Error)?.message ?? "";
       // Retry on Z.AI rate-limit codes:
-      //   1302 = "High concurrency usage" (free-tier throttle)
+      //   1302 = "High concurrency usage" / "Rate limit reached for requests"
+      //          (free-tier per-account throttle)
       //   1305 = model-level rate limit
       //   429  = standard HTTP rate limit
-      if (attempt < maxRetries - 1 && (errMsg.includes("1302") || errMsg.includes("1305") || errMsg.includes("429"))) {
-        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      const isRetryable = errMsg.includes("1302") || errMsg.includes("1305") || errMsg.includes("429");
+      if (attempt < maxRetries - 1 && isRetryable) {
+        const backoff = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
+        const jitter = (Math.random() - 0.5) * 1000; // ±500ms
+        await new Promise((r) => setTimeout(r, backoff + jitter));
         continue;
       }
       throw err;
