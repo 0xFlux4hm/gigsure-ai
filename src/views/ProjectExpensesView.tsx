@@ -21,7 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api, formatMinor, formatDateTime } from "@/lib/client-api";
 import { Loader2, Plus, Receipt, Check, X, Upload, Info } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
+import { PageHeader, LoadingState, EmptyState, formatStatus } from "@/components/shared/page-components";
 
 type Expense = {
   id: string;
@@ -219,7 +219,7 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
                   <SelectContent>
                     {milestones.map((m) => (
                       <SelectItem key={m.id} value={m.id}>
-                        {m.title} — {formatMinor(m.amountMinor, "NGN")} ({m.status})
+                        {m.title} — {formatMinor(m.amountMinor, "NGN")} ({formatStatus(m.status)})
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api, formatDateTime, timeAgo } from "@/lib/client-api";
 import { Plus, Loader2, ChevronRight, Scale } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
+import { PageHeader, LoadingState, EmptyState, formatStatus } from "@/components/shared/page-components";
 
 type Dispute = {
   id: string;
@@ -82,7 +82,7 @@ export function ProjectDisputesView({ projectId }: { projectId: string }) {
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold">{d.title}</h3>
                         <Badge variant="outline" className="text-xs badge-info">{d.category}</Badge>
-                        <Badge variant={d.status === "OPEN" ? "destructive" : d.status === "RESOLVED" ? "default" : "secondary"} className="text-xs">{d.status}</Badge>
+                        <Badge variant={d.status === "OPEN" ? "destructive" : d.status === "RESOLVED" ? "default" : "secondary"} className="text-xs">{formatStatus(d.status)}</Badge>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{d.description}</p>
                       <div className="text-xs text-muted-foreground mt-1">

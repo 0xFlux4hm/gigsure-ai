@@ -36,7 +36,7 @@ import {
 import { exportAdminPDF } from "@/lib/pdf/export";
 
 import { toast } from "sonner";
-import { PageHeader, EmptyState } from "@/components/shared/page-components";
+import { PageHeader, EmptyState, formatStatus } from "@/components/shared/page-components";
 type AdminTab = "overview" | "users" | "projects" | "payments" | "payouts" | "disputes" | "kyc" | "audit" | "ai" | "privacy" | "webhooks" | "gateway";
 
 export function AdminView() {
@@ -548,7 +548,7 @@ function ProjectsTab() {
                         <div>{p.owner.displayName}</div>
                         <div className="text-muted-foreground">{p.owner.email}</div>
                       </td>
-                      <td className="p-2"><Badge variant="outline" className="text-xs badge-info">{p.status}</Badge></td>
+                      <td className="p-2"><Badge variant="outline" className="text-xs badge-info">{formatStatus(p.status)}</Badge></td>
                       <td className="p-2 text-right">{p.budgetMinor > 0 ? formatMinor(p.budgetMinor, p.currency) : "—"}</td>
                       <td className="p-2 text-right">{p._count.tasks}</td>
                       <td className="p-2 text-right">{p._count.milestones}</td>
@@ -627,7 +627,7 @@ function FundingTab() {
             return (
               <Card className="premium-card" key={s.status}>
                 <CardContent className="p-3">
-                  <div className="text-xs text-muted-foreground">{s.status}</div>
+                  <div className="text-xs text-muted-foreground">{formatStatus(s.status)}</div>
                   <div className="font-semibold mt-0.5">{s.count} records</div>
                   {vol && vol.totalAmountMinor > 0 && (
                     <div className="text-xs text-muted-foreground">{formatMinor(vol.totalAmountMinor, "NGN")}</div>
@@ -696,7 +696,7 @@ function FundingTab() {
                       <td className="p-2">
                         <div className="flex items-center gap-1 flex-wrap">
                           <Badge variant="outline" className="text-xs badge-info">{r.type}</Badge>
-                          <Badge variant={r.status === "PROVIDER_CONFIRMED" ? "default" : r.status === "FAILED" ? "destructive" : "secondary"} className="text-xs">{r.status}</Badge>
+                          <Badge variant={r.status === "PROVIDER_CONFIRMED" ? "default" : r.status === "FAILED" ? "destructive" : "secondary"} className="text-xs">{formatStatus(r.status)}</Badge>
                           
                         </div>
                       </td>
@@ -817,14 +817,14 @@ function DisputesTab() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-medium">{d.title}</h3>
                     <Badge variant="outline" className="text-xs badge-info">{d.category}</Badge>
-                    <Badge variant={d.status === "OPEN" ? "destructive" : d.status === "RESOLVED" ? "default" : "secondary"} className="text-xs">{d.status}</Badge>
+                    <Badge variant={d.status === "OPEN" ? "destructive" : d.status === "RESOLVED" ? "default" : "secondary"} className="text-xs">{formatStatus(d.status)}</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{d.description}</p>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-2">
                     <span>Project: {d.project.title}</span>
                     <span>· Opener: {d.opener.displayName}</span>
                     <span>· {d._count.evidence} evidence · {d._count.messages} messages</span>
-                    {d.milestone && <span>· Milestone: {d.milestone.title} ({d.milestone.status})</span>}
+                    {d.milestone && <span>· Milestone: {d.milestone.title} ({formatStatus(d.milestone.status)})</span>}
                     <span>· {timeAgo(d.createdAt)}</span>
                   </div>
                   {d.reviews.length > 0 && (
@@ -1155,7 +1155,7 @@ function PrivacyTab() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" className="text-xs badge-info">{r.type}</Badge>
-                        <Badge variant={r.status === "PENDING" ? "destructive" : r.status === "COMPLETED" ? "default" : "secondary"} className="text-xs">{r.status}</Badge>
+                        <Badge variant={r.status === "PENDING" ? "destructive" : r.status === "COMPLETED" ? "default" : "secondary"} className="text-xs">{formatStatus(r.status)}</Badge>
                       </div>
                       <div className="mt-1">
                         <span className="font-medium">{r.user.displayName}</span>
@@ -1299,7 +1299,7 @@ function WebhooksTab() {
                   {e.fundingRecord && (
                     <div className="text-xs mt-1">
                       Funding: {formatMinor(e.fundingRecord.amountMinor, e.fundingRecord.currency)} ·{" "}
-                      {e.fundingRecord.project.title} · status: {e.fundingRecord.status}
+                      {e.fundingRecord.project.title} · status: {formatStatus(e.fundingRecord.status)}
                     </div>
                   )}
                   <details className="mt-1">
@@ -1386,7 +1386,7 @@ function KycTab() {
           {aggregates.byStatus.map((s) => (
             <Card className="premium-card" key={s.status}>
               <CardContent className="p-3">
-                <div className="text-xs text-muted-foreground">{s.status}</div>
+                <div className="text-xs text-muted-foreground">{formatStatus(s.status)}</div>
                 <div className="font-semibold mt-0.5">{s.count}</div>
               </CardContent>
             </Card>
@@ -1446,7 +1446,7 @@ function KycTab() {
                       </td>
                       <td className="p-2">
                         <Badge variant={v.status === "VERIFIED" ? "default" : v.status === "REJECTED" ? "destructive" : "secondary"} className="text-xs">
-                          {v.status}
+                          {formatStatus(v.status)}
                         </Badge>
                       </td>
                       <td className="p-2 text-xs">{v.provider}</td>
@@ -1637,7 +1637,7 @@ function PayoutsTab() {
                       p.provider,
                       p.payeeBankName,
                       p.payeeAccountNumber,
-                      p.status,
+                      formatStatus(p.status),
                       formatDateTime(p.initiatedAt),
                     ]),
                   });
@@ -1700,7 +1700,7 @@ function PayoutsTab() {
                               : "secondary"
                           }
                         >
-                          {p.status}
+                          {formatStatus(p.status)}
                         </Badge>
                         {p.failureReason && (
                           <div className="text-xs text-destructive mt-1 max-w-[200px]">
@@ -1883,7 +1883,7 @@ function PaymentsTab() {
                       </td>
                       <td className="p-2">
                         <Badge variant={t.status === "SUCCEEDED" ? "default" : t.status === "FAILED" ? "destructive" : "secondary"} className="text-xs">
-                          {t.status}
+                          {formatStatus(t.status)}
                         </Badge>
                       </td>
                       <td className="p-2 text-xs capitalize">{t.provider}</td>

@@ -21,7 +21,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
+import { PageHeader, LoadingState, EmptyState, formatStatus } from "@/components/shared/page-components";
 
 type FundingRecord = {
   id: string;
@@ -214,7 +214,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
                 <div>
                   Status:{" "}
                   <Badge variant={virtualAccount.status === "ACTIVE" ? "default" : "secondary"}>
-                    {virtualAccount.status}
+                    {formatStatus(virtualAccount.status)}
                   </Badge>
                   {virtualAccount.expiresAt && (
                     <span className="ml-2">Expires {formatDateTime(virtualAccount.expiresAt)}</span>
@@ -287,7 +287,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
                       >
                         {isConfirmed && <CheckCircle2 className="h-3 w-3 mr-1" />}
                         {isFailed && <XCircle className="h-3 w-3 mr-1" />}
-                        {r.status}
+                        {formatStatus(r.status)}
                       </Badge>
                     </div>
                     <div className="text-sm mt-1 font-medium">
@@ -485,7 +485,7 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
       } else {
         const msg = res.message ?? "Payment not yet completed.";
         const detail = res.detail ?? "Make sure you approved the payment in PayPal, then try again.";
-        const statusInfo = res.status ? ` (status: ${res.status})` : "";
+        const statusInfo = res.status ? ` (status: ${formatStatus(res.status)})` : "";
         setError(`${msg} ${detail}${statusInfo}`);
         toast.warning("Payment not yet confirmed", {
           description: `${msg}${statusInfo}`,

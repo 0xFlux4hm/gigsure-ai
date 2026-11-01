@@ -12,7 +12,7 @@ import { api, formatDateTime, timeAgo } from "@/lib/client-api";
 import { Send, Loader2, Scale, AlertTriangle } from "lucide-react";
 
 import { toast } from "sonner";
-import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
+import { PageHeader, LoadingState, EmptyState, formatStatus } from "@/components/shared/page-components";
 type Dispute = {
   id: string;
   title: string;
@@ -97,7 +97,7 @@ export function ProjectDisputeDetailView({ projectId, disputeId }: { projectId: 
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <Badge className="badge-info" variant="outline">{dispute.category}</Badge>
-            <Badge variant={dispute.status === "OPEN" ? "destructive" : "secondary"}>{dispute.status}</Badge>
+            <Badge variant={dispute.status === "OPEN" ? "destructive" : "secondary"}>{formatStatus(dispute.status)}</Badge>
           </div>
         }
       />

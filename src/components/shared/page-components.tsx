@@ -130,3 +130,74 @@ export function StatCard({ label, value, icon: Icon, accent = "default", onClick
     </div>
   );
 }
+
+const STATUS_LABELS: Record<string, string> = {
+  // Funding
+  INITIATED: "Initiated",
+  PROVIDER_CONFIRMED: "Confirmed",
+  PARTIALLY_CONFIRMED: "Partially Confirmed",
+  DISPUTED: "Disputed",
+  CANCELLED: "Cancelled",
+  FAILED: "Failed",
+  DRAFT: "Draft",
+
+  // Payment transactions
+  CREATED: "Created",
+  PENDING: "Pending",
+  REQUIRES_ACTION: "Action Required",
+  SUCCEEDED: "Completed",
+  EXPIRED: "Expired",
+  CANCELED: "Cancelled",
+  REFUND_PENDING: "Refund Pending",
+  PARTIALLY_REFUNDED: "Partially Refunded",
+  REFUNDED: "Refunded",
+  REVERSED: "Reversed",
+  RECONCILIATION_REQUIRED: "Reconciliation Required",
+
+  // Milestones
+  AWAITING_FUNDING: "Awaiting Funding",
+  FUNDED: "Funded",
+  SUBMITTED: "Submitted",
+  APPROVED: "Approved",
+  RELEASED: "Released",
+  REJECTED: "Rejected",
+
+  // Projects
+  ACTIVE: "Active",
+  COMPLETED: "Completed",
+  PAUSED: "Paused",
+
+  // Contracts
+  PROPOSED: "Proposed",
+  ACCEPTED: "Accepted",
+  SUPERSEDED: "Superseded",
+
+  // Disputes
+  OPEN: "Open",
+  UNDER_REVIEW: "Under Review",
+  ESCALATED: "Escalated",
+  RESOLVED: "Resolved",
+  CLOSED: "Closed",
+
+  // Tasks
+  TODO: "To Do",
+  IN_PROGRESS: "In Progress",
+  BLOCKED: "Blocked",
+  REVIEW: "In Review",
+  DONE: "Done",
+
+  // Expenses
+  REQUESTED: "Requested",
+  RELEASED_EXPENSE: "Released",
+
+  // KYC
+  VERIFIED: "Verified",
+  IN_PROGRESS_KYC: "In Progress",
+
+  // Account
+  PENDING_REGISTRATION: "Pending Registration",
+};
+
+export function formatStatus(status: string): string {
+  return STATUS_LABELS[status] ?? status.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}

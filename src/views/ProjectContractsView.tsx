@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
+import { PageHeader, LoadingState, EmptyState, formatStatus } from "@/components/shared/page-components";
 
 type Version = {
   id: string;
@@ -179,7 +179,7 @@ export function ProjectContractsView({ projectId }: { projectId: string }) {
                     <History className="h-4 w-4" /> Version {v.versionNumber}
                   </CardTitle>
                   <Badge variant={v.status === "ACCEPTED" ? "default" : v.status === "SUPERSEDED" ? "secondary" : "outline"}>
-                    {v.status}
+                    {formatStatus(v.status)}
                   </Badge>
                 </div>
                 <div className="text-xs text-muted-foreground">{formatDateTime(v.createdAt)}</div>

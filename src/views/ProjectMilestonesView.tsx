@@ -12,7 +12,7 @@ import { api, formatDate, formatMinor } from "@/lib/client-api";
 import { Plus, Loader2, ArrowRight, AlertTriangle, Target } from "lucide-react";
 
 import { toast } from "sonner";
-import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
+import { PageHeader, LoadingState, EmptyState, formatStatus } from "@/components/shared/page-components";
 type Milestone = {
   id: string;
   title: string;
@@ -107,7 +107,7 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="font-semibold">{m.title}</h3>
-                        <Badge variant={disputed ? "destructive" : m.status === "RELEASED" ? "default" : "outline"}>{m.status}</Badge>
+                        <Badge variant={disputed ? "destructive" : m.status === "RELEASED" ? "default" : "outline"}>{formatStatus(m.status)}</Badge>
                         {fundingConfirmed && <Badge variant="secondary" className="text-xs badge-warning">funded</Badge>}
                       </div>
                       {m.description && <p className="text-sm text-muted-foreground">{m.description}</p>}
@@ -191,7 +191,7 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
                           <li key={f.id} className="flex items-center gap-2">
                             <Badge variant="outline" className="text-[10px] badge-info">{f.type}</Badge>
                             <span>{formatMinor(f.amountMinor, project?.currency ?? "NGN")}</span>
-                            <Badge variant="secondary" className="text-[10px] badge-warning">{f.status}</Badge>
+                            <Badge variant="secondary" className="text-[10px] badge-warning">{formatStatus(f.status)}</Badge>
                             
                           </li>
                         ))}

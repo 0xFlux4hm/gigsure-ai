@@ -13,7 +13,7 @@ import { api, formatDate } from "@/lib/client-api";
 import { Plus, Loader2, ChevronDown, ChevronRight, Upload, Download, Trash2, Paperclip, CheckSquare } from "lucide-react";
 
 import { toast } from "sonner";
-import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
+import { PageHeader, LoadingState, EmptyState, formatStatus } from "@/components/shared/page-components";
 type Deliverable = {
   id: string;
   filename: string;
@@ -207,7 +207,7 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
                                         <span className="truncate">{d.filename}</span>
                                       </button>
                                       <span className="text-muted-foreground text-[10px] shrink-0">{formatFileSize(d.sizeBytes)}</span>
-                                      <Badge variant="outline" className="text-[10px] shrink-0 badge-info">{d.status}</Badge>
+                                      <Badge variant="outline" className="text-[10px] shrink-0 badge-info">{formatStatus(d.status)}</Badge>
                                       <button
                                         onClick={() => deleteDeliverable(t.id, d.id)}
                                         className="text-destructive hover:text-destructive/80 shrink-0"

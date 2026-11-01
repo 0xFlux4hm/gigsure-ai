@@ -25,6 +25,7 @@ import {
   LoadingState,
   EmptyState,
   StatCard,
+  formatStatus,
 } from "@/components/shared/page-components";
 
 type DashboardData = {
@@ -78,14 +79,6 @@ function statusBadgeClass(status: string): string {
   if (s.includes("disput") || s.includes("cancel") || s.includes("fail"))
     return "badge-danger";
   return "badge-info";
-}
-
-function formatStatus(status: string): string {
-  return status
-    .split(/[-_\s]/)
-    .filter(Boolean)
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-    .join(" ");
 }
 
 export function DashboardView() {

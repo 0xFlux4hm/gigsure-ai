@@ -16,7 +16,7 @@ import {
   ChevronRight,
   FolderKanban,
 } from "lucide-react";
-import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
+import { PageHeader, LoadingState, EmptyState, formatStatus } from "@/components/shared/page-components";
 
 type ProjectDetail = {
   id: string;
@@ -69,10 +69,10 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
   }
 
   const sections = [
-    { label: "Contracts", icon: FileText, view: "project-contracts" as const, count: project._count.contracts, desc: project.recentContracts[0]?.status ?? "No contracts yet" },
+    { label: "Contracts", icon: FileText, view: "project-contracts" as const, count: project._count.contracts, desc: project.recentContracts[0]?.status ? formatStatus(project.recentContracts[0].status) : "No contracts yet" },
     { label: "Team", icon: Users, view: "project-team" as const, count: project._count.memberships, desc: `${project._count.memberships} member${project._count.memberships === 1 ? "" : "s"}` },
     { label: "Tasks", icon: CheckSquare, view: "project-tasks" as const, count: project._count.tasks, desc: `${project._count.tasks} tasks tracked` },
-    { label: "Compensation", icon: Wallet, view: "project-compensation" as const, count: project.latestCompensation ? 1 : 0, desc: project.latestCompensation ? `v${project.latestCompensation.versionNumber} · ${project.latestCompensation.status}` : "No agreements yet" },
+    { label: "Compensation", icon: Wallet, view: "project-compensation" as const, count: project.latestCompensation ? 1 : 0, desc: project.latestCompensation ? `v${project.latestCompensation.versionNumber} · ${formatStatus(project.latestCompensation.status)}` : "No agreements yet" },
     { label: "Milestones", icon: CheckSquare, view: "project-milestones" as const, count: project._count.milestones, desc: `${project._count.milestones} milestones` },
     { label: "Funding", icon: Wallet, view: "project-funding" as const, count: 0, desc: project.fundingArrangement },
     { label: "Disputes", icon: Scale, view: "project-disputes" as const, count: project._count.disputes, desc: project._count.disputes > 0 ? `${project._count.disputes} open` : "None open" },
@@ -87,7 +87,7 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
         icon={FolderKanban}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge className="badge-info" variant="outline">{project.status}</Badge>
+            <Badge className="badge-info" variant="outline">{formatStatus(project.status)}</Badge>
             <Badge className="badge-warning" variant="secondary">{project.myRole}</Badge>
           </div>
         }
@@ -176,7 +176,7 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
             <div className="text-xs text-muted-foreground">Latest contract</div>
             <div className="font-medium">
               {project.recentContracts[0]
-                ? `v${project.recentContracts[0].versionNumber} · ${project.recentContracts[0].status}`
+                ? `v${project.recentContracts[0].versionNumber} · ${formatStatus(project.recentContracts[0].status)}`
                 : "None yet"}
             </div>
           </div>
