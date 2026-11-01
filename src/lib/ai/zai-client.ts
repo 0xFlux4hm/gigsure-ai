@@ -86,6 +86,37 @@ export function getZai(): ZAI {
 }
 
 /**
+ * The model identifier to use for chat completions.
+ *
+ * Default: `glm-4.5-air` — paid tier (~$0.13/1M input + $0.85/1M output).
+ * Chosen over the previous `glm-4.7-flash` (free) because:
+ *
+ *   1. Free-tier Flash models suffer from "high concurrency" 1302 errors
+ *      under real-world load (multiple users, retries, parallel calls).
+ *      Reddit/r/ZaiGLM users report "aggressive rate limiting on the Free
+ *      tier" even with light traffic.
+ *   2. `glm-4.5-air` is on the paid tier — Z.AI's documented per-minute
+ *      rate limits apply instead of the undocumented free-tier throttle.
+ *      Independent trackers report stable throughput up to ~100 RPM.
+ *   3. Cost is negligible: a typical contract-risk call with ~3K input +
+ *      ~1.5K output tokens costs ~$0.001. Even at 10K calls/month the bill
+ *      would be ~$10.
+ *   4. Same hybrid thinking/non-thinking mode we already use — no code
+ *      changes needed beyond the model identifier.
+ *
+ * Override with the `ZAI_MODEL` env var if you want to switch to a
+ * different model without redeploying the codebase. Supported values:
+ *   - `glm-4.5-air`     (default, best value, 128K context)
+ *   - `glm-4.7-flash`   (free, but rate-limited — testing only)
+ *   - `glm-4.7-flashx`  ($0.07/$0.40 — cheaper than Air, smaller context)
+ *   - `glm-5.3-flash`   ($0.05/$0.18 — newest Aug 2026, multimodal, 1M ctx)
+ *   - `glm-5.3`         (flagship, ~$0.50+/1M — highest quality)
+ *
+ * See https://docs.z.ai for the full model catalog.
+ */
+export const ZAI_MODEL = process.env.ZAI_MODEL ?? "glm-4.5-air";
+
+/**
  * Returns true if the Z.AI SDK is configured (env vars are set).
  * Useful for health checks + UI states that want to show "AI unavailable"
  * gracefully.

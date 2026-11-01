@@ -14,7 +14,7 @@
 import { db } from "@/lib/db";
 import { apiRoute, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
-import { getZai } from "@/lib/ai/zai-client";
+import { getZai, ZAI_MODEL } from "@/lib/ai/zai-client";
 import { isPlatformAdmin } from "@/lib/auth/admin-access";
 import { AuthzError } from "@/lib/auth/authorization";
 import { recordAuditEvent } from "@/lib/auth/audit";
@@ -155,7 +155,7 @@ export const POST = apiRoute(async (req) => {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const completion = await zai.chat.completions.create({
-        model: "glm-4.7-flash",
+        model: ZAI_MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: `Analyze this contract for risks:\n\n${contractText}` },
@@ -176,7 +176,11 @@ export const POST = apiRoute(async (req) => {
       }
     } catch (err) {
       const errMsg = (err as Error)?.message ?? "";
-      if (attempt < maxRetries - 1 && (errMsg.includes("1305") || errMsg.includes("429"))) {
+      // Retry on Z.AI rate-limit codes:
+      //   1302 = "High concurrency usage" (free-tier throttle)
+      //   1305 = model-level rate limit
+      //   429  = standard HTTP rate limit
+      if (attempt < maxRetries - 1 && (errMsg.includes("1302") || errMsg.includes("1305") || errMsg.includes("429"))) {
         await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
         continue;
       }

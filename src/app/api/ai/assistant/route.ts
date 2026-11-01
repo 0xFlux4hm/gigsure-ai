@@ -1,4 +1,4 @@
-import { getZai, isZaiConfigured } from "@/lib/ai/zai-client";
+import { getZai, isZaiConfigured, ZAI_MODEL } from "@/lib/ai/zai-client";
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
@@ -330,24 +330,26 @@ export const POST = apiRoute(async (req) => {
     // on Vercel serverless. ZAI.create() reads from /etc/.z-ai-config which
     // doesn't exist on serverless → throws → fallback was always used.
     //
-    //   Use 'glm-4.7-flash' — it's a FREE model on Z.AI (genuinely free,
-    //   not trial credits). Works with a zero-balance account.
-    //   Per https://docs.z.ai — Flash models are rate-limited but free.
+    // The model identifier is now configured via the ZAI_MODEL env var
+    // (see src/lib/ai/zai-client.ts). Default: glm-4.5-air — paid tier,
+    // stable throughput, no free-tier "high concurrency" 1302 errors.
     //
     // THINKING DISABLED:
-    //   glm-4.7-flash defaults to chain-of-thought reasoning, which eats
+    //   GLM models default to chain-of-thought reasoning, which eats
     //   max_tokens before the actual answer is produced. We pass
     //   thinking: { type: "disabled" } so the response contains only the
     //   final answer, not the reasoning steps.
     const zai = getZai();
-    // because it's a free tier. Retry up to 3 times with exponential backoff.
+    // Retry up to 3 times with exponential backoff on Z.AI rate-limit errors
+    // (1302 / 1305 / 429 / overloaded). The model is configured via ZAI_MODEL
+    // env var (default: glm-4.5-air — paid tier, no free-tier throttle).
     type CompletionShape = { choices?: Array<{ message?: { content?: string } }>; usage?: { total_tokens?: number } };
     let completion: CompletionShape | null = null;
     const maxRetries = 3;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         completion = await zai.chat.completions.create({
-          model: "glm-4.7-flash",
+          model: ZAI_MODEL,
           messages: [
             // Use the hardened system prompt (with disclosure-resistance clause)
             // instead of the raw cfg.systemPrompt.
@@ -365,9 +367,14 @@ export const POST = apiRoute(async (req) => {
           await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
         }
       } catch (retryErr) {
-        // 429 or transient error — retry if attempts remain
+        // 429 or transient error — retry if attempts remain.
+        // Z.AI rate-limit codes:
+        //   1302 = "High concurrency usage" (free-tier throttle, most common on Flash)
+        //   1305 = model-level rate limit
+        //   429  = standard HTTP rate limit
+        //   "overloaded" = provider-side capacity error
         const errMsg = (retryErr as Error)?.message ?? "";
-        if (attempt < maxRetries - 1 && (errMsg.includes("1305") || errMsg.includes("overloaded") || errMsg.includes("429"))) {
+        if (attempt < maxRetries - 1 && (errMsg.includes("1302") || errMsg.includes("1305") || errMsg.includes("overloaded") || errMsg.includes("429"))) {
           await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
           continue;
         }
@@ -439,7 +446,7 @@ export const POST = apiRoute(async (req) => {
       `  • Invalid ZAI_API_KEY value\n` +
       `  • Wrong ZAI_BASE_URL (should be https://api.z.ai/api/paas/v4/)\n` +
       `  • Network/firewall issue reaching api.z.ai\n` +
-      `  • Rate limit exceeded (free Flash model — retry in a minute)\n\n` +
+      `  • Rate limit exceeded (retry in a minute)\n\n` +
       `Check the Vercel function logs (Project → Functions → Logs) for the full stack trace.\n\n` +
       `Until fixed, this deterministic fallback is shown:\n\n` +
       generateFallback(parsed.data.assistant, context);
