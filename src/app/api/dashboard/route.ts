@@ -37,13 +37,14 @@ export const GET = apiRoute(async () => {
     pendingMilestones,
     pendingPayouts,
     earningsAgg,
+    fundingAgg,
     unreadNotifications,
     openDisputes,
     user,
     bankDetail,
   ] = await Promise.all([
     db.project.count({
-      where: { id: { in: projectIds }, status: "ACTIVE" },
+      where: { id: { in: projectIds }, status: { in: ["ACTIVE", "DRAFT"] } },
     }),
     db.project.count({
       where: { id: { in: projectIds }, status: "COMPLETED" },
@@ -51,7 +52,7 @@ export const GET = apiRoute(async () => {
     db.milestone.count({
       where: {
         projectId: { in: projectIds },
-        status: { in: ["AWAITING_FUNDING", "SUBMITTED", "APPROVED"] },
+        status: { in: ["AWAITING_FUNDING", "SUBMITTED", "APPROVED", "FUNDED"] },
       },
     }),
     db.payout.count({
@@ -60,6 +61,16 @@ export const GET = apiRoute(async () => {
     db.payout.aggregate({
       where: { payeeId: userId, status: "SUCCEEDED" },
       _sum: { netMinor: true },
+    }),
+    // Also count confirmed funding records (PayPal/Monnify payments)
+    // as earnings — not just payouts.
+    db.fundingRecord.aggregate({
+      where: {
+        projectId: { in: projectIds },
+        status: "PROVIDER_CONFIRMED",
+        type: "FUNDING",
+      },
+      _sum: { amountMinor: true },
     }),
     db.notification.count({
       where: { userId, readAt: null },
@@ -80,12 +91,13 @@ export const GET = apiRoute(async () => {
   ]);
 
   const latestKyc = user?.kycVerifications?.[0];
-  // During development (KYC_BYPASS=true or non-production), report KYC as
-  // verified so the dashboard doesn't show the "KYC required" warning.
   const kycBypassed = process.env.KYC_BYPASS === "true" || process.env.NODE_ENV !== "production";
   const kycVerified = kycBypassed || (latestKyc?.status === "VERIFIED" && !!latestKyc?.verifiedAt);
 
-  const totalEarningsMinor = earningsAgg._sum.netMinor ?? 0;
+  // Total earnings = confirmed payouts + confirmed funding records
+  const payoutEarnings = earningsAgg._sum.netMinor ?? 0;
+  const fundingEarnings = fundingAgg._sum.amountMinor ?? 0;
+  const totalEarningsMinor = payoutEarnings + fundingEarnings;
 
   return {
     activeProjects,
