@@ -363,66 +363,13 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
   const [verified, setVerified] = useState(false);
   const [verifiedAmount, setVerifiedAmount] = useState<string | null>(null);
 
-  // On mount, check if there's a pending PayPal payment in localStorage.
-  // Then verify with the server whether it's already been confirmed —
-  // if so, clear the stale localStorage and don't show the verify UI.
+  // No localStorage — it caused stale state issues across page reloads.
+  // The PayPal payment state lives in React state only.
+  // If the user closes the tab mid-payment, the transaction stays in
+  // CREATED status on the server — they can retry from scratch.
+  // Clean up any stale localStorage from previous versions.
   useEffect(() => {
-    const stored = localStorage.getItem(`paypal_pending_${projectId}`);
-    if (!stored) return;
-
-    try {
-      const data = JSON.parse(stored) as {
-        checkoutUrl?: string;
-        paymentTxId?: string;
-        paypalOrderId?: string;
-        verifiedAmount?: string;
-      };
-
-      // Check with the server if this transaction is already confirmed
-      if (data.paymentTxId) {
-        api.get<{ status?: string }>(`/api/payments/${data.paymentTxId}/status`)
-          .then((res) => {
-            if (res.status === "SUCCEEDED") {
-              // Already confirmed on server — clear stale localStorage
-              localStorage.removeItem(`paypal_pending_${projectId}`);
-              setCheckoutUrl(null);
-              setPaymentTxId(null);
-              setPaypalOrderId(null);
-              setVerified(false);
-              setVerifiedAmount(null);
-              toast.success("Payment already confirmed", {
-                description: "Your previous PayPal payment was verified. Check the transaction history below.",
-              });
-            } else {
-              // Still pending — restore the verify UI
-              if (data.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
-              if (data.paymentTxId) setPaymentTxId(data.paymentTxId);
-              if (data.paypalOrderId) setPaypalOrderId(data.paypalOrderId);
-              if (data.verifiedAmount) setVerifiedAmount(data.verifiedAmount);
-            }
-          })
-          .catch(() => {
-            // Can't check server — clear stale data to be safe
-            localStorage.removeItem(`paypal_pending_${projectId}`);
-          });
-      } else {
-        localStorage.removeItem(`paypal_pending_${projectId}`);
-      }
-    } catch {
-      localStorage.removeItem(`paypal_pending_${projectId}`);
-    }
-
-    return () => {
-      // Clean up localStorage if verified
-      const s = localStorage.getItem(`paypal_pending_${projectId}`);
-      if (s) {
-        try {
-          const d = JSON.parse(s);
-          // Always clear on unmount — the pending state is ephemeral
-          localStorage.removeItem(`paypal_pending_${projectId}`);
-        } catch { /* ignore */ }
-      }
-    };
+    localStorage.removeItem(`paypal_pending_${projectId}`);
   }, [projectId]);
 
   // Demo FX rate — matches src/lib/payments/paypal-provider.ts
@@ -481,12 +428,6 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
         const tokenMatch = res.checkoutUrl.match(/token=([A-Z0-9]+)/);
         const orderId = tokenMatch ? tokenMatch[1] : null;
         if (orderId) setPaypalOrderId(orderId);
-        localStorage.setItem(`paypal_pending_${projectId}`, JSON.stringify({
-          checkoutUrl: res.checkoutUrl,
-          paymentTxId: res.transactionId ?? null,
-          paypalOrderId: orderId,
-          verifiedAmount: paidUsd,
-        }));
         if (typeof window !== "undefined") {
           window.open(res.checkoutUrl, "_blank", "noopener,noreferrer");
         }
@@ -520,7 +461,6 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
       );
       if (res.verified) {
         setVerified(true);
-        localStorage.removeItem(`paypal_pending_${projectId}`);
         toast.success("Payment confirmed!", {
           description: `Your PayPal payment of $${verifiedAmount ?? usdAmount} has been verified. Milestone is now funded.`,
         });
