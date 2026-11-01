@@ -14,7 +14,7 @@
 import { db } from "@/lib/db";
 import { apiRoute, fail } from "@/lib/api";
 import { requireUserId } from "@/lib/auth/session";
-import { getZai, ZAI_MODEL, aiCacheKey, aiCacheGet, aiCacheSet } from "@/lib/ai/zai-client";
+import { getOpenAiClient, getAiModel, aiCacheKey, aiCacheGet, aiCacheSet, type ChatMessage } from "@/lib/ai/ai-provider";
 import { isPlatformAdmin } from "@/lib/auth/admin-access";
 import { AuthzError } from "@/lib/auth/authorization";
 import { recordAuditEvent } from "@/lib/auth/audit";
@@ -148,23 +148,23 @@ export const POST = apiRoute(async (req) => {
     };
   }
 
-  const zai = getZai();
+  const model = getAiModel();
   const maxRetries = 4;
   let analysis: RiskAnalysis | null = null;
 
   // ─── Cache check ───────────────────────────────────────────────────
-  // Free-tier glm-4.7-flash throttles aggressively (1302 errors). Skip
-  // the call entirely if we've already analyzed the same contract text
-  // within the last 5 min.
-  const cacheMessages: Array<{ role: "system" | "user"; content: string }> = [
+  // Both Z.AI's free glm-4.7-flash and AgentRouter have rate limits.
+  // Skip the call entirely if we've already analyzed the same contract
+  // text within the last 5 min.
+  const cacheMessages: ChatMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
     { role: "user", content: `Analyze this contract for risks:\n\n${contractText}` },
   ];
-  const cacheKey = await aiCacheKey(ZAI_MODEL, cacheMessages);
+  const cacheKey = await aiCacheKey(model, cacheMessages);
   const cached = aiCacheGet(cacheKey);
   if (cached) {
     // Try to parse the cached response as JSON (it was originally JSON).
-    const fromCache = extractJson(cached);
+    const fromCache = extractJson(cached.content);
     if (fromCache) {
       await recordAuditEvent({
         actorId: userId,
@@ -181,51 +181,83 @@ export const POST = apiRoute(async (req) => {
       });
       return fromCache;
     }
-    // If parsing failed, fall through and call Z.AI fresh.
+    // If parsing failed, fall through and call the provider fresh.
   }
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const completion = await zai.chat.completions.create({
-        model: ZAI_MODEL,
-        messages: cacheMessages,
-        temperature: 0.3,
-        max_tokens: 1500,
-        thinking: { type: "disabled" } as never,
-      });
+  const client = getOpenAiClient();
+  let providerErrorMessage: string | null = null;
+  try {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const completion = await client.chat.completions.create({
+          model,
+          messages: cacheMessages,
+          temperature: 0.3,
+          max_tokens: 1500,
+        });
 
-      const content = (completion as { choices?: Array<{ message?: { content?: string } }> })
-        ?.choices?.[0]?.message?.content ?? "";
-      analysis = extractJson(content);
+        const content = (completion as { choices?: Array<{ message?: { content?: string } }> })
+          ?.choices?.[0]?.message?.content ?? "";
+        analysis = extractJson(content);
 
-      if (analysis) {
-        // Cache the raw response text (not the parsed object) so the
-        // cache layer stays simple. extractJson() will re-parse on read.
-        aiCacheSet(cacheKey, content);
-        break;
-      }
+        if (analysis) {
+          // Cache the raw response text + token count.
+          const tokensUsed = (completion as { usage?: { total_tokens?: number } })?.usage?.total_tokens ?? 0;
+          aiCacheSet(cacheKey, content, tokensUsed);
+          break;
+        }
 
-      if (attempt < maxRetries - 1) {
-        // Empty/unparseable content — retry with longer backoff.
-        const backoff = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
-        const jitter = (Math.random() - 0.5) * 1000;
-        await new Promise((r) => setTimeout(r, backoff + jitter));
+        if (attempt < maxRetries - 1) {
+          // Empty/unparseable content — retry with longer backoff.
+          const backoff = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
+          const jitter = (Math.random() - 0.5) * 1000;
+          await new Promise((r) => setTimeout(r, backoff + jitter));
+        }
+      } catch (retryErr) {
+        const errMsg = (retryErr as Error)?.message ?? "";
+        const errStatus = (retryErr as { status?: number })?.status ?? 0;
+        // Retry on rate-limit / transient errors (across providers):
+        //   1302 / 1305 = Z.AI-specific codes
+        //   429         = standard HTTP rate limit (both providers)
+        //   500/502/503  = transient server errors
+        const isRetryable =
+          errMsg.includes("1302") ||
+          errMsg.includes("1305") ||
+          errMsg.includes("overloaded") ||
+          errMsg.includes("rate_limit") ||
+          errMsg.includes("429") ||
+          errStatus === 429 ||
+          errStatus === 500 ||
+          errStatus === 502 ||
+          errStatus === 503;
+        if (attempt < maxRetries - 1 && isRetryable) {
+          const backoff = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
+          const jitter = (Math.random() - 0.5) * 1000; // ±500ms
+          await new Promise((r) => setTimeout(r, backoff + jitter));
+          continue;
+        }
+        throw retryErr;  // Re-throw on final attempt or non-retryable error
       }
-    } catch (err) {
-      const errMsg = (err as Error)?.message ?? "";
-      // Retry on Z.AI rate-limit codes:
-      //   1302 = "High concurrency usage" / "Rate limit reached for requests"
-      //          (free-tier per-account throttle)
-      //   1305 = model-level rate limit
-      //   429  = standard HTTP rate limit
-      const isRetryable = errMsg.includes("1302") || errMsg.includes("1305") || errMsg.includes("429");
-      if (attempt < maxRetries - 1 && isRetryable) {
-        const backoff = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
-        const jitter = (Math.random() - 0.5) * 1000; // ±500ms
-        await new Promise((r) => setTimeout(r, backoff + jitter));
-        continue;
-      }
-      throw err;
+    }
+  } catch (err) {
+    // All retries failed. Capture a friendly message + return a neutral
+    // analysis object so the UI doesn't crash — the user gets actionable
+    // feedback instead of a generic 500.
+    const errStatus = (err as { status?: number })?.status ?? 0;
+    const errMsg = (err as Error)?.message ?? "Unknown error";
+    if (errStatus === 401 || errMsg.includes("401") || errMsg.toLowerCase().includes("invalid api key")) {
+      providerErrorMessage =
+        "AI authentication failed — the API key was rejected. If using " +
+        "AgentRouter, generate a fresh key at https://agentrouter.org/console/token " +
+        "(keys are often invalidated when regenerated). If using Z.AI, check " +
+        "ZAI_API_KEY in Vercel env vars.";
+    } else if (errMsg.includes("1302") || errMsg.includes("1305") || errMsg.includes("429") || errStatus === 429) {
+      providerErrorMessage =
+        "AI rate limit reached after 4 retries with backoff. Wait ~1 minute " +
+        "and try again. For higher limits, switch to a paid tier (Z.AI: " +
+        "AI_MODEL=glm-4.5-air; AgentRouter: check dashboard for quota).";
+    } else {
+      providerErrorMessage = `AI provider error: ${errMsg.slice(0, 200)}. Check Vercel function logs for details.`;
     }
   }
 
@@ -234,7 +266,8 @@ export const POST = apiRoute(async (req) => {
       score: 50,
       riskLevel: "MEDIUM",
       flags: [],
-      summary: "AI analysis was unable to parse the contract. Please review manually or try again later.",
+      summary: providerErrorMessage ??
+        "AI analysis was unable to parse the contract. Please review manually or try again later.",
     };
   }
 
