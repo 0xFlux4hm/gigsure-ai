@@ -363,8 +363,9 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
   const [verified, setVerified] = useState(false);
   const [verifiedAmount, setVerifiedAmount] = useState<string | null>(null);
 
-  // On mount, check if there's a pending PayPal payment in localStorage
-  // (survives mobile tab unloading + page reloads)
+  // On mount, check if there's a pending PayPal payment in localStorage.
+  // Only restore if the payment hasn't been verified yet — once verified,
+  // clear the state so it doesn't show stale data on next visit.
   useEffect(() => {
     const stored = localStorage.getItem(`paypal_pending_${projectId}`);
     if (stored) {
@@ -374,7 +375,13 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
           paymentTxId?: string;
           paypalOrderId?: string;
           verifiedAmount?: string;
+          verified?: boolean;
         };
+        // If already verified, clear the state — don't show stale UI
+        if (data.verified) {
+          localStorage.removeItem(`paypal_pending_${projectId}`);
+          return;
+        }
         if (data.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
         if (data.paymentTxId) setPaymentTxId(data.paymentTxId);
         if (data.paypalOrderId) setPaypalOrderId(data.paypalOrderId);
@@ -383,6 +390,18 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
         localStorage.removeItem(`paypal_pending_${projectId}`);
       }
     }
+    // Clear on unmount if not verified (user navigated away without completing)
+    return () => {
+      const s = localStorage.getItem(`paypal_pending_${projectId}`);
+      if (s) {
+        try {
+          const d = JSON.parse(s);
+          if (d.verified) {
+            localStorage.removeItem(`paypal_pending_${projectId}`);
+          }
+        } catch { /* ignore */ }
+      }
+    };
   }, [projectId]);
 
   // Demo FX rate — matches src/lib/payments/paypal-provider.ts
@@ -484,6 +503,14 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
         toast.success("Payment confirmed!", {
           description: `Your PayPal payment of $${verifiedAmount ?? usdAmount} has been verified. Milestone is now funded.`,
         });
+        // Clear the PayPal UI state after 3 seconds so the page resets
+        setTimeout(() => {
+          setVerified(false);
+          setCheckoutUrl(null);
+          setPaymentTxId(null);
+          setPaypalOrderId(null);
+          setVerifiedAmount(null);
+        }, 3000);
       } else {
         setError(res.message ?? "Payment not yet completed. Make sure you approved it in PayPal.");
         toast.warning("Payment not yet confirmed", {
