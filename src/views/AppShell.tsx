@@ -33,6 +33,7 @@ import {
   ShieldAlert,
   Receipt,
   Star,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
@@ -112,8 +113,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, [view]);
 
-  // Check admin status via /api/me (not /api/admin/me — that endpoint
-  // is now hidden from non-admins and returns 404).
   useEffect(() => {
     api.get<{ platformRole?: string }>("/api/me")
       .then((u) => setIsAdmin(u.platformRole === "ADMIN"))
@@ -130,92 +129,95 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     .toUpperCase();
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="border-b sticky top-0 z-30 bg-background">
-        <div className="flex h-16 items-center gap-3 px-4">
+    <div className="min-h-screen bg-background">
+      {/* Top bar */}
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
+        <div className="flex h-14 items-center gap-3 px-4">
           <button
-            className="md:hidden p-2 hover:bg-muted rounded"
-            onClick={() => setMobileOpen((v) => !v)}
-            aria-label="Toggle menu"
+            className="lg:hidden p-2 hover:bg-muted rounded-lg transition-colors"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
           </button>
           <button
             onClick={() => navigate({ view: "dashboard", projectId: undefined })}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2.5"
           >
-            <img src="/images/logo.png" alt="GigSure AI" className="h-7 w-7 object-contain" />
-            <span className="font-semibold hidden sm:inline">GigSure<span className="text-primary"> AI</span></span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-sm">
+              G
+            </div>
+            <span className="font-semibold tracking-tight hidden sm:inline">GigSure<span className="text-primary"> AI</span></span>
           </button>
 
           {inProject && projectCtx.projectTitle && (
-            <div className="hidden md:flex items-center gap-2 ml-4 text-sm text-muted-foreground">
-              <span className="truncate max-w-[200px]">{projectCtx.projectTitle}</span>
+            <div className="hidden lg:flex items-center gap-2 ml-2 pl-4 border-l border-border/60">
+              <span className="text-sm text-muted-foreground truncate max-w-[180px]">{projectCtx.projectTitle}</span>
             </div>
           )}
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1.5">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate({ view: "notifications" })}
               aria-label="Notifications"
-              className="relative"
+              className="relative h-9 w-9 rounded-lg hover:bg-muted"
             >
-              <Bell className="h-5 w-5" />
+              <Bell className="h-[18px] w-[18px]" />
               {unread > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-semibold">
+                <span className="absolute top-1 right-1 h-4 min-w-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-semibold shadow-sm">
                   {unread > 99 ? "99+" : unread}
                 </span>
               )}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted" aria-label="Account menu">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs">{initials}</AvatarFallback>
+                <button className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted transition-colors" aria-label="Account menu">
+                  <Avatar className="h-8 w-8 ring-2 ring-border/50">
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">{initials}</AvatarFallback>
                   </Avatar>
-                  <span className="hidden md:block text-sm max-w-[120px] truncate flex items-center gap-1">
+                  <span className="hidden md:flex items-center gap-1 text-sm max-w-[120px] truncate">
                     {session?.user?.name ?? "User"}
                     {kycVerified && <VerifiedBadge size="sm" showLabel={false} />}
                   </span>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col">
-                    <span>{session?.user?.name ?? "User"}</span>
-                    <span className="text-xs text-muted-foreground font-normal truncate">{session?.user?.email}</span>
+              <DropdownMenuContent align="end" className="w-56 rounded-xl border-border/60 shadow-lg">
+                <DropdownMenuLabel className="py-2.5">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium">{session?.user?.name ?? "User"}</span>
+                    <span className="text-xs text-muted-foreground truncate">{session?.user?.email}</span>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {SETTINGS_NAV.map((n) => (
-                  <DropdownMenuItem key={n.view} onClick={() => navigate({ view: n.view, projectId: undefined })}>
-                    <n.icon className="mr-2 h-4 w-4" /> {n.label}
+                  <DropdownMenuItem key={n.view} onClick={() => navigate({ view: n.view, projectId: undefined })} className="rounded-md gap-2.5 py-1.5">
+                    <n.icon className="h-4 w-4 text-muted-foreground" /> {n.label}
                   </DropdownMenuItem>
                 ))}
                 {!kycVerified && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => navigate({ view: "kyc", projectId: undefined })}>
-                      <ShieldCheck className="mr-2 h-4 w-4 text-amber-600" /> Complete KYC Verification
+                    <DropdownMenuItem onClick={() => navigate({ view: "kyc", projectId: undefined })} className="rounded-md gap-2.5 py-1.5">
+                      <ShieldCheck className="h-4 w-4 text-amber-600" /> Complete KYC Verification
                     </DropdownMenuItem>
                   </>
                 )}
                 {isAdmin && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => navigate({ view: "admin", projectId: undefined })}>
-                      <ShieldAlert className="mr-2 h-4 w-4 text-primary" /> Admin dashboard
+                    <DropdownMenuItem onClick={() => navigate({ view: "admin", projectId: undefined })} className="rounded-md gap-2.5 py-1.5">
+                      <ShieldAlert className="h-4 w-4 text-primary" /> Admin dashboard
                     </DropdownMenuItem>
                   </>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => signOut({ callbackUrl: "/?view=landing" })}
-                  className="text-destructive focus:text-destructive"
+                  className="rounded-md gap-2.5 py-1.5 text-destructive focus:text-destructive"
                 >
-                  <LogOut className="mr-2 h-4 w-4" /> Sign out
+                  <LogOut className="h-4 w-4" /> Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -223,104 +225,156 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <div className="flex-1 flex">
-        {/* Sidebar */}
-        <aside
-          className={`fixed md:sticky top-16 left-0 z-20 h-[calc(100vh-4rem)] w-64 shrink-0 border-r bg-background overflow-y-auto transition-transform ${
-            mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-          }`}
-        >
-          <nav className="p-3 space-y-1">
-            {PRIMARY_NAV.map((n) => (
-              <SidebarLink
-                key={n.view}
-                active={view === n.view}
-                icon={n.icon}
-                label={n.label}
-                onClick={() => {
-                  navigate({ view: n.view, projectId: undefined });
-                  setMobileOpen(false);
-                }}
-                badge={n.view === "notifications" && unread > 0 ? unread : undefined}
-              />
-            ))}
-
-            {isAdmin && (
-              <>
-                <div className="pt-4 pb-1 px-2 text-xs uppercase tracking-wider text-primary flex items-center gap-1">
-                  <ShieldAlert className="h-3 w-3" /> Admin
-                </div>
-                <SidebarLink
-                  active={view === "admin"}
-                  icon={ShieldAlert}
-                  label="Admin dashboard"
-                  onClick={() => {
-                    navigate({ view: "admin", projectId: undefined });
-                    setMobileOpen(false);
-                  }}
-                />
-              </>
-            )}
-
-            {inProject && (
-              <>
-                <div className="pt-4 pb-1 px-2 text-xs uppercase tracking-wider text-muted-foreground">
-                  Project
-                </div>
-                {PROJECT_NAV.map((n) => (
-                  <SidebarLink
-                    key={n.view}
-                    active={view === n.view}
-                    icon={n.icon}
-                    label={n.label}
-                    onClick={() => {
-                      navigate({ view: n.view });
-                      setMobileOpen(false);
-                    }}
-                  />
-                ))}
-                <div className="pt-2">
-                  <Button variant="ghost" size="sm" onClick={goBack} className="w-full justify-start text-muted-foreground">
-                    <ChevronLeft className="mr-2 h-4 w-4" /> Back to projects
-                  </Button>
-                </div>
-              </>
-            )}
-
-            <div className="pt-4 pb-1 px-2 text-xs uppercase tracking-wider text-muted-foreground">
-              Account
-            </div>
-            {SETTINGS_NAV.map((n) => (
-              <SidebarLink
-                key={n.view}
-                active={view === n.view}
-                icon={n.icon}
-                label={n.label}
-                onClick={() => {
-                  navigate({ view: n.view, projectId: undefined });
-                  setMobileOpen(false);
-                }}
-              />
-            ))}
-          </nav>
+      <div className="flex">
+        {/* Desktop sidebar */}
+        <aside className="hidden lg:flex sticky top-14 h-[calc(100vh-3.5rem)] w-60 shrink-0 flex-col border-r border-border/60 bg-sidebar/50 backdrop-blur-sm">
+          <SidebarContent
+            view={view}
+            navigate={navigate}
+            goBack={goBack}
+            inProject={inProject}
+            isAdmin={isAdmin}
+            unread={unread}
+            setMobileOpen={setMobileOpen}
+            projectCtx={projectCtx}
+          />
         </aside>
 
-        {/* Mobile overlay */}
+        {/* Mobile sidebar */}
         {mobileOpen && (
-          <div
-            className="md:hidden fixed inset-0 top-16 bg-black/30 z-10"
-            onClick={() => setMobileOpen(false)}
-          />
+          <>
+            <div className="lg:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+            <aside className="lg:hidden fixed left-0 top-0 z-50 h-full w-72 bg-background border-r border-border/60 shadow-2xl animate-in slide-in-from-left duration-200">
+              <div className="flex items-center justify-between p-4 border-b border-border/60">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-sm">G</div>
+                  <span className="font-semibold">GigSure<span className="text-primary"> AI</span></span>
+                </div>
+                <button onClick={() => setMobileOpen(false)} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="overflow-y-auto h-[calc(100%-57px)]">
+                <SidebarContent
+                  view={view}
+                  navigate={navigate}
+                  goBack={goBack}
+                  inProject={inProject}
+                  isAdmin={isAdmin}
+                  unread={unread}
+                  setMobileOpen={setMobileOpen}
+                  projectCtx={projectCtx}
+                />
+              </div>
+            </aside>
+          </>
         )}
 
         {/* Main content */}
         <main className="flex-1 min-w-0">
-          <div className="container mx-auto max-w-6xl px-4 py-6 md:py-8">
+          <div className="container mx-auto max-w-6xl px-4 py-6 md:py-8 page-enter">
             {children}
           </div>
         </main>
       </div>
     </div>
+  );
+}
+
+function SidebarContent({
+  view,
+  navigate,
+  goBack,
+  inProject,
+  isAdmin,
+  unread,
+  setMobileOpen,
+  projectCtx,
+}: {
+  view: ViewName;
+  navigate: ReturnType<typeof useNav>["navigate"];
+  goBack: ReturnType<typeof useNav>["goBack"];
+  inProject: boolean;
+  isAdmin: boolean;
+  unread: number;
+  setMobileOpen: (v: boolean) => void;
+  projectCtx: ProjectNavContext;
+}) {
+  return (
+    <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
+      {PRIMARY_NAV.map((n) => (
+        <SidebarLink
+          key={n.view}
+          active={view === n.view}
+          icon={n.icon}
+          label={n.label}
+          onClick={() => {
+            navigate({ view: n.view, projectId: undefined });
+            setMobileOpen(false);
+          }}
+          badge={n.view === "notifications" && unread > 0 ? unread : undefined}
+        />
+      ))}
+
+      {isAdmin && (
+        <>
+          <div className="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-primary flex items-center gap-1.5">
+            <ShieldAlert className="h-3 w-3" /> Admin
+          </div>
+          <SidebarLink
+            active={view === "admin"}
+            icon={ShieldAlert}
+            label="Admin dashboard"
+            onClick={() => {
+              navigate({ view: "admin", projectId: undefined });
+              setMobileOpen(false);
+            }}
+          />
+        </>
+      )}
+
+      {inProject && (
+        <>
+          <div className="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {projectCtx.projectTitle ? projectCtx.projectTitle.slice(0, 18) : "Project"}
+          </div>
+          {PROJECT_NAV.map((n) => (
+            <SidebarLink
+              key={n.view}
+              active={view === n.view}
+              icon={n.icon}
+              label={n.label}
+              onClick={() => {
+                navigate({ view: n.view });
+                setMobileOpen(false);
+              }}
+            />
+          ))}
+          <button
+            onClick={() => { goBack(); setMobileOpen(false); }}
+            className="nav-link mt-2 text-muted-foreground"
+          >
+            <ChevronLeft className="h-4 w-4" /> Back to projects
+          </button>
+        </>
+      )}
+
+      <div className="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Account
+      </div>
+      {SETTINGS_NAV.map((n) => (
+        <SidebarLink
+          key={n.view}
+          active={view === n.view}
+          icon={n.icon}
+          label={n.label}
+          onClick={() => {
+            navigate({ view: n.view, projectId: undefined });
+            setMobileOpen(false);
+          }}
+        />
+      ))}
+    </nav>
   );
 }
 
@@ -340,17 +394,17 @@ function SidebarLink({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-medium transition-colors ${
-        active
-          ? "bg-primary text-primary-foreground"
-          : "hover:bg-muted text-foreground"
-      }`}
+      className={`nav-link ${active ? "active" : ""}`}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className={`h-[18px] w-[18px] ${active ? "" : "text-muted-foreground"}`} />
       <span className="flex-1 text-left">{label}</span>
       {badge !== undefined && (
-        <span className={`text-xs px-1.5 rounded-full ${active ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground"}`}>
-          {badge}
+        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+          active
+            ? "bg-primary-foreground text-primary"
+            : "bg-primary text-primary-foreground"
+        }`}>
+          {badge > 99 ? "99+" : badge}
         </span>
       )}
     </button>
