@@ -394,8 +394,13 @@ export const POST = apiRoute(async (req) => {
     // assumptions that didn't work with AgentRouter.
     const client = getOpenAiClient();
     // Retry up to 4 times with longer exponential backoff + jitter.
-    // The 1302 "high concurrency" error (Z.AI free tier) and AgentRouter's
-    // rate-limit responses are both TRANSIENT — waiting longer works.
+    //
+    // IMPORTANT — Gemini-specific behavior:
+    //   Gemini's free tier (15 RPM) is per-minute. Each retry counts
+    //   against the SAME per-minute quota. So if we already hit the 429,
+    //   retrying makes it WORSE — we burn more of the same minute's
+    //   quota. For Gemini 429s, we fail fast instead of retrying.
+    //
     //   Attempt 1: immediate
     //   Attempt 2: wait ~2s (with ±500ms jitter)
     //   Attempt 3: wait ~4s (with ±500ms jitter)
@@ -425,13 +430,20 @@ export const POST = apiRoute(async (req) => {
           await new Promise((r) => setTimeout(r, backoff + jitter));
         }
       } catch (retryErr) {
-        // Rate-limit / transient error indicators (across providers):
-        //   1302 / 1305 = Z.AI-specific codes
-        //   429         = standard HTTP rate limit (both providers)
-        //   "overloaded" / "rate_limit" / "insufficient_quota" = provider-side
-        //   500/502/503  = transient server errors
         const errMsg = (retryErr as Error)?.message ?? "";
         const errStatus = (retryErr as { status?: number })?.status ?? 0;
+        // Gemini-specific: 429 = per-minute quota exhausted. Retrying
+        // makes it WORSE (burns more of the same minute's quota) — fail
+        // fast and let the user wait 60 seconds for the quota to reset.
+        const isGeminiRateLimit = provider === "gemini" && errStatus === 429;
+        if (isGeminiRateLimit) {
+          throw retryErr;  // Don't retry — break out immediately
+        }
+        // Retryable errors (other providers + Gemini 500/502/503):
+        //   1302 / 1305 = Z.AI-specific codes (transient concurrency)
+        //   429         = standard HTTP rate limit (Z.AI / AgentRouter)
+        //   "overloaded" / "rate_limit" / "insufficient_quota" = provider-side
+        //   500/502/503  = transient server errors
         const isRetryable =
           errMsg.includes("1302") ||
           errMsg.includes("1305") ||
@@ -516,7 +528,7 @@ export const POST = apiRoute(async (req) => {
           ? `Google Gemini rejected the API key (401). Get a free key at\n` +
             `https://aistudio.google.com/apikey — sign in with any Google account,\n` +
             `click "Create API key", and update GEMINI_API_KEY in Vercel env vars,\n` +
-            `then redeploy. The free tier gives 15 RPM / 1,500 RPD on gemini-2.0-flash.`
+            `then redeploy. The free tier gives 15 RPM / 1,500 RPD on gemini-3.8-flash.`
           : provider === "agentrouter"
           ? `AgentRouter rejected the API key (401 Invalid API Key). This usually means:\n` +
             `  • The key was regenerated since you copied it — generate a fresh one at\n` +
@@ -530,14 +542,17 @@ export const POST = apiRoute(async (req) => {
             `env vars, then redeploy.`;
       response =
         `🔒 AI authentication failed.\n\n${providerHelp}\n\n` +
+        `Provider error detail: ${sanitizedErrMsg.slice(0, 200)}\n\n` +
         `Until fixed, this deterministic fallback is shown:\n\n` +
         generateFallback(parsed.data.assistant, context);
     } else if (isRateLimit) {
       const providerHelp =
         provider === "gemini"
-          ? `Gemini's free tier is rate-limiting you. The free tier allows\n` +
-            `15 requests/minute and 1,500/day on gemini-2.0-flash — wait ~1 minute\n` +
-            `and try again, or check your quota at https://aistudio.google.com/apikey.`
+          ? `Gemini's free tier is rate-limiting you (15 RPM / 1,500 RPD).\n` +
+            `Wait ~60 seconds for the per-minute quota to reset, then try again.\n` +
+            `Check your quota at https://aistudio.google.com/apikey.\n\n` +
+            `Tip: avoid rapid-fire AI calls during demos — the per-minute quota is\n` +
+            `shared across all users on this API key.`
           : provider === "agentrouter"
           ? `AgentRouter is rate-limiting your account. Wait ~1 minute and try again,\n` +
             `or check your AgentRouter dashboard for quota/credit status.`
@@ -546,8 +561,8 @@ export const POST = apiRoute(async (req) => {
             `credit at https://z.ai/manage-apikey and set AI_MODEL=glm-4.5-air\n` +
             `in Vercel env vars for the paid tier (100× the rate limit).`;
       response =
-        `⏳ The AI service is busy right now. I've already retried 4 times with\n` +
-        `exponential backoff.\n\n${providerHelp}\n\n` +
+        `⏳ The AI service is busy right now.\n\n${providerHelp}\n\n` +
+        `Provider error detail: ${sanitizedErrMsg.slice(0, 200)}\n\n` +
         `For now, here's the deterministic fallback:\n\n` +
         generateFallback(parsed.data.assistant, context);
     } else {

@@ -217,6 +217,13 @@ export const POST = apiRoute(async (req) => {
       } catch (retryErr) {
         const errMsg = (retryErr as Error)?.message ?? "";
         const errStatus = (retryErr as { status?: number })?.status ?? 0;
+        // Gemini-specific: 429 = per-minute quota exhausted. Retrying
+        // makes it WORSE (burns more of the same minute's quota) — fail
+        // fast and let the user wait 60 seconds for the quota to reset.
+        const isGeminiRateLimit = provider === "gemini" && errStatus === 429;
+        if (isGeminiRateLimit) {
+          throw retryErr;  // Don't retry — break out immediately
+        }
         // Retry on rate-limit / transient errors (across providers):
         //   1302 / 1305 = Z.AI-specific codes
         //   429         = standard HTTP rate limit (both providers)
@@ -254,16 +261,18 @@ export const POST = apiRoute(async (req) => {
           ? "Generate a fresh key at https://agentrouter.org/console/token (the old one was likely regenerated)."
           : "Regenerate the key at https://z.ai/manage-apikey/apikey-list and update ZAI_API_KEY.";
       providerErrorMessage =
-        "AI authentication failed — the API key was rejected. " + providerHint;
+        "AI authentication failed — the API key was rejected. " + providerHint +
+        ` (Error detail: ${errMsg.slice(0, 150)})`;
     } else if (errMsg.includes("1302") || errMsg.includes("1305") || errMsg.includes("429") || errStatus === 429) {
       const providerHint =
         provider === "gemini"
-          ? "Gemini free tier allows 15 RPM / 1,500 RPD on gemini-2.0-flash. Wait ~1 minute and try again."
+          ? "Gemini free tier allows 15 RPM / 1,500 RPD. Wait ~60 seconds for the per-minute quota to reset, then try again. Avoid rapid-fire calls during demos."
           : provider === "agentrouter"
           ? "Check your AgentRouter dashboard for quota/credit status."
           : "For higher limits, switch to AI_MODEL=glm-4.5-air (paid Z.AI tier) or AI_PROVIDER=gemini (free, 15 RPM).";
       providerErrorMessage =
-        "AI rate limit reached after 4 retries with backoff. " + providerHint;
+        "AI rate limit reached. " + providerHint +
+        ` (Error detail: ${errMsg.slice(0, 150)})`;
     } else {
       providerErrorMessage = `AI provider error: ${errMsg.slice(0, 200)}. Check Vercel function logs for details.`;
     }
