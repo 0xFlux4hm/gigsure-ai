@@ -21,6 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api, formatMinor, formatDateTime } from "@/lib/client-api";
 import { Loader2, Plus, Receipt, Check, X, Upload, Info } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 
 type Expense = {
   id: string;
@@ -187,30 +188,22 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading expenses…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Receipt className="h-6 w-6 text-primary" /> Project Expenses
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Service providers can request funds from funded milestones for project-related expenses (domain, hosting, software).
-          </p>
-        </div>
-        <Dialog open={adding} onOpenChange={setAdding}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-1" /> Request Expense
-            </Button>
-          </DialogTrigger>
+      <PageHeader
+        title="Project expenses"
+        description="Service providers can request funds from funded milestones for project-related expenses (domain, hosting, software)."
+        icon={Receipt}
+        actions={
+          <Dialog open={adding} onOpenChange={setAdding}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-1" /> Request Expense
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Request expense funds</DialogTitle>
@@ -284,8 +277,9 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
-      </div>
+          </Dialog>
+        }
+      />
 
       {error && (
         <Alert variant="destructive">
@@ -308,13 +302,11 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
         </CardHeader>
         <CardContent className="p-0">
           {expenses.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground">
-              <Receipt className="h-8 w-8 mx-auto mb-2" />
-              <p className="font-medium">No expense requests yet</p>
-              <p className="text-sm mt-1">
-                Service providers can request funds from funded milestones for project expenses.
-              </p>
-            </div>
+            <EmptyState
+              icon={Receipt}
+              title="No expense requests yet"
+              description="Service providers can request funds from funded milestones for project expenses."
+            />
           ) : (
             <div className="divide-y">
               {expenses.map((exp) => (

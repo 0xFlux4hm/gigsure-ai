@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/client-api";
 import { Bot, Loader2, AlertTriangle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/shared/page-components";
 
 const ASSISTANTS = [
   { key: "TEAM_PLANNER", name: "Team Planner", desc: "Suggest roles and collaboration structures" },
@@ -58,12 +59,11 @@ export function ProjectAiView({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Bot className="h-6 w-6 text-primary" /> AI Assistants
-        </h1>
-        <p className="text-muted-foreground text-sm">Advisory only. AI cannot authorize payments or make binding decisions.</p>
-      </div>
+      <PageHeader
+        title="AI assistants"
+        description="Advisory only. AI cannot authorize payments or make binding decisions."
+        icon={Bot}
+      />
 
       <Card>
         <CardContent className="p-4 flex items-start gap-3 bg-amber-50 dark:bg-amber-950/30 border-amber-500">

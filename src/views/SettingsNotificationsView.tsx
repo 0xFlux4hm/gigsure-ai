@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
-import { Loader2, Check } from "lucide-react";
+import { Loader2, Check, Bell } from "lucide-react";
 
 import { toast } from "sonner";
+import { PageHeader, LoadingState } from "@/components/shared/page-components";
 type Prefs = {
   preferredCurrency: string;
   emailNotifications: boolean;
@@ -45,19 +46,16 @@ export function SettingsNotificationsView() {
   };
 
   if (loading || !prefs) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading preferences…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Notification preferences</h1>
-        <p className="text-muted-foreground text-sm">Choose what we email and push to you.</p>
-      </div>
+      <PageHeader
+        title="Notification preferences"
+        description="Choose what we email and push to you."
+        icon={Bell}
+      />
 
       <Card>
         <CardHeader><CardTitle className="text-base">Currency</CardTitle></CardHeader>

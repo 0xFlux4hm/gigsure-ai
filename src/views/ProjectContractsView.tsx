@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { api, formatDateTime } from "@/lib/client-api";
-import { Plus, Loader2, CheckCircle2, History, GitCompare } from "lucide-react";
+import { Plus, Loader2, CheckCircle2, History, GitCompare, FileText } from "lucide-react";
 import { ContractRiskAnalyzer } from "@/views/ContractRiskAnalyzer";
 import { toast } from "sonner";
 import {
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 
 type Version = {
   id: string;
@@ -66,106 +67,108 @@ export function ProjectContractsView({ projectId }: { projectId: string }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading contracts…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Contracts</h1>
-          <p className="text-muted-foreground text-sm">Versioned. Accepted terms are preserved.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {versions.length >= 2 && (
-            <Dialog open={compareOpen} onOpenChange={setCompareOpen}>
+      <PageHeader
+        title="Contracts"
+        description="Versioned. Accepted terms are preserved."
+        icon={FileText}
+        actions={
+          <div className="flex items-center gap-2">
+            {versions.length >= 2 && (
+              <Dialog open={compareOpen} onOpenChange={setCompareOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline"><GitCompare className="mr-2 h-4 w-4" /> Compare</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl">
+                  <DialogHeader><DialogTitle>Compare contract versions</DialogTitle></DialogHeader>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <Label className="text-xs">Version A</Label>
+                      <Select value={compareA} onValueChange={setCompareA}>
+                        <SelectTrigger><SelectValue placeholder="Select version" /></SelectTrigger>
+                        <SelectContent>
+                          {versions.map((v) => <SelectItem key={v.id} value={v.id}>Version {v.versionNumber}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Version B</Label>
+                      <Select value={compareB} onValueChange={setCompareB}>
+                        <SelectTrigger><SelectValue placeholder="Select version" /></SelectTrigger>
+                        <SelectContent>
+                          {versions.map((v) => <SelectItem key={v.id} value={v.id}>Version {v.versionNumber}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {compareA && compareB && compareA !== compareB && (
+                    <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                      {(() => {
+                        const a = versions.find((v) => v.id === compareA);
+                        const b = versions.find((v) => v.id === compareB);
+                        if (!a || !b) return null;
+                        const fields = [
+                          { label: "Scope of work", aVal: a.scopeOfWork, bVal: b.scopeOfWork },
+                          { label: "Deliverables", aVal: a.deliverables, bVal: b.deliverables },
+                          { label: "Deadlines", aVal: a.deadlines || "—", bVal: b.deadlines || "—" },
+                          { label: "Payment schedule", aVal: a.paymentSchedule || "—", bVal: b.paymentSchedule || "—" },
+                          { label: "Milestone conditions", aVal: a.milestoneConditions || "—", bVal: b.milestoneConditions || "—" },
+                          { label: "Revision rules", aVal: a.revisionRules || "—", bVal: b.revisionRules || "—" },
+                          { label: "Cancellation terms", aVal: a.cancellationTerms || "—", bVal: b.cancellationTerms || "—" },
+                          { label: "Dispute procedures", aVal: a.disputeProcedures || "—", bVal: b.disputeProcedures || "—" },
+                        ];
+                        return fields.map((f) => {
+                          const changed = f.aVal !== f.bVal;
+                          return (
+                            <div key={f.label} className={`grid grid-cols-2 gap-2 p-2 rounded ${changed ? "bg-amber-500/10 border border-amber-500/30" : ""}`}>
+                              <div>
+                                <div className="text-xs text-muted-foreground mb-1">{f.label}</div>
+                                <div className="text-sm whitespace-pre-wrap">{f.aVal || "—"}</div>
+                              </div>
+                              <div className={changed ? "border-l-2 border-amber-500 pl-2" : "border-l pl-2"}>
+                                <div className="text-xs text-muted-foreground mb-1">{f.label}</div>
+                                <div className="text-sm whitespace-pre-wrap">{f.bVal || "—"}</div>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  )}
+                  {compareA && compareB && compareA === compareB && (
+                    <p className="text-sm text-muted-foreground text-center py-4">Select two different versions to compare.</p>
+                  )}
+                </DialogContent>
+              </Dialog>
+            )}
+            <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline"><GitCompare className="mr-2 h-4 w-4" /> Compare</Button>
+                <Button><Plus className="mr-2 h-4 w-4" /> New version</Button>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl">
-                <DialogHeader><DialogTitle>Compare contract versions</DialogTitle></DialogHeader>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <Label className="text-xs">Version A</Label>
-                    <Select value={compareA} onValueChange={setCompareA}>
-                      <SelectTrigger><SelectValue placeholder="Select version" /></SelectTrigger>
-                      <SelectContent>
-                        {versions.map((v) => <SelectItem key={v.id} value={v.id}>Version {v.versionNumber}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Version B</Label>
-                    <Select value={compareB} onValueChange={setCompareB}>
-                      <SelectTrigger><SelectValue placeholder="Select version" /></SelectTrigger>
-                      <SelectContent>
-                        {versions.map((v) => <SelectItem key={v.id} value={v.id}>Version {v.versionNumber}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                {compareA && compareB && compareA !== compareB && (
-                  <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-                    {(() => {
-                      const a = versions.find((v) => v.id === compareA);
-                      const b = versions.find((v) => v.id === compareB);
-                      if (!a || !b) return null;
-                      const fields = [
-                        { label: "Scope of work", aVal: a.scopeOfWork, bVal: b.scopeOfWork },
-                        { label: "Deliverables", aVal: a.deliverables, bVal: b.deliverables },
-                        { label: "Deadlines", aVal: a.deadlines || "—", bVal: b.deadlines || "—" },
-                        { label: "Payment schedule", aVal: a.paymentSchedule || "—", bVal: b.paymentSchedule || "—" },
-                        { label: "Milestone conditions", aVal: a.milestoneConditions || "—", bVal: b.milestoneConditions || "—" },
-                        { label: "Revision rules", aVal: a.revisionRules || "—", bVal: b.revisionRules || "—" },
-                        { label: "Cancellation terms", aVal: a.cancellationTerms || "—", bVal: b.cancellationTerms || "—" },
-                        { label: "Dispute procedures", aVal: a.disputeProcedures || "—", bVal: b.disputeProcedures || "—" },
-                      ];
-                      return fields.map((f) => {
-                        const changed = f.aVal !== f.bVal;
-                        return (
-                          <div key={f.label} className={`grid grid-cols-2 gap-2 p-2 rounded ${changed ? "bg-amber-500/10 border border-amber-500/30" : ""}`}>
-                            <div>
-                              <div className="text-xs text-muted-foreground mb-1">{f.label}</div>
-                              <div className="text-sm whitespace-pre-wrap">{f.aVal || "—"}</div>
-                            </div>
-                            <div className={changed ? "border-l-2 border-amber-500 pl-2" : "border-l pl-2"}>
-                              <div className="text-xs text-muted-foreground mb-1">{f.label}</div>
-                              <div className="text-sm whitespace-pre-wrap">{f.bVal || "—"}</div>
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                )}
-                {compareA && compareB && compareA === compareB && (
-                  <p className="text-sm text-muted-foreground text-center py-4">Select two different versions to compare.</p>
-                )}
-              </DialogContent>
+              <NewContractDialog
+                projectId={projectId}
+                onCreated={() => { setOpen(false); load(); }}
+              />
             </Dialog>
-          )}
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" /> New version</Button>
-            </DialogTrigger>
-            <NewContractDialog
-              projectId={projectId}
-              onCreated={() => { setOpen(false); load(); }}
-            />
-          </Dialog>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {versions.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            No contract versions yet. Create one to formalize scope with your client.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={FileText}
+          title="No contracts yet"
+          description="Create a contract version to formalize scope with your client."
+          action={
+            <Button onClick={() => setOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Create version
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-4">
           {versions.map((v) => (

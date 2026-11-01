@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api, formatDate, timeAgo, formatMinor } from "@/lib/client-api";
 import { FolderKanban, Plus, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 
 type Project = {
   id: string;
@@ -45,31 +46,35 @@ export function ProjectsView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Projects</h1>
-          <p className="text-muted-foreground">Create and manage your client collaborations.</p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> New project</Button>
-          </DialogTrigger>
-          <NewProjectDialog onCreated={(id) => { setOpen(false); navigate({ view: "project-detail", projectId: id }); }} />
-        </Dialog>
-      </div>
+      <PageHeader
+        title="Projects"
+        description="Create and manage your client collaborations."
+        icon={FolderKanban}
+        actions={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="mr-2 h-4 w-4" /> New project</Button>
+            </DialogTrigger>
+            <NewProjectDialog onCreated={(id) => { setOpen(false); navigate({ view: "project-detail", projectId: id }); }} />
+          </Dialog>
+        }
+      />
 
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            <LoadingState label="Loading projects…" />
           ) : data?.projects.length === 0 ? (
-            <div className="text-center py-16">
-              <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-              <h3 className="font-semibold mb-1">No projects yet</h3>
-              <p className="text-sm text-muted-foreground">Create your first project to get started.</p>
-            </div>
+            <EmptyState
+              icon={FolderKanban}
+              title="No projects yet"
+              description="Create your first project to get started."
+              action={
+                <Button onClick={() => setOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" /> New project
+                </Button>
+              }
+            />
           ) : (
             <ul className="divide-y">
               {data?.projects.map((p) => (

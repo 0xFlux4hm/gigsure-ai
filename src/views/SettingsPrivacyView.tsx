@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { PageHeader } from "@/components/shared/page-components";
 
 export function SettingsPrivacyView() {
   const [exporting, setExporting] = useState(false);
@@ -65,12 +66,11 @@ export function SettingsPrivacyView() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <ShieldCheck className="h-6 w-6 text-primary" /> Privacy &amp; data
-        </h1>
-        <p className="text-muted-foreground text-sm">Export your data or delete your account.</p>
-      </div>
+      <PageHeader
+        title="Privacy & data"
+        description="Export your data or delete your account."
+        icon={ShieldCheck}
+      />
 
       <Card>
         <CardHeader>

@@ -12,6 +12,7 @@ import { api, formatDateTime, timeAgo } from "@/lib/client-api";
 import { Send, Loader2, Scale, AlertTriangle } from "lucide-react";
 
 import { toast } from "sonner";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 type Dispute = {
   id: string;
   title: string;
@@ -75,33 +76,33 @@ export function ProjectDisputeDetailView({ projectId, disputeId }: { projectId: 
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading dispute…" />;
   }
   if (!dispute) {
     return (
-      <Card><CardContent className="py-12 text-center text-muted-foreground">Dispute not found.</CardContent></Card>
+      <EmptyState
+        icon={Scale}
+        title="Dispute not found"
+        description="This dispute may have been removed or you don't have access to it."
+      />
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2 flex-wrap mb-2">
-          <Scale className="h-5 w-5 text-primary" />
-          <h1 className="text-2xl font-bold">{dispute.title}</h1>
-          <Badge variant="outline">{dispute.category}</Badge>
-          <Badge variant={dispute.status === "OPEN" ? "destructive" : "secondary"}>{dispute.status}</Badge>
-        </div>
-        <p className="text-muted-foreground">{dispute.description}</p>
-        <div className="text-xs text-muted-foreground mt-2">
-          Opened by {dispute.opener.displayName} · {timeAgo(dispute.createdAt)}
-          {dispute.milestone && ` · Milestone: ${dispute.milestone.title}`}
-        </div>
-      </div>
+      <PageHeader
+        title={dispute.title}
+        description={`Opened by ${dispute.opener.displayName ?? "—"} · ${timeAgo(dispute.createdAt)}${dispute.milestone ? ` · Milestone: ${dispute.milestone.title}` : ""}`}
+        icon={Scale}
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline">{dispute.category}</Badge>
+            <Badge variant={dispute.status === "OPEN" ? "destructive" : "secondary"}>{dispute.status}</Badge>
+          </div>
+        }
+      />
+
+      <p className="text-muted-foreground -mt-4 whitespace-pre-wrap">{dispute.description}</p>
 
       {dispute.status === "OPEN" && dispute.milestone && (
         <Card className="border-amber-500">

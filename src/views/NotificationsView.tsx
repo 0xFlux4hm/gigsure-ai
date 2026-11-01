@@ -9,6 +9,7 @@ import { api, timeAgo } from "@/lib/client-api";
 import { Loader2, Bell, Check } from "lucide-react";
 
 import { toast } from "sonner";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 type Notification = {
   id: string;
   type: string;
@@ -40,25 +41,23 @@ export function NotificationsView() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading notifications…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Notifications</h1>
-        <p className="text-muted-foreground text-sm">Recent activity across your account.</p>
-      </div>
+      <PageHeader
+        title="Notifications"
+        description="Recent activity across your account."
+        icon={Bell}
+      />
 
       {items.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">
-          <Bell className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-          No notifications.
-        </CardContent></Card>
+        <EmptyState
+          icon={Bell}
+          title="No notifications"
+          description="You're all caught up. New activity will appear here."
+        />
       ) : (
         <Card>
           <CardContent className="p-0">

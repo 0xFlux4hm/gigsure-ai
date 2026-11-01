@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { api, formatDate, timeAgo, formatMinor } from "@/lib/client-api";
-import { FolderKanban, Plus, ArrowRight, Loader2, Wallet, ShieldCheck, Building2, Bell, Scale, CheckCircle2, AlertTriangle } from "lucide-react";
+import { api, timeAgo, formatMinor } from "@/lib/client-api";
+import { FolderKanban, Plus, ArrowRight, Wallet, ShieldCheck, Building2, Bell, Scale, CheckCircle2, LayoutDashboard } from "lucide-react";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 
 type DashboardData = {
   projects: Array<{
@@ -52,15 +53,16 @@ export function DashboardView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back. Here&apos;s what&apos;s happening across your projects.</p>
-        </div>
-        <Button onClick={() => navigate({ view: "projects" })}>
-          <Plus className="mr-2 h-4 w-4" /> New project
-        </Button>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Welcome back. Here's what's happening across your projects."
+        icon={LayoutDashboard}
+        actions={
+          <Button onClick={() => navigate({ view: "projects" })}>
+            <Plus className="mr-2 h-4 w-4" /> New project
+          </Button>
+        }
+      />
 
       {/* Account setup alerts */}
       {stats && !stats.kycVerified && (
@@ -151,11 +153,18 @@ export function DashboardView() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            <LoadingState label="Loading projects…" />
           ) : data?.projects.length === 0 ? (
-            <EmptyProjects onNew={() => navigate({ view: "projects" })} />
+            <EmptyState
+              icon={FolderKanban}
+              title="No projects yet"
+              description="Create your first project to start collaborating."
+              action={
+                <Button onClick={() => navigate({ view: "projects" })}>
+                  <Plus className="mr-2 h-4 w-4" /> Create project
+                </Button>
+              }
+            />
           ) : (
             <ul className="divide-y">
               {data?.projects.map((p) => (
@@ -235,14 +244,17 @@ function StatCard({
 }
 
 function EmptyProjects({ onNew }: { onNew: () => void }) {
+  // Kept for backwards compatibility — the inline EmptyState is now used instead.
   return (
-    <div className="text-center py-12">
-      <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-      <h3 className="font-semibold mb-1">No projects yet</h3>
-      <p className="text-sm text-muted-foreground mb-4">Create your first project to start collaborating.</p>
-      <Button onClick={onNew}>
-        <Plus className="mr-2 h-4 w-4" /> Create project
-      </Button>
-    </div>
+    <EmptyState
+      icon={FolderKanban}
+      title="No projects yet"
+      description="Create your first project to start collaborating."
+      action={
+        <Button onClick={onNew}>
+          <Plus className="mr-2 h-4 w-4" /> Create project
+        </Button>
+      }
+    />
   );
 }

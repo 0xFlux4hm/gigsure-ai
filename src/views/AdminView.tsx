@@ -36,6 +36,7 @@ import {
 import { exportAdminPDF } from "@/lib/pdf/export";
 
 import { toast } from "sonner";
+import { PageHeader, EmptyState } from "@/components/shared/page-components";
 type AdminTab = "overview" | "users" | "projects" | "payments" | "payouts" | "disputes" | "kyc" | "audit" | "ai" | "privacy" | "webhooks" | "gateway";
 
 export function AdminView() {
@@ -62,29 +63,21 @@ export function AdminView() {
 
   if (!isAdmin) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <ShieldCheck className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-          <h2 className="text-lg font-semibold mb-2">Administrator access required</h2>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            This page is restricted to platform administrators. If you believe you should have access,
-            contact your platform administrator or set <code className="bg-muted px-1.5 py-0.5 rounded text-xs">ADMIN_EMAILS</code> in the environment.
-          </p>
-        </CardContent>
-      </Card>
+      <EmptyState
+        icon={ShieldCheck}
+        title="Administrator access required"
+        description="This page is restricted to platform administrators. If you believe you should have access, contact your platform administrator or set ADMIN_EMAILS in the environment."
+      />
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <ShieldCheck className="h-6 w-6 text-primary" /> Admin Dashboard
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Platform-wide oversight. All actions are audited.
-        </p>
-      </div>
+      <PageHeader
+        title="Admin dashboard"
+        description="Platform-wide oversight. All actions are audited."
+        icon={ShieldCheck}
+      />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as AdminTab)}>
         <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/40 p-1">

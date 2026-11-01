@@ -17,6 +17,7 @@ import {
 import { api } from "@/lib/client-api";
 import { Loader2, ShieldCheck, Trash2, Link2, KeyRound } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader, LoadingState } from "@/components/shared/page-components";
 
 type User = {
   id: string;
@@ -211,11 +212,7 @@ export function SettingsSecurityView() {
   };
 
   if (loading || !user) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading security info…" />;
   }
 
   const passwordIdentity = user.identities.find((i) => i.provider === "password");
@@ -224,12 +221,11 @@ export function SettingsSecurityView() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <ShieldCheck className="h-6 w-6 text-primary" /> Security
-        </h1>
-        <p className="text-muted-foreground text-sm">Manage authentication methods and password.</p>
-      </div>
+      <PageHeader
+        title="Security"
+        description="Manage authentication methods and password."
+        icon={ShieldCheck}
+      />
 
       <Card>
         <CardHeader>

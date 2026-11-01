@@ -10,9 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { api, formatDate } from "@/lib/client-api";
-import { Plus, Loader2, ChevronDown, ChevronRight, Upload, Download, Trash2, Paperclip } from "lucide-react";
+import { Plus, Loader2, ChevronDown, ChevronRight, Upload, Download, Trash2, Paperclip, CheckSquare } from "lucide-react";
 
 import { toast } from "sonner";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 type Deliverable = {
   id: string;
   filename: string;
@@ -131,28 +132,34 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading tasks…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Tasks</h1>
-          <p className="text-muted-foreground text-sm">Drag state-machine enforced on the backend.</p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> New task</Button></DialogTrigger>
-          <NewTaskDialog projectId={projectId} onCreated={() => { setOpen(false); load(); }} />
-        </Dialog>
-      </div>
+      <PageHeader
+        title="Tasks"
+        description="Drag state-machine enforced on the backend."
+        icon={CheckSquare}
+        actions={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> New task</Button></DialogTrigger>
+            <NewTaskDialog projectId={projectId} onCreated={() => { setOpen(false); load(); }} />
+          </Dialog>
+        }
+      />
 
       {tasks.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">No tasks yet.</CardContent></Card>
+        <EmptyState
+          icon={CheckSquare}
+          title="No tasks yet"
+          description="Create a task to start tracking work on this project."
+          action={
+            <Button onClick={() => setOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> New task
+            </Button>
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3 overflow-x-auto">
           {COLUMNS.map((col) => {

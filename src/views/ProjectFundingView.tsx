@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, formatMinor, formatDateTime } from "@/lib/client-api";
 import {
   Loader2,
@@ -16,8 +18,10 @@ import {
   Download,
   XCircle,
   AlertTriangle,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 
 type FundingRecord = {
   id: string;
@@ -103,21 +107,16 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading funding info…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Funding &amp; payments</h1>
-        <p className="text-muted-foreground text-sm">
-          Fund your project by bank transfer to a dedicated virtual account. The platform holds the funds under GigSure Payment Protection until milestones are completed.
-        </p>
-      </div>
+      <PageHeader
+        title="Funding & payments"
+        description="Fund your project by bank transfer to a dedicated virtual account. The platform holds the funds under GigSure Payment Protection until milestones are completed."
+        icon={Wallet}
+      />
 
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
@@ -266,9 +265,11 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
         </CardHeader>
         <CardContent className="p-0">
           {records.length === 0 ? (
-            <div className="py-10 text-center text-muted-foreground">
-              No transactions yet. Generate a funding account above and transfer money to it to fund your first milestone.
-            </div>
+            <EmptyState
+              icon={Landmark}
+              title="No transactions yet"
+              description="Generate a funding account above and transfer money to it to fund your first milestone."
+            />
           ) : (
             <ul className="divide-y">
               {records.map((r) => {
@@ -539,19 +540,23 @@ function PayPalFundingCard({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-3">
       <div className="grid gap-2">
-        <label className="text-sm font-medium">Select milestone to fund</label>
-        <select
+        <Label className="text-sm font-medium">Select milestone to fund</Label>
+        <Select
           value={selectedId ?? ""}
-          onChange={(e) => setSelectedId(e.target.value)}
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          onValueChange={setSelectedId}
           disabled={paying}
         >
-          {milestones.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.title} — {formatMinor(m.amountMinor, m.currency)}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select a milestone" />
+          </SelectTrigger>
+          <SelectContent>
+            {milestones.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.title} — {formatMinor(m.amountMinor, m.currency)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {selected && (

@@ -8,10 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { api, formatDate, timeAgo } from "@/lib/client-api";
-import { UserPlus, Trash2, Loader2, Mail, Copy, Check } from "lucide-react";
+import { api, timeAgo } from "@/lib/client-api";
+import { UserPlus, Trash2, Loader2, Mail, Copy, Check, Users } from "lucide-react";
 
 import { toast } from "sonner";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 type Member = {
   id: string;
   role: string;
@@ -64,50 +65,60 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading team…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Team</h1>
-          <p className="text-muted-foreground text-sm">Members and pending invitations.</p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><UserPlus className="mr-2 h-4 w-4" /> Invite</Button>
-          </DialogTrigger>
-          <InviteDialog projectId={projectId} onCreated={() => { setOpen(false); load(); }} />
-        </Dialog>
-      </div>
+      <PageHeader
+        title="Team"
+        description="Members and pending invitations."
+        icon={Users}
+        actions={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button><UserPlus className="mr-2 h-4 w-4" /> Invite</Button>
+            </DialogTrigger>
+            <InviteDialog projectId={projectId} onCreated={() => { setOpen(false); load(); }} />
+          </Dialog>
+        }
+      />
 
       <Card>
         <CardHeader><CardTitle className="text-base">Members ({members.length})</CardTitle></CardHeader>
         <CardContent className="p-0">
-          <ul className="divide-y">
-            {members.map((m) => (
-              <li key={m.id} className="flex items-center gap-3 p-3">
-                <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
-                  {m.user.displayName.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium truncate">{m.user.displayName}</div>
-                  <div className="text-xs text-muted-foreground truncate">{m.user.email}</div>
-                </div>
-                {m.user.profile?.headline && (
-                  <div className="hidden md:block text-xs text-muted-foreground truncate max-w-[200px]">
-                    {m.user.profile.headline}
+          {members.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No members yet"
+              description="Invite collaborators to join this project."
+              action={
+                <Button onClick={() => setOpen(true)}>
+                  <UserPlus className="mr-2 h-4 w-4" /> Invite
+                </Button>
+              }
+            />
+          ) : (
+            <ul className="divide-y">
+              {members.map((m) => (
+                <li key={m.id} className="flex items-center gap-3 p-3">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
+                    {m.user.displayName.slice(0, 2).toUpperCase()}
                   </div>
-                )}
-                <Badge variant={m.role === "OWNER" ? "default" : "secondary"} className="text-xs">{m.role}</Badge>
-              </li>
-            ))}
-          </ul>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium truncate">{m.user.displayName}</div>
+                    <div className="text-xs text-muted-foreground truncate">{m.user.email}</div>
+                  </div>
+                  {m.user.profile?.headline && (
+                    <div className="hidden md:block text-xs text-muted-foreground truncate max-w-[200px]">
+                      {m.user.profile.headline}
+                    </div>
+                  )}
+                  <Badge variant={m.role === "OWNER" ? "default" : "secondary"} className="text-xs">{m.role}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
 

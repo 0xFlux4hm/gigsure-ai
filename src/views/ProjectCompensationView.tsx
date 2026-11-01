@@ -8,10 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { api, formatMinor, formatDateTime } from "@/lib/client-api";
-import { Plus, Loader2, CheckCircle2, Info } from "lucide-react";
+import { Plus, Loader2, CheckCircle2, Info, Wallet } from "lucide-react";
 
 import { toast } from "sonner";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 type Allocation = {
   id: string;
   userId: string;
@@ -59,25 +62,22 @@ export function ProjectCompensationView({ projectId }: { projectId: string }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading compensation agreements…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Compensation agreements</h1>
-          <p className="text-muted-foreground text-sm">Internal allocations among service providers. Versioned. Each recipient must accept their own.</p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> New agreement</Button></DialogTrigger>
-          <NewAgreementDialog projectId={projectId} members={members} onCreated={() => { setOpen(false); load(); }} />
-        </Dialog>
-      </div>
+      <PageHeader
+        title="Compensation agreements"
+        description="Internal allocations among service providers. Versioned. Each recipient must accept their own."
+        icon={Wallet}
+        actions={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> New agreement</Button></DialogTrigger>
+            <NewAgreementDialog projectId={projectId} members={members} onCreated={() => { setOpen(false); load(); }} />
+          </Dialog>
+        }
+      />
 
       <Card>
         <CardContent className="p-4 flex items-start gap-3 bg-muted/30">
@@ -92,7 +92,16 @@ export function ProjectCompensationView({ projectId }: { projectId: string }) {
       </Card>
 
       {agreements.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">No agreements yet.</CardContent></Card>
+        <EmptyState
+          icon={Wallet}
+          title="No agreements yet"
+          description="Propose a compensation agreement to define how the distributable budget is split among service providers."
+          action={
+            <Button onClick={() => setOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> New agreement
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-4">
           {agreements.map((a) => {
@@ -110,47 +119,47 @@ export function ProjectCompensationView({ projectId }: { projectId: string }) {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-xs text-muted-foreground text-left">
-                        <th className="py-1">Recipient</th>
-                        <th className="py-1">Role</th>
-                        <th className="py-1 text-right">Amount</th>
-                        <th className="py-1 text-right">%</th>
-                        <th className="py-1 text-center">Accepted</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="text-xs text-muted-foreground">
+                        <TableHead>Recipient</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead className="text-right">%</TableHead>
+                        <TableHead className="text-center">Accepted</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {a.allocations.map((al) => {
                         const member = members.find((m) => m.user.id === al.userId);
                         const accepted = a.acceptances.find((x) => x.userId === al.userId);
                         return (
-                          <tr key={al.id} className="border-t">
-                            <td className="py-2">{member?.user.displayName ?? "—"}</td>
-                            <td className="py-2 text-xs text-muted-foreground">{al.role}</td>
-                            <td className="py-2 text-right font-medium">{formatMinor(al.amountMinor, a.currency)}</td>
-                            <td className="py-2 text-right">{(al.percentageBps / 100).toFixed(2)}%</td>
-                            <td className="py-2 text-center">
+                          <TableRow key={al.id}>
+                            <TableCell className="py-2">{member?.user.displayName ?? "—"}</TableCell>
+                            <TableCell className="py-2 text-xs text-muted-foreground">{al.role}</TableCell>
+                            <TableCell className="py-2 text-right font-medium">{formatMinor(al.amountMinor, a.currency)}</TableCell>
+                            <TableCell className="py-2 text-right">{(al.percentageBps / 100).toFixed(2)}%</TableCell>
+                            <TableCell className="py-2 text-center">
                               {accepted ? <CheckCircle2 className="h-4 w-4 text-primary inline" /> : <span className="text-xs text-muted-foreground">pending</span>}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t font-medium">
-                        <td className="py-2" colSpan={2}>Total</td>
-                        <td className="py-2 text-right">{formatMinor(sum, a.currency)}</td>
-                        <td className="py-2 text-right" colSpan={2}>
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow className="font-medium">
+                        <TableCell colSpan={2}>Total</TableCell>
+                        <TableCell className="text-right">{formatMinor(sum, a.currency)}</TableCell>
+                        <TableCell className="text-right" colSpan={2}>
                           {matches ? (
                             <Badge variant="outline" className="text-xs text-primary">matches total</Badge>
                           ) : (
                             <Badge variant="destructive" className="text-xs">mismatch</Badge>
                           )}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                        </TableCell>
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
                   {a.notes && <p className="text-sm text-muted-foreground">{a.notes}</p>}
                   {a.status === "PROPOSED" && (
                     <Button onClick={() => accept(a.id)} size="sm">
@@ -213,14 +222,17 @@ function NewAgreementDialog({ projectId, members, onCreated }: { projectId: stri
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label>Currency</Label>
-            <select className="w-full border rounded px-2 py-2" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              <option value="NGN">NGN</option>
-              <option value="USD">USD</option>
-              <option value="GHS">GHS</option>
-              <option value="KES">KES</option>
-              <option value="GBP">GBP</option>
-              <option value="EUR">EUR</option>
-            </select>
+            <Select value={currency} onValueChange={setCurrency}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="NGN">NGN</SelectItem>
+                <SelectItem value="USD">USD</SelectItem>
+                <SelectItem value="GHS">GHS</SelectItem>
+                <SelectItem value="KES">KES</SelectItem>
+                <SelectItem value="GBP">GBP</SelectItem>
+                <SelectItem value="EUR">EUR</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Total distributable</Label>
@@ -238,10 +250,21 @@ function NewAgreementDialog({ projectId, members, onCreated }: { projectId: stri
               <div key={i} className="grid grid-cols-12 gap-2 items-end">
                 <div className="col-span-5 space-y-1">
                   <Label className="text-xs">Recipient</Label>
-                  <select className="w-full border rounded px-2 py-1 text-sm" value={a.userId} onChange={(e) => updateAllocation(i, "userId", e.target.value)}>
-                    <option value="">Select member…</option>
-                    {members.map((m) => <option key={m.user.id} value={m.user.id}>{m.user.displayName} ({m.role})</option>)}
-                  </select>
+                  <Select
+                    value={a.userId}
+                    onValueChange={(v) => updateAllocation(i, "userId", v)}
+                  >
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="Select member…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {members.map((m) => (
+                        <SelectItem key={m.user.id} value={m.user.id}>
+                          {m.user.displayName} ({m.role})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="col-span-3 space-y-1">
                   <Label className="text-xs">Amount</Label>

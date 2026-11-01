@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/client-api";
 import { useNav } from "@/lib/nav";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 
 type BankOption = {
   code: string;
@@ -220,12 +221,11 @@ export function SettingsPayoutsView() {
 
   return (
     <div className="container max-w-5xl py-8 px-4 sm:px-6 lg:px-8 space-y-8">
-      <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">Payouts</h1>
-        <p className="text-muted-foreground">
-          Manage the bank accounts where you receive project payouts, and track your payout history.
-        </p>
-      </div>
+      <PageHeader
+        title="Payouts"
+        description="Manage the bank accounts where you receive project payouts, and track your payout history."
+        icon={Banknote}
+      />
 
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive flex items-start gap-2">
@@ -333,21 +333,21 @@ export function SettingsPayoutsView() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="py-8 flex items-center justify-center text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…
-            </div>
+            <LoadingState label="Loading bank accounts…" />
           ) : bankDetails.length === 0 ? (
-            <div className="py-10 text-center border-2 border-dashed border-muted rounded-lg">
-              <Banknote className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-              <p className="font-medium">No bank account on file yet</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                You need at least one bank account to receive payouts.
-                {kycPending && " KYC verification is required before adding a bank account."}
-              </p>
-              <Button variant="outline" className="mt-3" onClick={() => navigate({ view: "kyc" })}>
-                {kycPending ? "Verify identity first" : "Add account"}
-              </Button>
-            </div>
+            <EmptyState
+              icon={Banknote}
+              title="No bank account on file yet"
+              description={
+                "You need at least one bank account to receive payouts." +
+                (kycPending ? " KYC verification is required before adding a bank account." : "")
+              }
+              action={
+                <Button variant="outline" onClick={() => navigate({ view: "kyc" })}>
+                  {kycPending ? "Verify identity first" : "Add account"}
+                </Button>
+              }
+            />
           ) : (
             <div className="space-y-3">
               {bankDetails.map((bd) => (
@@ -421,17 +421,13 @@ export function SettingsPayoutsView() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="py-8 flex items-center justify-center text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…
-            </div>
+            <LoadingState label="Loading payout history…" />
           ) : payouts.length === 0 ? (
-            <div className="py-10 text-center text-muted-foreground">
-              <Banknote className="h-8 w-8 mx-auto mb-2" />
-              <p className="font-medium">No payouts yet</p>
-              <p className="text-sm mt-1">
-                When a project owner releases an approved milestone, your payout will appear here.
-              </p>
-            </div>
+            <EmptyState
+              icon={ArrowDownToLine}
+              title="No payouts yet"
+              description="When a project owner releases an approved milestone, your payout will appear here."
+            />
           ) : (
             <div className="space-y-2">
               {payouts.map((p) => (

@@ -20,6 +20,7 @@ import {
   Info,
   RefreshCw,
 } from "lucide-react";
+import { PageHeader, LoadingState } from "@/components/shared/page-components";
 
 type KycStatus = {
   status: string;
@@ -162,24 +163,16 @@ export function KycView() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading KYC status…" />;
   }
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <ShieldCheck className="h-6 w-6 text-primary" /> Identity Verification (KYC)
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Verify your identity with your National Identification Number (NIN).
-          Required before participating in funding transactions.
-        </p>
-      </div>
+      <PageHeader
+        title="Identity verification (KYC)"
+        description="Verify your identity with your National Identification Number (NIN). Required before participating in funding transactions."
+        icon={ShieldCheck}
+      />
 
       {/* Status card */}
       <Card>

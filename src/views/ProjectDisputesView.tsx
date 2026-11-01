@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, formatDateTime, timeAgo } from "@/lib/client-api";
-import { Plus, Loader2, ChevronRight } from "lucide-react";
+import { Plus, Loader2, ChevronRight, Scale } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 
 type Dispute = {
   id: string;
@@ -39,28 +40,34 @@ export function ProjectDisputesView({ projectId }: { projectId: string }) {
   useEffect(load, [projectId]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading disputes…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Disputes</h1>
-          <p className="text-muted-foreground text-sm">Open disputes with evidence + reviewer notes.</p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Open dispute</Button></DialogTrigger>
-          <NewDisputeDialog projectId={projectId} onCreated={() => { setOpen(false); load(); }} />
-        </Dialog>
-      </div>
+      <PageHeader
+        title="Disputes"
+        description="Open disputes with evidence + reviewer notes."
+        icon={Scale}
+        actions={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Open dispute</Button></DialogTrigger>
+            <NewDisputeDialog projectId={projectId} onCreated={() => { setOpen(false); load(); }} />
+          </Dialog>
+        }
+      />
 
       {disputes.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">No disputes. Keep it that way.</CardContent></Card>
+        <EmptyState
+          icon={Scale}
+          title="No disputes"
+          description="Keep it that way. Open a dispute if you ever need to."
+          action={
+            <Button onClick={() => setOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Open dispute
+            </Button>
+          }
+        />
       ) : (
         <Card>
           <CardContent className="p-0">

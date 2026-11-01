@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api, formatDateTime } from "@/lib/client-api";
 import { Loader2, Star, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 
 type Feedback = {
   id: string;
@@ -142,30 +143,22 @@ export function ProjectFeedbackView({ projectId }: { projectId: string }) {
   const avgRating = feedback.length > 0 ? feedback.reduce((s, f) => s + f.rating, 0) / feedback.length : 0;
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading feedback…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Star className="h-6 w-6 text-primary" /> Feedback &amp; Reviews
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Share your experience working with others on this project.
-          </p>
-        </div>
-        <Dialog open={adding} onOpenChange={setAdding}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-1" /> Leave a Review
-            </Button>
-          </DialogTrigger>
+      <PageHeader
+        title="Feedback & reviews"
+        description="Share your experience working with others on this project."
+        icon={Star}
+        actions={
+          <Dialog open={adding} onOpenChange={setAdding}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-1" /> Leave a Review
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Review a team member</DialogTitle>
@@ -236,8 +229,9 @@ export function ProjectFeedbackView({ projectId }: { projectId: string }) {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
-      </div>
+          </Dialog>
+        }
+      />
 
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       {success && <Alert><AlertDescription>{success}</AlertDescription></Alert>}
@@ -265,13 +259,16 @@ export function ProjectFeedbackView({ projectId }: { projectId: string }) {
         </CardHeader>
         <CardContent className="p-0">
           {feedback.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground">
-              <Star className="h-8 w-8 mx-auto mb-2" />
-              <p className="font-medium">No reviews yet</p>
-              <p className="text-sm mt-1">
-                Reviews can be submitted after at least one milestone is released.
-              </p>
-            </div>
+            <EmptyState
+              icon={Star}
+              title="No reviews yet"
+              description="Reviews can be submitted after at least one milestone is released."
+              action={
+                <Button onClick={() => setAdding(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Leave a Review
+                </Button>
+              }
+            />
           ) : (
             <div className="divide-y">
               {feedback.map((f) => (

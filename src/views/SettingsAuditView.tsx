@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { api, formatDateTime } from "@/lib/client-api";
 import { Loader2, ScrollText, Download } from "lucide-react";
 import { exportAuditLogPDF } from "@/lib/pdf/export";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 
 type Event = {
   id: string;
@@ -31,35 +32,34 @@ export function SettingsAuditView() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading audit log…" />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ScrollText className="h-6 w-6 text-primary" /> Audit log
-          </h1>
-          <p className="text-muted-foreground text-sm">Security-relevant actions taken on your account.</p>
-        </div>
-        {events.length > 0 && (
-          <Button variant="outline" onClick={handleExportPDF}>
-            <Download className="h-4 w-4 mr-2" />
-            Export PDF
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Audit log"
+        description="Security-relevant actions taken on your account."
+        icon={ScrollText}
+        actions={
+          events.length > 0 ? (
+            <Button variant="outline" onClick={handleExportPDF}>
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          ) : null
+        }
+      />
 
       <Card>
         <CardHeader><CardTitle className="text-base">Recent events ({events.length})</CardTitle></CardHeader>
         <CardContent className="p-0">
           {events.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">No events recorded yet.</div>
+            <EmptyState
+              icon={ScrollText}
+              title="No events recorded yet"
+              description="Security-relevant actions on your account will appear here."
+            />
           ) : (
             <ul className="divide-y max-h-[600px] overflow-y-auto">
               {events.map((e) => {

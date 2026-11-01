@@ -14,8 +14,9 @@ import {
   Scale,
   Bot,
   ChevronRight,
-  Loader2,
+  FolderKanban,
 } from "lucide-react";
+import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 
 type ProjectDetail = {
   id: string;
@@ -54,20 +55,16 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
   }, [projectId]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState label="Loading project…" />;
   }
 
   if (!project) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center text-muted-foreground">
-          Project not found or you don&apos;t have access.
-        </CardContent>
-      </Card>
+      <EmptyState
+        icon={FolderKanban}
+        title="Project not found"
+        description="Project not found or you don't have access."
+      />
     );
   }
 
@@ -84,14 +81,17 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2 mb-1 flex-wrap">
-          <h1 className="text-2xl md:text-3xl font-bold">{project.title}</h1>
-          <Badge variant="outline">{project.status}</Badge>
-          <Badge variant="secondary">{project.myRole}</Badge>
-        </div>
-        <p className="text-muted-foreground whitespace-pre-wrap">{project.description}</p>
-      </div>
+      <PageHeader
+        title={project.title}
+        description={project.description}
+        icon={FolderKanban}
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline">{project.status}</Badge>
+            <Badge variant="secondary">{project.myRole}</Badge>
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Budget" value={project.budgetMinor > 0 ? formatMinor(project.budgetMinor, project.currency) : "—"} />
