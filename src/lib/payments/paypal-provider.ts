@@ -1,4 +1,3 @@
-import { createHmac } from "crypto";
 import type {
   PaymentProvider,
   PaymentProviderName,
@@ -259,9 +258,11 @@ export class PayPalProvider implements PaymentProvider {
       if (captureRes.ok) {
         data = (await captureRes.json()) as PayPalOrderResponse;
       } else {
-        // Log the capture failure so we can diagnose
         const errText = await captureRes.text();
-        console.error(`[PayPal] Capture failed: ${captureRes.status} ${errText.slice(0, 300)}`);
+        throw new PaymentProviderError(
+          `PayPal capture failed: ${captureRes.status} ${errText.slice(0, 300)}`,
+          502,
+        );
       }
     }
 

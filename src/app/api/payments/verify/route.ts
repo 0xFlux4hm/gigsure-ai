@@ -97,7 +97,7 @@ export const POST = apiRoute(async (req) => {
       try {
         await confirmFundingRecord({
           provider: "paypal",
-          providerEventId: `manual_verify_${transaction.id}_${Date.now()}`,
+          providerEventId: `manual_verify_${transaction.id}`,
           providerTxRef: providerReference,
           eventType: "PAYMENT.CAPTURE.COMPLETED",
           // Use the transaction's original amount (NGN), not the converted

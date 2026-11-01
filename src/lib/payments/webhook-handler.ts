@@ -111,24 +111,11 @@ export async function confirmFundingRecord(
     return { processed: false, reason: "funding_record_not_found" };
   }
 
-  // Amount validation: for PayPal cross-border payments, the webhook may
-  // send the amount in USD (minor units) while the funding record is in NGN.
-  // The verify endpoint already passes the correct NGN amount (from the
-  // transaction), so we only need to handle the raw webhook case.
-  const CROSS_BORDER_FX_RATE = 1500;
-  let expectedAmount = input.amountMinor;
-  if (input.provider === "paypal" && input.amountMinor !== record.amountMinor) {
-    // Check if it's a raw USD amount that needs conversion
-    if (input.amountMinor * CROSS_BORDER_FX_RATE === record.amountMinor) {
-      expectedAmount = record.amountMinor;
-    }
-    // Check if it was double-converted
-    else if (input.amountMinor / CROSS_BORDER_FX_RATE === record.amountMinor) {
-      expectedAmount = record.amountMinor;
-    }
-  }
-
-  if (expectedAmount !== record.amountMinor) {
+  // Amount validation: compare the webhook/verify amount against the
+  // funding record amount. Both should be in NGN (the project currency).
+  // The verify endpoint passes transaction.amountMinor (NGN) and the
+  // webhook handler extracts the NGN amount for PayPal.
+  if (input.amountMinor !== record.amountMinor) {
     logSecurityEvent("warn", "webhook.amount_mismatch", {
       fundingRecordId: record.id,
       expected: record.amountMinor,

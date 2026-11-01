@@ -23,7 +23,12 @@ export const GET = apiRoute(async (req, { params }) => {
   }
 
   const fundingRecord = await db.fundingRecord.findFirst({
-    where: { providerTxRef: transaction.providerReference },
+    where: {
+      milestoneId: transaction.milestoneId,
+      projectId: transaction.projectId,
+      status: "PROVIDER_CONFIRMED",
+    },
+    orderBy: { confirmedAt: "desc" },
     select: { id: true, status: true, confirmedAt: true },
   });
 

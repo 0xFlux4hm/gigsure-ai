@@ -133,6 +133,25 @@ export const POST = apiRoute(async (req) => {
       },
     });
 
+    // Create a FundingRecord linked to this transaction + milestone.
+    // This is what confirmFundingRecord() will look up when the payment
+    // is verified. Without this, the verify/webhook flow can't find
+    // a FundingRecord to confirm → milestone never advances to FUNDED.
+    const fundingRecord = await db.fundingRecord.create({
+      data: {
+        projectId,
+        milestoneId,
+        type: "FUNDING",
+        amountMinor: milestone.amountMinor,
+        currency: project.currency,
+        status: "INITIATED",
+        provider: providerName,
+        providerTxRef: result.providerReference,
+        idempotencyKey: `initiate_${transaction.id}`,
+        initiatedById: userId,
+      },
+    });
+
     // Create initial ledger entries
     await db.ledgerEntry.create({
       data: {
