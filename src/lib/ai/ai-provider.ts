@@ -45,31 +45,34 @@ export interface ChatOptions {
 /** Default model per provider. Override via AI_MODEL env var. */
 const DEFAULT_MODEL_PER_PROVIDER: Record<AiProvider, string> = {
   // ─── Google Gemini (RECOMMENDED for free-tier use) ────────────────
-  // gemini-2.0-flash is FREE on Gemini's free tier with the most generous
-  // published rate limits of any free option we've found:
-  //    15 requests/minute (RPM) — 15× higher than Z.AI's ~1 RPM
-  //    1,000,000 tokens/minute (TPM) — practically unlimited
-  //    1,500 requests/day (RPD) — resets at midnight Pacific time
+  // gemini-3.8-flash is the latest free-tier Flash model from Google.
+  // Older gemini-2.0-flash was deprecated in 2026 — Gemini now returns
+  // "This model is no longer available. Please use gemini-3.8-flash."
   //
-  // Source: https://ai.google.dev/gemini-api/docs/rate-limits
+  // Free-tier rate limits (per https://ai.google.dev/gemini-api/docs/rate-limits):
+  //    ~15 requests/minute (RPM) — 15× higher than Z.AI's ~1 RPM
+  //    ~1,000,000 tokens/minute (TPM) — practically unlimited
+  //    ~1,500 requests/day (RPD) — resets at midnight Pacific time
   //
   // The Gemini API exposes an OpenAI-compatible endpoint at
   // https://generativelanguage.googleapis.com/v1beta/openai/ — so the
   // standard `openai` SDK works out of the box, no code rewrite needed.
   //
   // Available free models (per https://ai.google.dev/gemini-api/docs/pricing):
-  //   - gemini-2.0-flash        (default — balanced speed + quality, 1M ctx)
-  //   - gemini-2.0-flash-lite   (faster, lower quality, also 1.5K RPD)
-  //   - gemini-1.5-flash        (legacy but still free, 1M ctx)
-  //   - gemini-1.5-flash-8b     (smallest, fastest)
+  //   - gemini-3.8-flash        (default — latest, 1M ctx, multimodal)
+  //   - gemini-3.5-flash-lite   (smaller, faster, also free)
+  //   - gemini-2.5-flash        (still free for now, ~$0.30/$2.50 if paid)
   //
-  // Note: Gemini 2.5 Flash Preview is also free but more tightly limited
-  // (10 RPM / 500 RPD). Stick with 2.0 Flash for production stability.
+  // IMPORTANT — Supported regions: Gemini API is geo-restricted. Hong Kong,
+  // China, Macau, Iran, North Korea, Russia, Syria are NOT supported.
+  // Nigeria, US, EU, most of Africa, and most of Asia ARE supported.
+  // Vercel serverless functions run from supported regions (US/EU), so
+  // production deployments work fine.
   //
   // For higher quality (paid), use:
   //   AI_MODEL=gemini-2.5-pro    (best Gemini reasoning, ~$1.25/1M in/out)
-  //   AI_MODEL=gemini-2.5-flash  (better than 2.0, ~$0.30/1M in, $2.50/1M out)
-  gemini: "gemini-2.0-flash",
+  //   AI_MODEL=gemini-4-argon    (premium flagship, requires paid tier)
+  gemini: "gemini-3.8-flash",
 
   // ─── AgentRouter ────────────────────────────────────────────────
   // glm-4.5-air is on AgentRouter's Tier 1 — FREE (consumes $0 from credit
