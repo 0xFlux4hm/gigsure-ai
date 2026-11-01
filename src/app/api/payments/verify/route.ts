@@ -123,8 +123,9 @@ export const POST = apiRoute(async (req) => {
     } else {
       return {
         verified: false,
-        message: `Payment status is ${result.status}. The payment may not have been completed yet.`,
+        message: `Payment status is ${result.status}.`,
         status: result.status,
+        detail: "Make sure you approved the payment in the PayPal sandbox tab before clicking verify. If you already approved it, the order may need to be captured — the server will do this automatically.",
       };
     }
   } catch (err) {

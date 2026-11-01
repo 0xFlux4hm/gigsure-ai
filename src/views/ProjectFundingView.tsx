@@ -455,7 +455,7 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
       const body: Record<string, string> = {};
       if (paymentTxId) body.paymentTransactionId = paymentTxId;
       if (paypalOrderId) body.paypalOrderId = paypalOrderId;
-      const res = await api.post<{ verified: boolean; message?: string }>(
+      const res = await api.post<{ verified: boolean; message?: string; status?: string; detail?: string }>(
         "/api/payments/verify",
         body,
       );
@@ -472,9 +472,12 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
         // Do NOT auto-clear after 3 seconds — the user needs time to
         // download the receipt.
       } else {
-        setError(res.message ?? "Payment not yet completed. Make sure you approved it in PayPal.");
+        const msg = res.message ?? "Payment not yet completed.";
+        const detail = res.detail ?? "Make sure you approved the payment in PayPal, then try again.";
+        const statusInfo = res.status ? ` (status: ${res.status})` : "";
+        setError(`${msg} ${detail}${statusInfo}`);
         toast.warning("Payment not yet confirmed", {
-          description: "Make sure you approved the payment in PayPal, then try again.",
+          description: `${msg}${statusInfo}`,
         });
       }
     } catch (err) {
