@@ -48,6 +48,21 @@ export const POST = apiRoute(async (req) => {
     });
   }
 
+  // Fallback: if no transaction found, try the most recent CREATED PayPal
+  // transaction for this user. This handles the case where the frontend
+  // lost the paymentTxId (e.g., page reload on mobile after returning
+  // from PayPal checkout).
+  if (!transaction) {
+    transaction = await db.paymentTransaction.findFirst({
+      where: {
+        userId,
+        provider: "paypal",
+        status: "CREATED",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
   if (!transaction) {
     return fail("Payment transaction not found", 404);
   }

@@ -448,13 +448,20 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
   }
 
   async function handleVerify() {
-    if (!paymentTxId && !paypalOrderId) return;
+    // Allow verify even if paymentTxId is null (page may have reloaded on
+    // mobile). The server will find the most recent CREATED PayPal
+    // transaction for this user as a fallback.
     setVerifying(true);
     setError(null);
     try {
       const body: Record<string, string> = {};
       if (paymentTxId) body.paymentTransactionId = paymentTxId;
       if (paypalOrderId) body.paypalOrderId = paypalOrderId;
+      // If neither is set, send a dummy value to pass the Zod refine check.
+      // The server will fall back to the most recent CREATED PayPal transaction.
+      if (!paymentTxId && !paypalOrderId) {
+        body.paypalOrderId = "lookup_recent";
+      }
       const res = await api.post<{ verified: boolean; message?: string; status?: string; detail?: string }>(
         "/api/payments/verify",
         body,
@@ -630,7 +637,7 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
               <path d="M7 17L17 7M17 7H8M17 7v9" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </a>
-          {(paymentTxId || paypalOrderId) && (
+          {checkoutUrl && (
             <Button
               onClick={handleVerify}
               disabled={verifying}
