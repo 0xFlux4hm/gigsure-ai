@@ -44,10 +44,17 @@ export interface ChatOptions {
 
 /** Default model per provider. Override via AI_MODEL env var. */
 const DEFAULT_MODEL_PER_PROVIDER: Record<AiProvider, string> = {
-  // glm-5.2 is one of the cheapest models on AgentRouter and is significantly
-  // more capable than glm-4.7-flash. AgentRouter rate limits are typically
-  // more generous than Z.AI's free tier.
-  agentrouter: "glm-5.2",
+  // glm-4.5-air is on AgentRouter's Tier 1 — FREE (consumes $0 from credit
+  // balance). Per https://agentrouter.org/docs/index.html the model catalog
+  // also offers: glm-4.6 (free), deepseek-r1 (~$0.55/1M), gpt-4o (~$2.50/1M),
+  // claude-sonnet-4-5-20250929 (~$3/1M), and more. New sign-ups get $200 in
+  // free credits via referral.
+  //
+  // If you want maximum quality + have credits to spare, try:
+  //   AI_MODEL=claude-sonnet-4-5-20250929  (best for complex reasoning)
+  //   AI_MODEL=gpt-4o                      (best for structured outputs)
+  //   AI_MODEL=deepseek-r1                 (best free-tier reasoning)
+  agentrouter: "glm-4.5-air",
   // glm-4.7-flash is the only genuinely free Z.AI model. If you have Z.AI
   // balance, switch to glm-4.5-air via the AI_MODEL env var.
   zai: "glm-4.7-flash",
@@ -100,6 +107,15 @@ export function getOpenAiClient(): OpenAI {
         503,
       );
     }
+    // Base URL priority:
+    //   1. AGENTROUTER_BASE_URL env var (if user wants to override)
+    //   2. co.agentrouter.org/v1 — the Singapore-region API endpoint.
+    //      We use the `co.` subdomain because the bare `agentrouter.org/v1`
+    //      endpoint is behind an Aliyun WAF that blocks non-browser requests
+    //      from cloud IPs (Vercel, AWS, etc.). The `co.` subdomain accepts
+    //      raw API traffic directly without WAF protection.
+    //   Per the AgentRouter docs (https://agentrouter.org/docs/index.html),
+    //   both endpoints accept the same auth + serve the same models.
     baseURL = process.env.AGENTROUTER_BASE_URL ?? "https://co.agentrouter.org/v1";
   } else {
     // Z.AI direct — also works with the OpenAI SDK because Z.AI's public
