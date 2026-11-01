@@ -3,12 +3,29 @@
 import { useEffect, useState } from "react";
 import { useNav } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import { api, timeAgo, formatMinor } from "@/lib/client-api";
-import { FolderKanban, Plus, ArrowRight, Wallet, ShieldCheck, Building2, Bell, Scale, CheckCircle2, LayoutDashboard } from "lucide-react";
-import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
+import {
+  FolderKanban,
+  Plus,
+  ArrowRight,
+  Wallet,
+  ShieldCheck,
+  Building2,
+  CheckCircle2,
+  LayoutDashboard,
+  Clock,
+  Users,
+} from "lucide-react";
+import {
+  PageHeader,
+  LoadingState,
+  EmptyState,
+  StatCard,
+} from "@/components/shared/page-components";
 
 type DashboardData = {
   projects: Array<{
@@ -35,6 +52,42 @@ type Stats = {
   bankAccountAdded: boolean;
 };
 
+/** Rough progress estimate based on project status (no task-completion data available). */
+function projectProgress(p: DashboardData["projects"][number]): number {
+  const s = p.status.toLowerCase();
+  if (s.includes("complet") || s.includes("done") || s.includes("closed")) return 100;
+  if (s.includes("active") || s.includes("progress") || s.includes("ongoing")) return 65;
+  if (s.includes("pause") || s.includes("hold")) return 40;
+  if (s.includes("draft")) return 12;
+  return 50;
+}
+
+/** Map a status string to one of the premium badge classes from globals.css. */
+function statusBadgeClass(status: string): string {
+  const s = status.toLowerCase();
+  if (s.includes("complet") || s.includes("done") || s.includes("closed") || s.includes("success"))
+    return "badge-success";
+  if (
+    s.includes("pend") ||
+    s.includes("review") ||
+    s.includes("wait") ||
+    s.includes("hold") ||
+    s.includes("draft")
+  )
+    return "badge-warning";
+  if (s.includes("disput") || s.includes("cancel") || s.includes("fail"))
+    return "badge-danger";
+  return "badge-info";
+}
+
+function formatStatus(status: string): string {
+  return status
+    .split(/[-_\s]/)
+    .filter(Boolean)
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(" ");
+}
+
 export function DashboardView() {
   const { navigate } = useNav();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -45,14 +98,17 @@ export function DashboardView() {
     Promise.all([
       api.get<DashboardData>("/api/projects?limit=5"),
       api.get<Stats>("/api/dashboard").catch(() => null),
-    ]).then(([d, s]) => {
-      setData(d);
-      setStats(s);
-    }).finally(() => setLoading(false));
+    ])
+      .then(([d, s]) => {
+        setData(d);
+        setStats(s);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
+      {/* Header */}
       <PageHeader
         title="Dashboard"
         description="Welcome back. Here's what's happening across your projects."
@@ -64,197 +120,225 @@ export function DashboardView() {
         }
       />
 
-      {/* Account setup alerts */}
-      {stats && !stats.kycVerified && (
-        <Alert className="border-amber-500/40 bg-amber-500/10">
-          <ShieldCheck className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-sm text-amber-700 dark:text-amber-400">
-            <strong>KYC verification required.</strong> Complete identity verification (NIN + selfie) to fund milestones and receive payouts.
-            <Button size="sm" variant="outline" className="ml-3" onClick={() => navigate({ view: "kyc" })}>
-              Verify now
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-      {stats && !stats.bankAccountAdded && (
-        <Alert className="border-amber-500/40 bg-amber-500/10">
-          <Building2 className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-sm text-amber-700 dark:text-amber-400">
-            <strong>Add a bank account.</strong> You need a bank account to receive payouts.
-            <Button size="sm" variant="outline" className="ml-3" onClick={() => navigate({ view: "settings-payouts" })}>
-              Add bank account
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Stats grid */}
+      {/* Premium stat cards — 2 cols mobile, 4 cols desktop */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          label="Active projects"
-          value={stats?.activeProjects ?? 0}
-          sub={stats ? `${stats.completedProjects} completed` : undefined}
-          icon={FolderKanban}
-        />
-        <StatCard
-          label="Pending milestones"
-          value={stats?.pendingMilestones ?? 0}
-          icon={CheckCircle2}
-        />
-        <StatCard
-          label="Total earnings"
-          value={stats ? formatMinor(stats.totalEarningsMinor, "NGN") : "₦0"}
-          isText
-          icon={Wallet}
-        />
-        <StatCard
-          label="Pending payouts"
-          value={stats?.pendingPayouts ?? 0}
-          icon={Wallet}
-          accent={stats && stats.pendingPayouts > 0 ? "warning" : "default"}
-        />
+        <div className="premium-stat">
+          <StatCard
+            label="Active projects"
+            value={String(stats?.activeProjects ?? 0)}
+            icon={FolderKanban}
+            accent="success"
+            onClick={() => navigate({ view: "projects" })}
+          />
+        </div>
+        <div className="premium-stat">
+          <StatCard
+            label="Completed projects"
+            value={String(stats?.completedProjects ?? 0)}
+            icon={CheckCircle2}
+            accent="default"
+            onClick={() => navigate({ view: "projects" })}
+          />
+        </div>
+        <div className="premium-stat">
+          <StatCard
+            label="Pending milestones"
+            value={String(stats?.pendingMilestones ?? 0)}
+            icon={Clock}
+            accent="warning"
+            onClick={() => navigate({ view: "projects" })}
+          />
+        </div>
+        <div className="premium-stat">
+          <StatCard
+            label="Total earnings"
+            value={stats ? formatMinor(stats.totalEarningsMinor, "NGN") : "₦0"}
+            icon={Wallet}
+            accent="success"
+            onClick={() => navigate({ view: "settings-payouts" })}
+          />
+        </div>
       </div>
 
-      {/* Secondary stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <StatCard
-          label="Open disputes"
-          value={stats?.openDisputes ?? 0}
-          icon={Scale}
-          accent={stats && stats.openDisputes > 0 ? "destructive" : "default"}
-          onClick={() => navigate({ view: "projects" })}
-        />
-        <StatCard
-          label="Unread notifications"
-          value={stats?.unreadNotifications ?? 0}
-          icon={Bell}
-          onClick={() => navigate({ view: "notifications" })}
-        />
-        <StatCard
-          label="Account status"
-          value={stats?.kycVerified ? "Verified" : "Pending KYC"}
-          isText
-          icon={ShieldCheck}
-          accent={stats?.kycVerified ? "success" : "warning"}
-          onClick={() => navigate({ view: "kyc" })}
-        />
-      </div>
+      {/* KYC warning — premium amber alert with CTA */}
+      {stats && !stats.kycVerified && (
+        <Alert className="border-amber-500/30 bg-gradient-to-br from-amber-50 to-amber-50/30 dark:from-amber-950/40 dark:to-amber-900/20 shadow-[var(--shadow-sm)] py-4 pr-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+              <div className="font-semibold text-sm text-amber-900 dark:text-amber-200">
+                KYC verification required
+              </div>
+              <AlertDescription className="text-xs text-amber-700 dark:text-amber-400">
+                Complete identity verification (NIN + selfie) to fund milestones and receive payouts.
+              </AlertDescription>
+              <Button
+                size="sm"
+                className="mt-2 w-fit bg-amber-600 hover:bg-amber-700 text-white border-amber-600"
+                onClick={() => navigate({ view: "kyc" })}
+              >
+                Verify now
+                <ArrowRight className="ml-1.5 h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </Alert>
+      )}
+
+      {/* Bank account warning — preserved & restyled to match premium amber aesthetic */}
+      {stats && !stats.bankAccountAdded && (
+        <Alert className="border-amber-500/30 bg-gradient-to-br from-amber-50 to-amber-50/30 dark:from-amber-950/40 dark:to-amber-900/20 shadow-[var(--shadow-sm)] py-4 pr-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+              <Building2 className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+              <div className="font-semibold text-sm text-amber-900 dark:text-amber-200">
+                Add a bank account
+              </div>
+              <AlertDescription className="text-xs text-amber-700 dark:text-amber-400">
+                You need a bank account on file to receive payouts.
+              </AlertDescription>
+              <Button
+                size="sm"
+                className="mt-2 w-fit bg-amber-600 hover:bg-amber-700 text-white border-amber-600"
+                onClick={() => navigate({ view: "settings-payouts" })}
+              >
+                Add bank account
+                <ArrowRight className="ml-1.5 h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </Alert>
+      )}
 
       {/* Recent projects */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Recent projects</CardTitle>
-            <CardDescription>Your most recently updated projects.</CardDescription>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold tracking-tight">Recent projects</h2>
+            <p className="text-sm text-muted-foreground">Your most recently updated projects.</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate({ view: "projects" })}>
-            View all <ArrowRight className="ml-1 h-3 w-3" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={() => navigate({ view: "projects" })}
+          >
+            View all
+            <ArrowRight className="ml-1 h-3 w-3" />
           </Button>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <LoadingState label="Loading projects…" />
-          ) : data?.projects.length === 0 ? (
-            <EmptyState
-              icon={FolderKanban}
-              title="No projects yet"
-              description="Create your first project to start collaborating."
-              action={
-                <Button onClick={() => navigate({ view: "projects" })}>
-                  <Plus className="mr-2 h-4 w-4" /> Create project
-                </Button>
-              }
-            />
-          ) : (
-            <ul className="divide-y">
-              {data?.projects.map((p) => (
-                <li key={p.id}>
-                  <button
-                    onClick={() => navigate({ view: "project-detail", projectId: p.id })}
-                    className="w-full text-left py-3 flex items-center gap-4 hover:bg-muted/50 -mx-2 px-2 rounded transition-colors"
-                  >
-                    <div className="h-10 w-10 rounded bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                      <FolderKanban className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium truncate">{p.title}</div>
-                      <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="text-xs">{p.status}</Badge>
-                        <Badge variant="secondary" className="text-xs">{p.myRole}</Badge>
-                        <span>{p._count.tasks} tasks · {p._count.milestones} milestones</span>
-                        <span>· Updated {timeAgo(p.updatedAt)}</span>
-                      </div>
-                    </div>
-                    {p.budgetMinor > 0 && (
-                      <div className="text-right text-sm hidden sm:block">
-                        <div className="font-medium">{formatMinor(p.budgetMinor, p.currency)}</div>
-                        <div className="text-xs text-muted-foreground">budget</div>
-                      </div>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  sub,
-  icon: Icon,
-  isText,
-  accent = "default",
-  onClick,
-}: {
-  label: string;
-  value: number | string;
-  sub?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  isText?: boolean;
-  accent?: "default" | "warning" | "destructive" | "success";
-  onClick?: () => void;
-}) {
-  const accentClasses = {
-    default: "text-primary bg-primary/10",
-    warning: "text-amber-600 bg-amber-500/10",
-    destructive: "text-destructive bg-destructive/10",
-    success: "text-emerald-600 bg-emerald-500/10",
-  };
-  return (
-    <Card className={onClick ? "cursor-pointer hover:shadow-md transition-shadow" : ""} >
-      <CardContent className="p-4" onClick={onClick}>
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-2xl font-bold">{value}</div>
-            <div className="text-xs text-muted-foreground">{label}</div>
-            {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
-          </div>
-          <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${accentClasses[accent]}`}>
-            <Icon className="h-4 w-4" />
-          </div>
         </div>
-      </CardContent>
-    </Card>
-  );
-}
 
-function EmptyProjects({ onNew }: { onNew: () => void }) {
-  // Kept for backwards compatibility — the inline EmptyState is now used instead.
-  return (
-    <EmptyState
-      icon={FolderKanban}
-      title="No projects yet"
-      description="Create your first project to start collaborating."
-      action={
-        <Button onClick={onNew}>
-          <Plus className="mr-2 h-4 w-4" /> Create project
-        </Button>
-      }
-    />
+        {loading ? (
+          <Card className="premium-card">
+            <CardContent className="p-6">
+              <LoadingState label="Loading projects…" />
+            </CardContent>
+          </Card>
+        ) : data?.projects.length === 0 ? (
+          <Card className="premium-card">
+            <CardContent className="p-6">
+              <EmptyState
+                icon={FolderKanban}
+                title="No projects yet"
+                description="Create your first project to start collaborating with your team."
+                action={
+                  <Button onClick={() => navigate({ view: "projects" })}>
+                    <Plus className="mr-2 h-4 w-4" /> Create project
+                  </Button>
+                }
+              />
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {data?.projects.map((p) => {
+              const progress = projectProgress(p);
+              const memberCount = p._count.tasks + p._count.milestones + p._count.disputes;
+              return (
+                <Card
+                  key={p.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open project ${p.title}`}
+                  className="premium-card group cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  onClick={() => navigate({ view: "project-detail", projectId: p.id })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      navigate({ view: "project-detail", projectId: p.id });
+                    }
+                  }}
+                >
+                  <CardContent className="p-5 space-y-4">
+                    {/* Header: title + status badge */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+                          <FolderKanban className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-semibold truncate leading-tight">{p.title}</h3>
+                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                            <Clock className="h-3 w-3" />
+                            Updated {timeAgo(p.updatedAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`shrink-0 capitalize ${statusBadgeClass(p.status)}`}
+                      >
+                        {formatStatus(p.status)}
+                      </Badge>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="font-medium tabular-nums">{progress}%</span>
+                      </div>
+                      <Progress value={progress} className="h-1.5" />
+                    </div>
+
+                    {/* Footer: member count + budget */}
+                    <div className="flex items-center justify-between gap-3 pt-3 border-t border-border/60">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground min-w-0">
+                        <span className="flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5" />
+                          <span className="tabular-nums">{memberCount} members</span>
+                        </span>
+                        <span className="text-border select-none">·</span>
+                        <span className="hidden sm:inline tabular-nums">
+                          {p._count.tasks} tasks
+                        </span>
+                      </div>
+                      {p.budgetMinor > 0 ? (
+                        <div className="text-right shrink-0">
+                          <div className="text-sm font-semibold tabular-nums">
+                            {formatMinor(p.budgetMinor, p.currency)}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                            budget
+                          </div>
+                        </div>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px] shrink-0">
+                          {p.myRole}
+                        </Badge>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
