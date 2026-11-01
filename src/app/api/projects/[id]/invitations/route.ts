@@ -115,9 +115,54 @@ export const POST = apiRoute(async (req, { params }) => {
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://gigsure-ai.vercel.app";
   const inviteUrl = `${baseUrl}/?view=invitation&token=${rawToken}&project=${params.id}`;
 
+  // Send invitation email if SMTP is configured
+  if (inviteeEmail && process.env.SMTP_URL) {
+    try {
+      const { sendEmail } = await import("@/lib/email/provider");
+      await sendEmail({
+        to: inviteeEmail,
+        subject: `You're invited to join "${inv.project.title}" on GigSure AI`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #003087, #002469); color: white; padding: 24px; border-radius: 12px 12px 0 0;">
+              <h1 style="margin: 0; font-size: 20px;">GigSure AI</h1>
+              <p style="margin: 4px 0 0; opacity: 0.8; font-size: 14px;">Project Invitation</p>
+            </div>
+            <div style="background: white; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+              <p style="margin: 0 0 16px; font-size: 16px; color: #1a1a1a;">
+                <strong>${inviter.displayName}</strong> has invited you to join
+                <strong>"${inv.project.title}"</strong> as a
+                <strong>${data.role.toLowerCase()}</strong>.
+              </p>
+              <a href="${inviteUrl}" style="display: inline-block; background: #003087; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; margin: 8px 0 16px;">
+                Accept Invitation
+              </a>
+              <p style="margin: 0; font-size: 13px; color: #6b7280;">
+                Or copy this link: ${inviteUrl}
+              </p>
+              <p style="margin: 16px 0 0; font-size: 13px; color: #9ca3af;">
+                This invitation expires on ${new Date(Date.now() + data.expiresInSeconds * 1000).toLocaleDateString()}.
+              </p>
+            </div>
+          </div>
+        `,
+        text: `${inviter.displayName} has invited you to join "${inv.project.title}" as a ${data.role.toLowerCase()}. Accept here: ${inviteUrl}`,
+      });
+    } catch (err) {
+      // Don't fail the invitation if email fails — the URL is still returned
+      logSecurityEvent("error", "invitation.email_failed", {
+        invitationId: invitation.id,
+        message: (err as Error)?.message,
+      });
+    }
+  }
+
   return {
     invitationId: invitation.id,
     inviteUrl,
-    message: "Invitation created. Share the invite link with the recipient.",
+    emailSent: !!inviteeEmail && !!process.env.SMTP_URL,
+    message: inviteeEmail && process.env.SMTP_URL
+      ? "Invitation sent. Check your email."
+      : "Invitation created. Share the invite link with the recipient.",
   };
 });
