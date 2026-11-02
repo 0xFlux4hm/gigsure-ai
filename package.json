@@ -109,6 +109,6 @@
     "tw-animate-css": "^1.3.5",
     "typescript": "^5",
     "vite-tsconfig-paths": "^5",
-    "vitest": "^3"
+    "vitest": "^5"
   }
 }
