@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
+import { AiMarkdown } from "@/components/ai/AiMarkdown";
 import {
   Sparkles, Loader2, AlertTriangle, CheckCircle2, FileText,
   ListChecks, Scale, ShieldAlert, RotateCcw,
@@ -359,7 +360,9 @@ export function MilestoneGenerator({
           <div className="space-y-3 pt-2 border-t">
             <AdvisoryBanner />
             {plan.notes && (
-              <div className="text-xs text-muted-foreground italic">{plan.notes}</div>
+              <div className="text-xs text-muted-foreground italic [&_p]:my-0">
+                <AiMarkdown showReportHeader={false}>{plan.notes}</AiMarkdown>
+              </div>
             )}
             <div className="text-xs text-muted-foreground">
               Total: <strong>{plan.totalWeeks} weeks</strong> · {plan.milestones.length} milestones
@@ -492,7 +495,9 @@ export function ContractAnalysisPanel({
               </div>
             </div>
 
-            <p className="text-sm">{analysis.summary}</p>
+            <div className="text-sm [&_p]:my-0 [&_p]:leading-relaxed">
+              <AiMarkdown showReportHeader={false}>{analysis.summary}</AiMarkdown>
+            </div>
 
             {analysis.flags.length > 0 && (
               <div className="space-y-2">
@@ -506,9 +511,12 @@ export function ContractAnalysisPanel({
                       </div>
                       <Badge variant="outline" className="text-[10px] text-muted-foreground">{f.category.replace(/_/g, " ")}</Badge>
                     </div>
-                    <div className="text-muted-foreground">{f.reason}</div>
-                    <div className="text-xs">
-                      <strong className="text-emerald-700 dark:text-emerald-400">Recommendation:</strong> {f.recommendation}
+                    <div className="text-muted-foreground text-xs [&_p]:my-0 [&_p]:leading-relaxed">
+                      <AiMarkdown showReportHeader={false}>{f.reason}</AiMarkdown>
+                    </div>
+                    <div className="text-xs [&_p]:my-0 [&_p]:leading-relaxed">
+                      <strong className="text-emerald-700 dark:text-emerald-400">Recommendation:</strong>{" "}
+                      <AiMarkdown showReportHeader={false} className="inline-block">{f.recommendation}</AiMarkdown>
                     </div>
                   </div>
                 ))}
@@ -609,7 +617,9 @@ export function DisputeSummaryPanel({ disputeId }: { disputeId: string }) {
           <div className="space-y-4 pt-2 border-t">
             <AdvisoryBanner />
 
-            <p className="text-sm">{summary.summary}</p>
+            <div className="text-sm [&_p]:my-0 [&_p]:leading-relaxed">
+              <AiMarkdown showReportHeader={false}>{summary.summary}</AiMarkdown>
+            </div>
 
             {summary.timeline.length > 0 && (
               <div className="space-y-1.5">

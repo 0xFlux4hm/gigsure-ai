@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/client-api";
 import { Shield, Loader2, AlertTriangle, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { AiMarkdown } from "@/components/ai/AiMarkdown";
 
 type RiskFlag = {
   clause: string;
@@ -135,7 +136,9 @@ export function ContractRiskAnalyzer({ contractVersionId }: { contractVersionId:
                 style={{ width: `${analysis.score}%` }}
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-2">{analysis.summary}</p>
+            <div className="text-xs text-muted-foreground mt-2 [&_p]:my-0 [&_p]:leading-relaxed">
+              <AiMarkdown showReportHeader={false}>{analysis.summary}</AiMarkdown>
+            </div>
           </div>
 
           {/* Flag list */}
@@ -154,11 +157,13 @@ export function ContractRiskAnalyzer({ contractVersionId }: { contractVersionId:
                       <span className="font-medium text-sm">{flag.clause}</span>
                       <Badge className={`text-xs ${style.badge}`}>{flag.severity}</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground pl-6">{flag.reason}</p>
-                    <p className="text-xs pl-6">
+                    <div className="text-xs text-muted-foreground pl-6 [&_p]:my-0 [&_p]:leading-relaxed">
+                      <AiMarkdown showReportHeader={false}>{flag.reason}</AiMarkdown>
+                    </div>
+                    <div className="text-xs pl-6 [&_p]:my-0 [&_p]:leading-relaxed">
                       <span className="font-medium">Recommendation: </span>
-                      {flag.recommendation}
-                    </p>
+                      <AiMarkdown showReportHeader={false} className="inline">{flag.recommendation}</AiMarkdown>
+                    </div>
                   </div>
                 );
               })}

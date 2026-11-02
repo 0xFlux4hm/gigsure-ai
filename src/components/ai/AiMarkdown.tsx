@@ -13,12 +13,20 @@
  *   - External links open in new tab
  *   - Strips raw HTML tags like <br> (converts to proper paragraphs)
  *   - Report-style header with "AI Research Report" branding
+ *
+ * SAFETY: react-markdown does NOT render raw HTML by default — all HTML
+ * tags in the input are escaped and shown as text. We pre-process to
+ * convert common ones (<br>, <strong>, <em>) to Markdown equivalents.
+ * No `dangerouslySetInnerHTML` is used anywhere.
  */
 import ReactMarkdown from "react-markdown";
+import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Sparkles } from "lucide-react";
+import type { ReactNode } from "react";
+import { Fragment } from "react";
 
 interface AiMarkdownProps {
   children: string;
@@ -30,25 +38,9 @@ interface AiMarkdownProps {
 }
 
 /**
- * Replace standalone HIGH / MEDIUM / LOW tokens (in table cells or alone)
- * with rendered badge placeholders that we'll post-process.
- *
- * We use a sentinel pattern that won't conflict with markdown:
- *   [[SEV:HIGH]] → renders as a red HIGH badge, etc.
+ * Severity styling for HIGH/MEDIUM/LOW badges.
+ * Used when rendering standalone severity tokens in table cells.
  */
-function injectSeverityBadges(text: string): string {
-  // Match standalone HIGH/MEDIUM/LOW in table cells (between |) or as standalone words on a line
-  return text
-    // In table cells: | HIGH | or | MEDIUM | or | LOW |
-    .replace(/\|\s*(HIGH|MEDIUM|LOW)\s*\|/g, "| [[SEV:$1]] |")
-    // Standalone at start of line: "**Severity:** HIGH" → "**Severity:** [[SEV:HIGH]]"
-    .replace(/(\*\*Severity:\*\*\s*)(HIGH|MEDIUM|LOW)\b/g, "$1[[SEV:$2]]")
-    // Confidence level
-    .replace(/(\*\*Confidence:\*\*\s*)(HIGH|MEDIUM|LOW)\b/g, "$1[[SEV:$2]]")
-    // Risk level
-    .replace(/(\*\*Risk Level:\*\*\s*)(HIGH|MEDIUM|LOW)\b/g, "$1[[SEV:$2]]");
-}
-
 const SEVERITY_CLASS: Record<string, string> = {
   HIGH: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-300 dark:border-red-800",
   MEDIUM: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-300 dark:border-amber-800",
@@ -56,39 +48,106 @@ const SEVERITY_CLASS: Record<string, string> = {
 };
 
 /**
- * Post-process the rendered text to replace [[SEV:HIGH]] sentinels
- * with actual <Badge> components.
+ * Check if a string is exactly a severity token (HIGH/MEDIUM/LOW).
+ * Used to render severity badges inside table cells.
  */
-function renderSeveritySentinels(text: string): React.ReactNode {
-  const parts = text.split(/(\[\[SEV:(HIGH|MEDIUM|LOW)\]\])/g);
-  if (parts.length === 1) return text;
-  return parts.map((part, i) => {
-    const m = part.match(/^\[\[SEV:(HIGH|MEDIUM|LOW)\]\]$/);
-    if (m) {
-      const sev = m[1];
+function isSeverityToken(s: string): s is "HIGH" | "MEDIUM" | "LOW" {
+  return s === "HIGH" || s === "MEDIUM" || s === "LOW";
+}
+
+/**
+ * Walk a ReactNode tree and replace standalone severity strings with badges.
+ * This handles severity tokens that appear as standalone text in table cells,
+ * paragraphs, or list items.
+ */
+function withSeverityBadges(node: ReactNode): ReactNode {
+  if (typeof node === "string") {
+    const trimmed = node.trim();
+    if (isSeverityToken(trimmed)) {
       return (
         <Badge
-          key={i}
           variant="outline"
-          className={cn("text-[10px] font-semibold px-1.5 py-0", SEVERITY_CLASS[sev])}
+          className={cn("text-[10px] font-semibold px-1.5 py-0", SEVERITY_CLASS[trimmed])}
         >
-          {sev}
+          {trimmed}
         </Badge>
       );
     }
-    return <span key={i}>{part}</span>;
-  });
+    return node;
+  }
+  if (Array.isArray(node)) {
+    return node.map((child, i) => (
+      <Fragment key={i}>{withSeverityBadges(child)}</Fragment>
+    ));
+  }
+  return node;
 }
 
-export function AiMarkdown({ children, className, reportTitle = "AI Analysis Report", showReportHeader = true }: AiMarkdownProps) {
-  // Pre-process: convert raw HTML to Markdown equivalents
-  const cleaned = children
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<strong>(.*?)<\/strong>/gi, "**$1**")
-    .replace(/<em>(.*?)<\/em>/gi, "*$1*");
+// Wrapper component to render children with severity badges
+function SeverityAware({ children }: { children?: ReactNode }) {
+  return <>{withSeverityBadges(children)}</>;
+}
 
-  // Inject severity badge sentinels
-  const withBadges = injectSeverityBadges(cleaned);
+export function AiMarkdown({
+  children,
+  className,
+  reportTitle = "AI Analysis Report",
+  showReportHeader = true,
+}: AiMarkdownProps) {
+  // Pre-process: convert raw HTML to Markdown equivalents
+  // (react-markdown escapes raw HTML by default, so <br> would show as text)
+  const cleaned = children
+    .replace(/<br\s*\/?>/gi, "\n\n")
+    .replace(/<strong>(.*?)<\/strong>/gi, "**$1**")
+    .replace(/<em>(.*?)<\/em>/gi, "*$1*")
+    .replace(/<b>(.*?)<\/b>/gi, "**$1**")
+    .replace(/<i>(.*?)<\/i>/gi, "*$1*")
+    .replace(/<p>/gi, "\n\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<hr\s*\/?>/gi, "\n\n---\n\n");
+
+  // Component overrides for react-markdown
+  // NOTE: We do NOT override `text` — that breaks table rendering in v10+.
+  // Instead, we override `td` and `th` to detect severity tokens and render
+  // them as badges. This is the recommended pattern.
+  const components: Components = {
+    // Open external links in new tab with safe rel attributes
+    a: ({ href, children, ...props }) => (
+      <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+        {children}
+      </a>
+    ),
+    // Wrap tables in scrollable container for mobile responsiveness
+    table: ({ children, ...props }) => (
+      <div className="overflow-x-auto -mx-1 my-3">
+        <table {...props}>{children}</table>
+      </div>
+    ),
+    // Table cells: detect standalone severity tokens and render as badges
+    td: ({ children, ...props }) => (
+      <td {...props}>
+        <SeverityAware>{children}</SeverityAware>
+      </td>
+    ),
+    // Table headers: same treatment
+    th: ({ children, ...props }) => (
+      <th {...props}>
+        <SeverityAware>{children}</SeverityAware>
+      </th>
+    ),
+    // Paragraphs: also detect severity tokens (e.g. "**Severity:** HIGH")
+    p: ({ children, ...props }) => (
+      <p {...props}>
+        <SeverityAware>{children}</SeverityAware>
+      </p>
+    ),
+    // List items: also detect severity tokens
+    li: ({ children, ...props }) => (
+      <li {...props}>
+        <SeverityAware>{children}</SeverityAware>
+      </li>
+    ),
+  };
 
   return (
     <div className="space-y-3">
@@ -110,27 +169,28 @@ export function AiMarkdown({ children, className, reportTitle = "AI Analysis Rep
       <div
         className={cn(
           "prose prose-sm dark:prose-invert max-w-none",
-          // Headings
+          // Headings — premium hierarchy with colored left bar
           "prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground",
           "prose-h1:text-lg prose-h1:mt-3 prose-h1:mb-2 prose-h1:border-b prose-h1:pb-1 prose-h1:border-border",
-          "prose-h2:text-base prose-h2:mt-3 prose-h2:mb-1.5 prose-h2:text-foreground",
-          "prose-h2:before:content-[''] prose-h2:before:inline-block prose-h2:before:w-1 prose-h2:before:h-4 prose-h2:before:bg-primary prose-h2:before:rounded-full prose-h2:before:mr-2 prose-h2:before:align-middle",
+          "prose-h2:text-base prose-h2:mt-3 prose-h2:mb-1.5 prose-h2:text-foreground prose-h2:flex prose-h2:items-center prose-h2:gap-2",
+          "prose-h2:before:content-[''] prose-h2:before:inline-block prose-h2:before:w-1 prose-h2:before:h-4 prose-h2:before:bg-primary prose-h2:before:rounded-full",
           "prose-h3:text-sm prose-h3:mt-2 prose-h3:mb-1 prose-h3:font-semibold prose-h3:text-foreground",
           "prose-h4:text-sm prose-h4:mt-2 prose-h4:mb-1 prose-h4:font-medium prose-h4:text-muted-foreground",
           // Paragraphs + lists
-          "prose-p:my-1.5 prose-p:leading-relaxed prose-p:text-foreground/90",
-          "prose-ul:my-1.5 prose-ul:list-disc prose-ul:pl-5 prose-li:my-0.5 prose-li:text-foreground/90",
+          "prose-p:my-1.5 prose-p:leading-relaxed prose-P:text-foreground/90",
+          "prose-ul:my-1.5 prose-ul:list-disc prose-ul:pl-5",
           "prose-ol:my-1.5 prose-ol:list-decimal prose-ol:pl-5",
-          // Tables (GFM)
-          "prose-table:border-collapse prose-table:w-full prose-table:my-3 prose-table:text-xs prose-table:overflow-hidden prose-table:rounded-md prose-table:border prose-table:border-border",
+          "prose-li:my-0.5 prose-li:text-foreground/90",
+          // Tables (GFM) — premium styled like data tables
+          "prose-table:border-collapse prose-table:w-full prose-table:text-xs prose-table:overflow-hidden prose-table:rounded-md prose-table:border prose-table:border-border",
           "prose-thead:bg-muted/60",
           "prose-th:border prose-th:border-border prose-th:px-2.5 prose-th:py-1.5 prose-th:text-left prose-th:font-semibold prose-th:text-foreground prose-th:text-[11px] prose-th:uppercase prose-th:tracking-wide",
           "prose-td:border prose-td:border-border prose-td:px-2.5 prose-td:py-1.5 prose-td:text-foreground/90",
           "prose-tr:hover:bg-muted/30 prose-tr:transition-colors",
-          // Code
+          // Code — primary tint
           "prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[11px] prose-code:font-mono prose-code:text-primary prose-code:before:content-none prose-code:after:content-none",
           "prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-md prose-pre:text-xs",
-          // Blockquotes
+          // Blockquotes — info callout style
           "prose-blockquote:border-l-2 prose-blockquote:border-primary/40 prose-blockquote:bg-primary/5 prose-blockquote:py-1.5 prose-blockquote:pl-3 prose-blockquote:my-2 prose-blockquote:rounded-r prose-blockquote:not-italic prose-blockquote:text-foreground/80",
           // Links
           "prose-a:text-primary prose-a:font-medium prose-a:underline prose-a:underline-offset-2",
@@ -142,29 +202,8 @@ export function AiMarkdown({ children, className, reportTitle = "AI Analysis Rep
           className,
         )}
       >
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            // Open external links in new tab
-            a: ({ href, children, ...props }) => (
-              <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
-                {children}
-              </a>
-            ),
-            // Wrap tables in scrollable container for mobile
-            table: ({ children, ...props }) => (
-              <div className="overflow-x-auto -mx-1">
-                <table {...props}>{children}</table>
-              </div>
-            ),
-            // Render text nodes with severity badge post-processing
-            // (react-markdown v10+ uses `text` for raw text nodes)
-            text: ({ children: textChildren }) => (
-              <>{renderSeveritySentinels(String(textChildren))}</>
-            ),
-          }}
-        >
-          {withBadges}
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+          {cleaned}
         </ReactMarkdown>
       </div>
     </div>
