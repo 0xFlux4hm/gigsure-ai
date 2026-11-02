@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, formatDateTime, timeAgo } from "@/lib/client-api";
 import { Plus, Loader2, ChevronRight, Scale } from "lucide-react";
@@ -50,10 +51,7 @@ export function ProjectDisputesView({ projectId }: { projectId: string }) {
         description="Open disputes with evidence + reviewer notes."
         icon={Scale}
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Open dispute</Button></DialogTrigger>
-            <NewDisputeDialog projectId={projectId} onCreated={() => { setOpen(false); load(); }} />
-          </Dialog>
+          <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" /> Open dispute</Button>
         }
       />
 
@@ -98,11 +96,16 @@ export function ProjectDisputesView({ projectId }: { projectId: string }) {
           </CardContent>
         </Card>
       )}
+      <NewDisputeDialog
+        projectId={projectId}
+        open={open}
+        onOpenChange={setOpen}
+        onCreated={() => { setOpen(false); load(); }}
+      />
     </div>
   );
 }
-
-function NewDisputeDialog({ projectId, onCreated }: { projectId: string; onCreated: () => void }) {
+function NewDisputeDialog({ projectId, open, onOpenChange, onCreated }: { projectId: string; open: boolean; onOpenChange: (v: boolean) => void; onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("QUALITY");
@@ -129,39 +132,49 @@ function NewDisputeDialog({ projectId, onCreated }: { projectId: string; onCreat
   };
 
   return (
-    <DialogContent>
-      <DialogHeader><DialogTitle>Open dispute</DialogTitle></DialogHeader>
-      <div className="space-y-3 py-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="title">Title</Label>
-          <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Brief summary of the issue" />
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
+        <SheetHeader className="px-6 py-4 border-b shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <SheetTitle>Open dispute</SheetTitle>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onOpenChange(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
+            <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Brief summary of the issue" inputMode="text" autoCapitalize="sentences" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cat">Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger id="cat"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="QUALITY">Quality</SelectItem>
+                <SelectItem value="DEADLINE">Deadline</SelectItem>
+                <SelectItem value="PAYMENT">Payment</SelectItem>
+                <SelectItem value="SCOPE">Scope</SelectItem>
+                <SelectItem value="CONDUCT">Conduct</SelectItem>
+                <SelectItem value="OTHER">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="desc">Description <span className="text-destructive">*</span></Label>
+            <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} placeholder="Provide factual detail. Avoid personal attacks." className="resize-y" />
+            <p className="text-xs text-muted-foreground">Be factual and specific. AI dispute summary is available after opening.</p>
+          </div>
+          {error && <div className="text-sm text-destructive p-2 rounded-md bg-destructive/5 border border-destructive/20">{error}</div>}
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="cat">Category</Label>
-          <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger id="cat"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="QUALITY">Quality</SelectItem>
-              <SelectItem value="DEADLINE">Deadline</SelectItem>
-              <SelectItem value="PAYMENT">Payment</SelectItem>
-              <SelectItem value="SCOPE">Scope</SelectItem>
-              <SelectItem value="CONDUCT">Conduct</SelectItem>
-              <SelectItem value="OTHER">Other</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="desc">Description</Label>
-          <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} placeholder="Provide factual detail. Avoid personal attacks." />
-        </div>
-        {error && <div className="text-sm text-destructive">{error}</div>}
-      </div>
-      <DialogFooter>
-        <Button onClick={submit} disabled={loading || !title || !description}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-          Open dispute
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+        <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
+          <Button onClick={submit} disabled={loading || !title || !description} className="w-full sm:w-auto">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+            Open dispute
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

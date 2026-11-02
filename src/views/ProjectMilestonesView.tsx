@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { X } from "lucide-react";
 import { api, formatDate, formatMinor } from "@/lib/client-api";
 import { Plus, Loader2, ArrowRight, AlertTriangle, Target } from "lucide-react";
 
@@ -75,10 +76,7 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
         description="Fund, submit, approve, release. State transitions enforced on the backend."
         icon={Target}
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> New milestone</Button></DialogTrigger>
-            <NewMilestoneDialog projectId={projectId} onCreated={() => { setOpen(false); load(); }} />
-          </Dialog>
+          <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" /> New milestone</Button>
         }
       />
 
@@ -204,11 +202,18 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
           })}
         </div>
       )}
+
+      <NewMilestoneDialog
+        projectId={projectId}
+        open={open}
+        onOpenChange={setOpen}
+        onCreated={() => { setOpen(false); load(); }}
+      />
     </div>
   );
 }
 
-function NewMilestoneDialog({ projectId, onCreated }: { projectId: string; onCreated: () => void }) {
+function NewMilestoneDialog({ projectId, open, onOpenChange, onCreated }: { projectId: string; open: boolean; onOpenChange: (v: boolean) => void; onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
@@ -252,38 +257,47 @@ function NewMilestoneDialog({ projectId, onCreated }: { projectId: string; onCre
   };
 
   return (
-    <DialogContent>
-      <DialogHeader><DialogTitle>New milestone</DialogTitle></DialogHeader>
-      <div className="space-y-3 py-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="title">Title</Label>
-          <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Design mockups" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="desc">Description</Label>
-          <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
+        <SheetHeader className="px-6 py-4 border-b shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <SheetTitle>New milestone</SheetTitle>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onOpenChange(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="amount">Amount (major units)</Label>
-            <Input className="input-premium" id="amount" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 50000" />
-            {amount.trim() !== "" && !amountValid && (
-              <p className="text-xs text-destructive">Enter an amount greater than 0.</p>
-            )}
+            <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
+            <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Design mockups" inputMode="text" autoCapitalize="sentences" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="due">Due date</Label>
-            <Input className="input-premium" id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <Label htmlFor="desc">Description</Label>
+            <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="resize-y" placeholder="What this milestone delivers" />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="amount">Amount (major units) <span className="text-destructive">*</span></Label>
+              <Input className="input-premium" id="amount" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 50000" inputMode="decimal" />
+              {amount.trim() !== "" && !amountValid && (
+                <p className="text-xs text-destructive">Enter an amount greater than 0.</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="due">Due date</Label>
+              <Input className="input-premium" id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </div>
+          </div>
+          {error && <div className="text-sm text-destructive p-2 rounded-md bg-destructive/5 border border-destructive/20">{error}</div>}
         </div>
-        {error && <div className="text-sm text-destructive">{error}</div>}
-      </div>
-      <DialogFooter>
-        <Button onClick={submit} disabled={!canSubmit}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-          Create milestone
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+        <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
+          <Button onClick={submit} disabled={!canSubmit} className="w-full sm:w-auto">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+            Create milestone
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

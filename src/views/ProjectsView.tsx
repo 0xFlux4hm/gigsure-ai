@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetDescription } from "@/components/ui/sheet";
+import { X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, formatDate, timeAgo, formatMinor } from "@/lib/client-api";
 import { FolderKanban, Plus, Loader2, ArrowRight } from "lucide-react";
@@ -51,13 +52,14 @@ export function ProjectsView() {
         description="Create and manage your client collaborations."
         icon={FolderKanban}
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" /> New project</Button>
-            </DialogTrigger>
-            <NewProjectDialog onCreated={(id) => { setOpen(false); navigate({ view: "project-detail", projectId: id }); }} />
-          </Dialog>
+          <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" /> New project</Button>
         }
+      />
+
+      <NewProjectDialog
+        open={open}
+        onOpenChange={setOpen}
+        onCreated={(id) => { setOpen(false); navigate({ view: "project-detail", projectId: id }); }}
       />
 
       <Card className="premium-card">
@@ -120,7 +122,7 @@ export function ProjectsView() {
   );
 }
 
-function NewProjectDialog({ onCreated }: { onCreated: (id: string) => void }) {
+function NewProjectDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (v: boolean) => void; onCreated: (id: string) => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [currency, setCurrency] = useState("NGN");
@@ -130,8 +132,6 @@ function NewProjectDialog({ onCreated }: { onCreated: (id: string) => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Inline validation that mirrors the server Zod schema so the user
-  // gets immediate feedback instead of a generic 422 "Invalid project data".
   const titleValid = title.trim().length >= 3 && title.trim().length <= 160;
   const descriptionValid = description.trim().length >= 10 && description.trim().length <= 8000;
   const canSubmit = titleValid && descriptionValid && !loading;
@@ -164,78 +164,88 @@ function NewProjectDialog({ onCreated }: { onCreated: (id: string) => void }) {
   };
 
   return (
-    <DialogContent className="max-w-2xl">
-      <DialogHeader>
-        <DialogTitle>Create new project</DialogTitle>
-      </DialogHeader>
-      <div className="space-y-4 py-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="title">Project title</Label>
-          <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Lagos Bakery Website Redesign" />
-          {title.trim().length > 0 && !titleValid && (
-            <p className="text-xs text-destructive">Title must be at least 3 characters.</p>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
+        <SheetHeader className="px-6 py-4 border-b shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <SheetTitle>Create new project</SheetTitle>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onOpenChange(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="title">Project title <span className="text-destructive">*</span></Label>
+            <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Lagos Bakery Website Redesign" inputMode="text" autoCapitalize="sentences" />
+            {title.trim().length > 0 && !titleValid && (
+              <p className="text-xs text-destructive">Title must be at least 3 characters.</p>
+            )}
+            <p className="text-[10px] text-muted-foreground text-right tabular-nums">{title.length} / 160</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="description">Description / scope <span className="text-destructive">*</span></Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Brief description of what the client needs delivered. Include scope, target users, and key features."
+              rows={4}
+              className="resize-y"
+            />
+            {description.trim().length > 0 && !descriptionValid && (
+              <p className="text-xs text-destructive">Description must be at least 10 characters.</p>
+            )}
+            <p className="text-[10px] text-muted-foreground text-right tabular-nums">{description.length} / 8000</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="currency">Currency</Label>
+              <Select value={currency} onValueChange={setCurrency}>
+                <SelectTrigger id="currency"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NGN">NGN — Nigerian Naira</SelectItem>
+                  <SelectItem value="USD">USD — US Dollar</SelectItem>
+                  <SelectItem value="GHS">GHS — Ghanaian Cedi</SelectItem>
+                  <SelectItem value="KES">KES — Kenyan Shilling</SelectItem>
+                  <SelectItem value="GBP">GBP — Pound Sterling</SelectItem>
+                  <SelectItem value="EUR">EUR — Euro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="budget">Budget (major units)</Label>
+              <Input className="input-premium" id="budget" type="number" min="0" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0" inputMode="decimal" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="funding">Funding arrangement</Label>
+              <Select value={fundingArrangement} onValueChange={setFundingArrangement}>
+                <SelectTrigger id="funding"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="FULL">Full funding</SelectItem>
+                  <SelectItem value="MILESTONE">Milestone-based</SelectItem>
+                  <SelectItem value="UPFRONT_PLUS_MILESTONES">Upfront + milestones</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="due">Due date</Label>
+              <Input className="input-premium" id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </div>
+          </div>
+          {error && (
+            <div className="text-sm text-destructive p-2 rounded-md bg-destructive/5 border border-destructive/20">{error}</div>
           )}
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="description">Description / scope</Label>
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Brief description of what the client needs delivered."
-            rows={4}
-          />
-          {description.trim().length > 0 && !descriptionValid && (
-            <p className="text-xs text-destructive">Description must be at least 10 characters.</p>
-          )}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="currency">Currency</Label>
-            <Select value={currency} onValueChange={setCurrency}>
-              <SelectTrigger id="currency"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="NGN">NGN — Nigerian Naira</SelectItem>
-                <SelectItem value="USD">USD — US Dollar</SelectItem>
-                <SelectItem value="GHS">GHS — Ghanaian Cedi</SelectItem>
-                <SelectItem value="KES">KES — Kenyan Shilling</SelectItem>
-                <SelectItem value="GBP">GBP — Pound Sterling</SelectItem>
-                <SelectItem value="EUR">EUR — Euro</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="budget">Budget (major units)</Label>
-            <Input className="input-premium" id="budget" type="number" min="0" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0" />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="funding">Funding arrangement</Label>
-            <Select value={fundingArrangement} onValueChange={setFundingArrangement}>
-              <SelectTrigger id="funding"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="FULL">Full funding</SelectItem>
-                <SelectItem value="MILESTONE">Milestone-based</SelectItem>
-                <SelectItem value="UPFRONT_PLUS_MILESTONES">Upfront + milestones</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="due">Due date</Label>
-            <Input className="input-premium" id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-          </div>
-        </div>
-        {error && (
-          <div className="text-sm text-destructive">{error}</div>
-        )}
-      </div>
-      <DialogFooter>
-        <Button onClick={submit} disabled={!canSubmit}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-          Create project
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+        <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
+          <Button onClick={submit} disabled={!canSubmit} className="w-full sm:w-auto">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+            Create project
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

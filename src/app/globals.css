@@ -1,9 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Enable @tailwindcss/typography plugin for prose classes (AI Markdown rendering) */
-@plugin "@tailwindcss/typography";
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { X } from "lucide-react";
 import { api, formatDate } from "@/lib/client-api";
 import { Plus, Loader2, ChevronDown, ChevronRight, Upload, Download, Trash2, Paperclip, CheckSquare } from "lucide-react";
 
@@ -142,10 +143,7 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
         description="Drag state-machine enforced on the backend."
         icon={CheckSquare}
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> New task</Button></DialogTrigger>
-            <NewTaskDialog projectId={projectId} onCreated={() => { setOpen(false); load(); }} />
-          </Dialog>
+          <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" /> New task</Button>
         }
       />
 
@@ -262,11 +260,18 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
           })}
         </div>
       )}
+
+      <NewTaskDialog
+        projectId={projectId}
+        open={open}
+        onOpenChange={setOpen}
+        onCreated={() => { setOpen(false); load(); }}
+      />
     </div>
   );
 }
 
-function NewTaskDialog({ projectId, onCreated }: { projectId: string; onCreated: () => void }) {
+function NewTaskDialog({ projectId, open, onOpenChange, onCreated }: { projectId: string; open: boolean; onOpenChange: (v: boolean) => void; onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
@@ -295,42 +300,51 @@ function NewTaskDialog({ projectId, onCreated }: { projectId: string; onCreated:
   };
 
   return (
-    <DialogContent>
-      <DialogHeader><DialogTitle>New task</DialogTitle></DialogHeader>
-      <div className="space-y-3 py-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="title">Title</Label>
-          <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="desc">Description</Label>
-          <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
+        <SheetHeader className="px-6 py-4 border-b shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <SheetTitle>New task</SheetTitle>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onOpenChange(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="priority">Priority</Label>
-            <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger id="priority"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="LOW">Low</SelectItem>
-                <SelectItem value="MEDIUM">Medium</SelectItem>
-                <SelectItem value="HIGH">High</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
+            <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} inputMode="text" autoCapitalize="sentences" placeholder="e.g. Implement login page" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="due">Due date</Label>
-            <Input className="input-premium" id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <Label htmlFor="desc">Description</Label>
+            <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="resize-y" />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="priority">Priority</Label>
+              <Select value={priority} onValueChange={setPriority}>
+                <SelectTrigger id="priority"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="due">Due date</Label>
+              <Input className="input-premium" id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </div>
+          </div>
+          {error && <div className="text-sm text-destructive p-2 rounded-md bg-destructive/5 border border-destructive/20">{error}</div>}
         </div>
-        {error && <div className="text-sm text-destructive">{error}</div>}
-      </div>
-      <DialogFooter>
-        <Button onClick={submit} disabled={loading || !title}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-          Create task
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+        <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
+          <Button onClick={submit} disabled={loading || !title} className="w-full sm:w-auto">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+            Create task
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
