@@ -3,93 +3,170 @@
 /**
  * Professional Markdown renderer for AI responses.
  *
- * Renders AI-generated text (which often contains **bold**, tables, lists,
- * code blocks, headings) as properly-styled HTML instead of raw markdown
- * syntax. Matches GigSure's premium design system.
- *
- * Features:
+ * Renders AI-generated text as a polished research report with:
  *   - GitHub-flavored Markdown (tables, strikethrough, task lists)
  *   - Premium typography (proper headings, lists, code blocks)
+ *   - Automatic severity badge detection (HIGH/MEDIUM/LOW → colored pills)
  *   - Table styling with borders + header row
  *   - Code block + inline code styling
- *   - Blockquote styling
- *   - Link styling (external links open in new tab)
+ *   - Blockquote styling for warnings/notes
+ *   - External links open in new tab
  *   - Strips raw HTML tags like <br> (converts to proper paragraphs)
- *
- * Usage:
- *   <AiMarkdown>{response}</AiMarkdown>
+ *   - Report-style header with "AI Research Report" branding
  */
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { FileText, Sparkles } from "lucide-react";
 
 interface AiMarkdownProps {
   children: string;
   className?: string;
+  /** Optional title shown in the report header. Defaults to "AI Analysis Report". */
+  reportTitle?: string;
+  /** Show the report header (icon + title + divider). Default: true */
+  showReportHeader?: boolean;
 }
 
-export function AiMarkdown({ children, className }: AiMarkdownProps) {
-  // Pre-process: convert raw <br> tags to newlines so react-markdown handles them
+/**
+ * Replace standalone HIGH / MEDIUM / LOW tokens (in table cells or alone)
+ * with rendered badge placeholders that we'll post-process.
+ *
+ * We use a sentinel pattern that won't conflict with markdown:
+ *   [[SEV:HIGH]] → renders as a red HIGH badge, etc.
+ */
+function injectSeverityBadges(text: string): string {
+  // Match standalone HIGH/MEDIUM/LOW in table cells (between |) or as standalone words on a line
+  return text
+    // In table cells: | HIGH | or | MEDIUM | or | LOW |
+    .replace(/\|\s*(HIGH|MEDIUM|LOW)\s*\|/g, "| [[SEV:$1]] |")
+    // Standalone at start of line: "**Severity:** HIGH" → "**Severity:** [[SEV:HIGH]]"
+    .replace(/(\*\*Severity:\*\*\s*)(HIGH|MEDIUM|LOW)\b/g, "$1[[SEV:$2]]")
+    // Confidence level
+    .replace(/(\*\*Confidence:\*\*\s*)(HIGH|MEDIUM|LOW)\b/g, "$1[[SEV:$2]]")
+    // Risk level
+    .replace(/(\*\*Risk Level:\*\*\s*)(HIGH|MEDIUM|LOW)\b/g, "$1[[SEV:$2]]");
+}
+
+const SEVERITY_CLASS: Record<string, string> = {
+  HIGH: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-300 dark:border-red-800",
+  MEDIUM: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-300 dark:border-amber-800",
+  LOW: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800",
+};
+
+/**
+ * Post-process the rendered text to replace [[SEV:HIGH]] sentinels
+ * with actual <Badge> components.
+ */
+function renderSeveritySentinels(text: string): React.ReactNode {
+  const parts = text.split(/(\[\[SEV:(HIGH|MEDIUM|LOW)\]\])/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) => {
+    const m = part.match(/^\[\[SEV:(HIGH|MEDIUM|LOW)\]\]$/);
+    if (m) {
+      const sev = m[1];
+      return (
+        <Badge
+          key={i}
+          variant="outline"
+          className={cn("text-[10px] font-semibold px-1.5 py-0", SEVERITY_CLASS[sev])}
+        >
+          {sev}
+        </Badge>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+export function AiMarkdown({ children, className, reportTitle = "AI Analysis Report", showReportHeader = true }: AiMarkdownProps) {
+  // Pre-process: convert raw HTML to Markdown equivalents
   const cleaned = children
     .replace(/<br\s*\/?>/gi, "\n")
-    // Convert raw <strong>...</strong> to **...** for consistency
     .replace(/<strong>(.*?)<\/strong>/gi, "**$1**")
     .replace(/<em>(.*?)<\/em>/gi, "*$1*");
 
+  // Inject severity badge sentinels
+  const withBadges = injectSeverityBadges(cleaned);
+
   return (
-    <div
-      className={cn(
-        "prose prose-sm dark:prose-invert max-w-none",
-        // Headings
-        "prose-headings:font-semibold prose-headings:tracking-tight",
-        "prose-h1:text-xl prose-h1:mt-4 prose-h1:mb-2",
-        "prose-h2:text-lg prose-h2:mt-4 prose-h2:mb-2 prose-h2:border-b prose-h2:pb-1 prose-h2:border-border",
-        "prose-h3:text-base prose-h3:mt-3 prose-h3:mb-1",
-        "prose-h4:text-sm prose-h4:mt-2 prose-h4:mb-1",
-        // Paragraphs + lists
-        "prose-p:my-2 prose-p:leading-relaxed",
-        "prose-ul:my-2 prose-ul:list-disc prose-ul:pl-5 prose-li:my-0.5",
-        "prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-5",
-        // Tables (GFM)
-        "prose-table:border-collapse prose-table:w-full prose-table:my-3 prose-table:text-sm",
-        "prose-th:border prose-th:border-border prose-th:bg-muted/50 prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:font-semibold",
-        "prose-td:border prose-td:border-border prose-td:px-3 prose-td:py-1.5",
-        // Code
-        "prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none",
-        "prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-md",
-        // Blockquotes
-        "prose-blockquote:border-l-4 prose-blockquote:border-primary/30 prose-blockquote:bg-muted/30 prose-blockquote:py-2 prose-blockquote:pl-4 prose-blockquote:my-3 prose-blockquote:not-italic",
-        // Links
-        "prose-a:text-primary prose-a:underline prose-a:underline-offset-2",
-        // Strong + em
-        "prose-strong:font-semibold prose-strong:text-foreground",
-        className,
-      )}
-    >
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          // Open external links in new tab
-          a: ({ href, children, ...props }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              {...props}
-            >
-              {children}
-            </a>
-          ),
-          // Ensure tables have proper wrapper for overflow on mobile
-          table: ({ children, ...props }) => (
-            <div className="overflow-x-auto">
-              <table {...props}>{children}</table>
+    <div className="space-y-3">
+      {showReportHeader && (
+        <div className="flex items-center gap-2 pb-2 border-b border-border/60">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <FileText className="h-3.5 w-3.5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              {reportTitle}
+              <Sparkles className="h-3 w-3 text-primary" />
             </div>
-          ),
-        }}
+            <div className="text-[10px] text-muted-foreground">Generated by GigSure AI Analyst</div>
+          </div>
+        </div>
+      )}
+
+      <div
+        className={cn(
+          "prose prose-sm dark:prose-invert max-w-none",
+          // Headings
+          "prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground",
+          "prose-h1:text-lg prose-h1:mt-3 prose-h1:mb-2 prose-h1:border-b prose-h1:pb-1 prose-h1:border-border",
+          "prose-h2:text-base prose-h2:mt-3 prose-h2:mb-1.5 prose-h2:text-foreground",
+          "prose-h2:before:content-[''] prose-h2:before:inline-block prose-h2:before:w-1 prose-h2:before:h-4 prose-h2:before:bg-primary prose-h2:before:rounded-full prose-h2:before:mr-2 prose-h2:before:align-middle",
+          "prose-h3:text-sm prose-h3:mt-2 prose-h3:mb-1 prose-h3:font-semibold prose-h3:text-foreground",
+          "prose-h4:text-sm prose-h4:mt-2 prose-h4:mb-1 prose-h4:font-medium prose-h4:text-muted-foreground",
+          // Paragraphs + lists
+          "prose-p:my-1.5 prose-p:leading-relaxed prose-p:text-foreground/90",
+          "prose-ul:my-1.5 prose-ul:list-disc prose-ul:pl-5 prose-li:my-0.5 prose-li:text-foreground/90",
+          "prose-ol:my-1.5 prose-ol:list-decimal prose-ol:pl-5",
+          // Tables (GFM)
+          "prose-table:border-collapse prose-table:w-full prose-table:my-3 prose-table:text-xs prose-table:overflow-hidden prose-table:rounded-md prose-table:border prose-table:border-border",
+          "prose-thead:bg-muted/60",
+          "prose-th:border prose-th:border-border prose-th:px-2.5 prose-th:py-1.5 prose-th:text-left prose-th:font-semibold prose-th:text-foreground prose-th:text-[11px] prose-th:uppercase prose-th:tracking-wide",
+          "prose-td:border prose-td:border-border prose-td:px-2.5 prose-td:py-1.5 prose-td:text-foreground/90",
+          "prose-tr:hover:bg-muted/30 prose-tr:transition-colors",
+          // Code
+          "prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[11px] prose-code:font-mono prose-code:text-primary prose-code:before:content-none prose-code:after:content-none",
+          "prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-md prose-pre:text-xs",
+          // Blockquotes
+          "prose-blockquote:border-l-2 prose-blockquote:border-primary/40 prose-blockquote:bg-primary/5 prose-blockquote:py-1.5 prose-blockquote:pl-3 prose-blockquote:my-2 prose-blockquote:rounded-r prose-blockquote:not-italic prose-blockquote:text-foreground/80",
+          // Links
+          "prose-a:text-primary prose-a:font-medium prose-a:underline prose-a:underline-offset-2",
+          // Strong + em
+          "prose-strong:font-semibold prose-strong:text-foreground",
+          "prose-em:text-muted-foreground",
+          // HR
+          "prose-hr:border-border prose-hr:my-4",
+          className,
+        )}
       >
-        {cleaned}
-      </ReactMarkdown>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            // Open external links in new tab
+            a: ({ href, children, ...props }) => (
+              <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+                {children}
+              </a>
+            ),
+            // Wrap tables in scrollable container for mobile
+            table: ({ children, ...props }) => (
+              <div className="overflow-x-auto -mx-1">
+                <table {...props}>{children}</table>
+              </div>
+            ),
+            // Render text nodes with severity badge post-processing
+            // (react-markdown v10+ uses `text` for raw text nodes)
+            text: ({ children: textChildren }) => (
+              <>{renderSeveritySentinels(String(textChildren))}</>
+            ),
+          }}
+        >
+          {withBadges}
+        </ReactMarkdown>
+      </div>
     </div>
   );
 }
