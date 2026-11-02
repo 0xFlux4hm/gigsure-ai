@@ -10,6 +10,7 @@ import { Bot, Loader2, AlertTriangle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-components";
 import { AiMarkdown } from "@/components/ai/AiMarkdown";
+import { AiReportRenderer } from "@/components/ai/AiReportRenderer";
 
 const ASSISTANTS = [
   { key: "TEAM_PLANNER", name: "Team Planner", desc: "Suggest roles and collaboration structures" },
@@ -138,7 +139,10 @@ export function ProjectAiView({ projectId }: { projectId: string }) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <AiMarkdown>{response}</AiMarkdown>
+                <AiReportRenderer
+                  response={response}
+                  title={ASSISTANTS.find((a) => a.key === active)?.name ?? "AI Analysis"}
+                />
                 <div className="mt-3 text-xs text-muted-foreground border-t pt-2">
                   AI-generated. Advisory only. Verify before acting.
                 </div>
