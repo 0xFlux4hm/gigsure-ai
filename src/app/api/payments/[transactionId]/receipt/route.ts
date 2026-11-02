@@ -153,7 +153,7 @@ export const GET = apiRoute(async (req, { params }) => {
     </div>
     ${fundingRecord?.confirmedAt ? `
     <div class="section">
-      <div class="section-title">Escrow Confirmation</div>
+      <div class="section-title">Funding Confirmation</div>
       <div class="row"><span class="label">Funding Record</span><span class="value">${fundingRecord.id.slice(-8).toUpperCase()}</span></div>
       <div class="row"><span class="label">Status</span><span class="value" style="color: #16a34a;">${fundingRecord.status}</span></div>
       <div class="row"><span class="label">Confirmed At</span><span class="value">${new Date(fundingRecord.confirmedAt).toLocaleString("en-NG")}</span></div>

@@ -1,6 +1,6 @@
 /**
  * Payout service — orchestrates the real money movement from the platform
- * escrow to a worker's bank account when a milestone is released.
+ * pending payout to a worker's bank account when a milestone is released.
  *
  * Trigger: when a FundingRecord with type=RELEASE reaches PROVIDER_CONFIRMED
  * status, this service is invoked to:

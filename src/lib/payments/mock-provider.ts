@@ -291,7 +291,7 @@ export async function processWebhookEvent(input: {
 
   // If milestone release confirmed, trigger the actual payout(s) to the worker(s).
   // This is where the real money movement is initiated — the platform pays out
-  // from its escrow balance to the worker's bank account via the provider.
+  // from the held balance to the worker's bank account via the provider.
   if (
     input.status === "PROVIDER_CONFIRMED" &&
     record.type === "RELEASE"

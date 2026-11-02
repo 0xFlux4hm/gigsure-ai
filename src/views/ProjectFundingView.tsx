@@ -333,7 +333,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
 //
 // Lets an international client fund a milestone in USD via PayPal sandbox.
 // Funds convert to NGN at the platform demo rate (1 USD = ₦1,500) and land
-// in the existing NGN escrow. The freelancer receives NGN via Monnify/OPay
+// in the existing NGN funding records. The freelancer receives NGN via Monnify/OPay
 // payouts — the cross-border loop is the demo centerpiece.
 //
 // NOTE: This component depends on PAYPAL_ENABLED + PAYPAL_CLIENT_ID +
@@ -694,7 +694,7 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
           </div>
           <p className="text-sm text-muted-foreground">
             Your PayPal payment of <strong>${verifiedAmount ?? usdAmount} USD</strong> has been verified.
-            The milestone is now <strong>Funded</strong> and held in escrow.
+            The milestone is now <strong>Funded</strong> and held under GigSure Payment Protection.
           </p>
           <div className="flex flex-col gap-2 mt-3">
             <a
@@ -727,7 +727,7 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
           </div>
           <p className="text-sm text-muted-foreground">
             Your PayPal payment of <strong>${verifiedAmount ?? usdAmount} USD</strong> has been verified.
-            The milestone is now <strong>Funded</strong> and held in escrow.
+            The milestone is now <strong>Funded</strong> and held under GigSure Payment Protection.
           </p>
           <Button
             variant="outline"
@@ -754,7 +754,7 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
             <li>International client clicks "Pay with PayPal".</li>
             <li>PayPal sandbox opens — client approves payment in USD.</li>
             <li>PayPal webhook confirms the payment on our server.</li>
-            <li>Funds convert to NGN at the platform rate and enter escrow.</li>
+            <li>Funds convert to NGN at the platform rate and are held under GigSure Payment Protection.</li>
             <li>On milestone completion, the freelancer is paid out via Monnify/OPay in NGN.</li>
           </ol>
           <p className="mt-2 text-[11px] text-muted-foreground">

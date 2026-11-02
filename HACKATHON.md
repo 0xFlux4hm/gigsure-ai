@@ -17,7 +17,7 @@ Africa's independent services market — developers, designers, writers, consult
 When they DO find international clients, the problems multiply:
 
 - **Unclear requirements** → scope creep → disputes
-- **No escrow** → unpaid completed work
+- **No milestone-gated payments** → unpaid completed work
 - **No cross-border payment** → international clients can't pay in their currency
 - **No contract protection** → freelancers bear all the risk
 - **No transparency** → he-said-she-said disputes with no records
@@ -30,7 +30,7 @@ When they DO find international clients, the problems multiply:
 
 GigSure AI is an AI-powered project contract and payment transparency platform connecting international clients with skilled African professionals.
 
-It is **NOT a freelance marketplace.** It's a trust layer — contract versioning, milestone-based escrow, AI-assisted contract analysis, and neutral dispute documentation. Clients bring their own freelancers; GigSure ensures everyone gets paid fairly.
+It is **NOT a freelance marketplace.** It's a trust layer — contract versioning, milestone-gated payments, AI-assisted contract analysis, and neutral dispute documentation. Clients bring their own freelancers; GigSure ensures everyone gets paid fairly.
 
 ### Three funding arrangements supported:
 
@@ -46,9 +46,9 @@ Per hackathon rules: *"Entrants must build or update an application that integra
 
 ### Two technologies, deeply integrated:
 
-#### 1. PayPal — Cross-Border Escrow
+#### 1. PayPal — Cross-Border Milestone-Gated Payments
 
-International clients fund milestones in **USD via PayPal**. The Nigerian professional receives **NGN via Monnify/OPay**. GigSure's escrow holds the funds until milestones are met.
+International clients fund milestones in **USD via PayPal**. The Nigerian professional receives **NGN via Monnify/OPay**. GigSure's **milestone-gated payment system** holds the funds at the payment provider until milestones are met.
 
 | PayPal API / capability | Where it's used |
 |---|---|
@@ -100,9 +100,9 @@ Running on **Groq's LPU hardware** at **500+ tokens/sec** with `openai/gpt-oss-2
                                         │ confirm
                                         ▼
                               ┌────────────────────┐    NGN     ┌────────────┐
-                              │  GigSure escrow    │ ─────────► │ Freelancer │
-                              │  (FundingRecord)   │  Monnify   │ bank acct  │
-                              └────────────────────┘   /OPay   └────────────┘
+                              │  GigSure payment   │ ─────────► │ Freelancer │
+                              │  protection        │  Monnify   │ bank acct  │
+                              │  (FundingRecord)   │   /OPay   └────────────┘
 ```
 
 1. International client clicks "Pay with PayPal" on a NGN-denominated milestone
@@ -113,7 +113,7 @@ Running on **Groq's LPU hardware** at **500+ tokens/sec** with `openai/gpt-oss-2
 6. PayPal webhook fires at `/api/payments/webhook/paypal` (`PAYMENT.CAPTURE.COMPLETED`)
 7. Server verifies the webhook via PayPal's official `verify-webhook-signature` API
 8. Funds are recorded in the FundingRecord (in NGN, converted back from USD)
-9. Escrow holds the funds
+9. Payment provider holds the funds under GigSure Payment Protection
 10. On milestone completion, Monnify/OPay pays out to the freelancer's bank account in NGN
 
 ### AI architecture
@@ -238,10 +238,10 @@ SMTP_URL=<if-enabled>
 | 0:00 – 0:20 | **"Why this, why now"** — Ahmad introduces himself (Lagos-based, cybersecurity bug hunter). The problem: Africa's independent professionals are invisible to the global gig economy. Upwork doesn't serve Nigeria. Stripe doesn't do NGN. We're building for **Africa, starting with Nigeria**. | — |
 | 0:20 – 0:50 | **AI Project Brief Generator** — Describe a project in plain language ("I need a website for my Lagos bakery with online ordering"). AI generates a structured brief: title, scope, deliverables, skills, complexity, timeline, clarifying questions. All editable before saving. | Groq AI — `openai/gpt-oss-20b` @ 500 tok/s |
 | 0:50 – 1:20 | **AI Milestone Generator** — Click "AI Generate" on the milestones tab. AI suggests a milestone breakdown with deliverables, acceptance criteria, dependencies, and payment percentages. Supports all 3 funding arrangements. | Groq AI + project context |
-| 1:20 – 1:50 | **Pay with PayPal** — Click "Pay with PayPal" on a ₦450,000 milestone. Show USD conversion ($300 at 1 USD = ₦1,500). PayPal sandbox opens. Approve payment. Webhook fires. Milestone status → "Funded". | PayPal Orders API v2 + Webhook API |
+| 1:20 – 1:50 | **Pay with PayPal** — Click "Pay with PayPal" on a ₦450,000 milestone. Show USD conversion ($300 at 1 USD = ₦1,500). PayPal sandbox opens. Approve payment. Webhook fires. Milestone status → "Funded". Funds held under GigSure Payment Protection. | PayPal Orders API v2 + Webhook API |
 | 1:50 – 2:20 | **AI Contract Analysis** — Open the contract. Click "Analyze". AI produces a dashboard report: risk score (0-100), severity stat cards (Total/High/Medium/Low), key findings table with colored severity badges, missing information, recommendations. | Groq AI — dashboard report renderer |
 | 2:20 – 2:50 | **AI Dispute Summary** — Open a dispute. Click "Generate neutral summary". AI produces timeline, agreed vs. submitted deliverables, gaps, key claims from both parties, recommended next steps. Strictly neutral — never decides. | Groq AI + authorized project records |
-| 2:50 – 3:00 | **Wrap** — "Cross-border escrow via PayPal + 5 AI features that build trust. Built for Africa, starting with Nigeria." | — |
+| 2:50 – 3:00 | **Wrap** — "Cross-border payments via PayPal + 5 AI features that build trust. Built for Africa, starting with Nigeria." | — |
 
 ---
 
@@ -305,13 +305,11 @@ For the first time, an international client can:
 4. Fund a milestone in **USD via PayPal** (the currency they have)
 5. The Nigerian professional receives **NGN via Monnify/OPay** (the currency they need)
 6. **AI analyzes the contract** for risks before anyone signs
-7. **Escrow** holds funds under GigSure Payment Protection until milestones are met
+7. **GigSure Payment Protection** holds funds at the payment provider until milestones are met
 8. If there's a dispute, **AI produces a neutral summary** — timeline, gaps, claims, next steps
 9. Human review is mandatory — AI never decides disputes or releases funds
 
 **No Western platform has this.** Upwork doesn't serve this market. Stripe doesn't process NGN payouts. This is a novel capability — **built for Africa, starting with Nigeria.**
-
----
 
 ## Team
 
