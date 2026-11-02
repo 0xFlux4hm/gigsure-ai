@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { api, formatDateTime } from "@/lib/client-api";
 import { Plus, Loader2, CheckCircle2, History, GitCompare, FileText } from "lucide-react";
 import { ContractRiskAnalyzer } from "@/views/ContractRiskAnalyzer";
+import { NewContractForm } from "@/components/contracts/NewContractForm";
 import { toast } from "sonner";
 import {
   Select,
@@ -41,6 +42,7 @@ export function ProjectContractsView({ projectId }: { projectId: string }) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareA, setCompareA] = useState<string>("");
   const [compareB, setCompareB] = useState<string>("");
@@ -145,15 +147,9 @@ export function ProjectContractsView({ projectId }: { projectId: string }) {
                 </DialogContent>
               </Dialog>
             )}
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button><Plus className="mr-2 h-4 w-4" /> New version</Button>
-              </DialogTrigger>
-              <NewContractDialog
-                projectId={projectId}
-                onCreated={() => { setOpen(false); load(); }}
-              />
-            </Dialog>
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> New version
+            </Button>
           </div>
         }
       />
@@ -164,7 +160,7 @@ export function ProjectContractsView({ projectId }: { projectId: string }) {
           title="No contracts yet"
           description="Create a contract version to formalize scope with your client."
           action={
-            <Button onClick={() => setOpen(true)}>
+            <Button onClick={() => setFormOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> Create version
             </Button>
           }
@@ -229,6 +225,15 @@ export function ProjectContractsView({ projectId }: { projectId: string }) {
           ))}
         </div>
       )}
+
+      {/* New contract version form — responsive Sheet (full-screen on mobile) */}
+      <NewContractForm
+        projectId={projectId}
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        onCreated={load}
+        previousVersion={versions[0] ?? null}
+      />
     </div>
   );
 }
@@ -239,97 +244,5 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div className="text-xs font-medium text-muted-foreground mb-1">{title}</div>
       <div className="text-sm whitespace-pre-wrap">{children}</div>
     </div>
-  );
-}
-
-function NewContractDialog({ projectId, onCreated }: { projectId: string; onCreated: () => void }) {
-  const [form, setForm] = useState({
-    scopeOfWork: "",
-    deliverablesText: "",
-    deadlines: "",
-    paymentSchedule: "",
-    milestoneConditions: "",
-    revisionRules: "",
-    cancellationTerms: "",
-    disputeProcedures: "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
-
-  const submit = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await api.post(`/api/projects/${projectId}/contracts`, {
-        scopeOfWork: form.scopeOfWork,
-        deliverables: form.deliverablesText.split("\n").map((s) => s.trim()).filter(Boolean),
-        deadlines: form.deadlines,
-        paymentSchedule: form.paymentSchedule,
-        milestoneConditions: form.milestoneConditions,
-        revisionRules: form.revisionRules,
-        cancellationTerms: form.cancellationTerms,
-        disputeProcedures: form.disputeProcedures,
-      });
-      toast.success("Contract version created", { description: "The new version is now visible to project members." });
-      onCreated();
-    } catch (err) {
-      setError((err as Error).message);
-      toast.error("Failed to create contract version", { description: (err as Error).message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-      <DialogHeader>
-        <DialogTitle>New contract version</DialogTitle>
-      </DialogHeader>
-      <div className="space-y-3 py-2">
-        <div className="space-y-1.5">
-          <Label>Scope of work *</Label>
-          <Textarea value={form.scopeOfWork} onChange={(e) => set("scopeOfWork", e.target.value)} rows={4} placeholder="What the client wants delivered..." />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Deliverables (one per line)</Label>
-          <Textarea value={form.deliverablesText} onChange={(e) => set("deliverablesText", e.target.value)} rows={3} placeholder={"Landing page\nAdmin dashboard\nDocumentation"} />
-        </div>
-        <div className="grid md:grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label>Deadlines</Label>
-            <Textarea value={form.deadlines} onChange={(e) => set("deadlines", e.target.value)} rows={2} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Payment schedule</Label>
-            <Textarea value={form.paymentSchedule} onChange={(e) => set("paymentSchedule", e.target.value)} rows={2} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Milestone conditions</Label>
-            <Textarea value={form.milestoneConditions} onChange={(e) => set("milestoneConditions", e.target.value)} rows={2} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Revision rules</Label>
-            <Textarea value={form.revisionRules} onChange={(e) => set("revisionRules", e.target.value)} rows={2} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Cancellation terms</Label>
-            <Textarea value={form.cancellationTerms} onChange={(e) => set("cancellationTerms", e.target.value)} rows={2} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Dispute procedures</Label>
-            <Textarea value={form.disputeProcedures} onChange={(e) => set("disputeProcedures", e.target.value)} rows={2} />
-          </div>
-        </div>
-        {error && <div className="text-sm text-destructive">{error}</div>}
-      </div>
-      <DialogFooter>
-        <Button onClick={submit} disabled={loading || !form.scopeOfWork}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-          Create version
-        </Button>
-      </DialogFooter>
-    </DialogContent>
   );
 }
