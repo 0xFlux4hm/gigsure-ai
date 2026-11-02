@@ -14,6 +14,13 @@
  *   - Strips raw HTML tags like <br> (converts to proper paragraphs)
  *   - Report-style header with "AI Research Report" branding
  *
+ * IMPLEMENTATION NOTE:
+ *   We use explicit Tailwind utility classes on each rendered element
+ *   (via the `components` override map) instead of relying on the
+ *   `prose` class from @tailwindcss/typography. This is more reliable
+ *   across Tailwind v4 setups where the typography plugin's `prose`
+ *   classes may not be generated correctly.
+ *
  * SAFETY: react-markdown does NOT render raw HTML by default — all HTML
  * tags in the input are escaped and shown as text. We pre-process to
  * convert common ones (<br>, <strong>, <em>) to Markdown equivalents.
@@ -39,7 +46,6 @@ interface AiMarkdownProps {
 
 /**
  * Severity styling for HIGH/MEDIUM/LOW badges.
- * Used when rendering standalone severity tokens in table cells.
  */
 const SEVERITY_CLASS: Record<string, string> = {
   HIGH: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-300 dark:border-red-800",
@@ -47,18 +53,12 @@ const SEVERITY_CLASS: Record<string, string> = {
   LOW: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800",
 };
 
-/**
- * Check if a string is exactly a severity token (HIGH/MEDIUM/LOW).
- * Used to render severity badges inside table cells.
- */
 function isSeverityToken(s: string): s is "HIGH" | "MEDIUM" | "LOW" {
   return s === "HIGH" || s === "MEDIUM" || s === "LOW";
 }
 
 /**
  * Walk a ReactNode tree and replace standalone severity strings with badges.
- * This handles severity tokens that appear as standalone text in table cells,
- * paragraphs, or list items.
  */
 function withSeverityBadges(node: ReactNode): ReactNode {
   if (typeof node === "string") {
@@ -83,7 +83,6 @@ function withSeverityBadges(node: ReactNode): ReactNode {
   return node;
 }
 
-// Wrapper component to render children with severity badges
 function SeverityAware({ children }: { children?: ReactNode }) {
   return <>{withSeverityBadges(children)}</>;
 }
@@ -95,7 +94,6 @@ export function AiMarkdown({
   showReportHeader = true,
 }: AiMarkdownProps) {
   // Pre-process: convert raw HTML to Markdown equivalents
-  // (react-markdown escapes raw HTML by default, so <br> would show as text)
   const cleaned = children
     .replace(/<br\s*\/?>/gi, "\n\n")
     .replace(/<strong>(.*?)<\/strong>/gi, "**$1**")
@@ -106,46 +104,118 @@ export function AiMarkdown({
     .replace(/<\/p>/gi, "\n\n")
     .replace(/<hr\s*\/?>/gi, "\n\n---\n\n");
 
-  // Component overrides for react-markdown
-  // NOTE: We do NOT override `text` — that breaks table rendering in v10+.
-  // Instead, we override `td` and `th` to detect severity tokens and render
-  // them as badges. This is the recommended pattern.
+  // Component overrides — explicit Tailwind utility classes on each element
+  // (more reliable than depending on @tailwindcss/typography `prose` classes)
   const components: Components = {
-    // Open external links in new tab with safe rel attributes
-    a: ({ href, children, ...props }) => (
-      <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+    h1: ({ children, ...props }) => (
+      <h1 className="text-lg font-semibold tracking-tight mt-4 mb-2 pb-1 border-b border-border text-foreground" {...props}>
         {children}
-      </a>
+      </h1>
     ),
-    // Wrap tables in scrollable container for mobile responsiveness
-    table: ({ children, ...props }) => (
-      <div className="overflow-x-auto -mx-1 my-3">
-        <table {...props}>{children}</table>
-      </div>
+    h2: ({ children, ...props }) => (
+      <h2 className="flex items-center gap-2 text-base font-semibold mt-3 mb-1.5 text-foreground" {...props}>
+        <span className="inline-block w-1 h-4 bg-primary rounded-full" />
+        {children}
+      </h2>
     ),
-    // Table cells: detect standalone severity tokens and render as badges
-    td: ({ children, ...props }) => (
-      <td {...props}>
-        <SeverityAware>{children}</SeverityAware>
-      </td>
+    h3: ({ children, ...props }) => (
+      <h3 className="text-sm font-semibold mt-2 mb-1 text-foreground" {...props}>
+        {children}
+      </h3>
     ),
-    // Table headers: same treatment
-    th: ({ children, ...props }) => (
-      <th {...props}>
-        <SeverityAware>{children}</SeverityAware>
-      </th>
+    h4: ({ children, ...props }) => (
+      <h4 className="text-sm font-medium mt-2 mb-1 text-muted-foreground" {...props}>
+        {children}
+      </h4>
     ),
-    // Paragraphs: also detect severity tokens (e.g. "**Severity:** HIGH")
     p: ({ children, ...props }) => (
-      <p {...props}>
+      <p className="my-1.5 leading-relaxed text-foreground/90 text-sm" {...props}>
         <SeverityAware>{children}</SeverityAware>
       </p>
     ),
-    // List items: also detect severity tokens
+    ul: ({ children, ...props }) => (
+      <ul className="my-1.5 list-disc pl-5 space-y-0.5" {...props}>
+        {children}
+      </ul>
+    ),
+    ol: ({ children, ...props }) => (
+      <ol className="my-1.5 list-decimal pl-5 space-y-0.5" {...props}>
+        {children}
+      </ol>
+    ),
     li: ({ children, ...props }) => (
-      <li {...props}>
+      <li className="text-foreground/90 text-sm" {...props}>
         <SeverityAware>{children}</SeverityAware>
       </li>
+    ),
+    strong: ({ children, ...props }) => (
+      <strong className="font-semibold text-foreground" {...props}>
+        {children}
+      </strong>
+    ),
+    em: ({ children, ...props }) => (
+      <em className="text-muted-foreground" {...props}>
+        {children}
+      </em>
+    ),
+    a: ({ href, children, ...props }) => (
+      <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary font-medium underline underline-offset-2" {...props}>
+        {children}
+      </a>
+    ),
+    table: ({ children, ...props }) => (
+      <div className="overflow-x-auto -mx-1 my-3 rounded-md border border-border">
+        <table className="w-full border-collapse text-xs" {...props}>
+          {children}
+        </table>
+      </div>
+    ),
+    thead: ({ children, ...props }) => (
+      <thead className="bg-muted/60" {...props}>{children}</thead>
+    ),
+    th: ({ children, ...props }) => (
+      <th className="border border-border px-2.5 py-1.5 text-left font-semibold text-foreground text-[11px] uppercase tracking-wide" {...props}>
+        <SeverityAware>{children}</SeverityAware>
+      </th>
+    ),
+    td: ({ children, ...props }) => (
+      <td className="border border-border px-2.5 py-1.5 text-foreground/90" {...props}>
+        <SeverityAware>{children}</SeverityAware>
+      </td>
+    ),
+    tr: ({ children, ...props }) => (
+      <tr className="transition-colors hover:bg-muted/30" {...props}>
+        {children}
+      </tr>
+    ),
+    code: ({ children, className: codeClass, ...props }) => {
+      // Inline code vs block code
+      const isBlock = codeClass?.includes("language-");
+      if (isBlock) {
+        return (
+          <code className="block bg-muted border border-border rounded-md p-3 text-xs font-mono overflow-x-auto" {...props}>
+            {children}
+          </code>
+        );
+      }
+      return (
+        <code className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono text-primary" {...props}>
+          {children}
+        </code>
+      );
+    },
+    pre: ({ children, ...props }) => (
+      <pre className="bg-muted border border-border rounded-md p-3 text-xs overflow-x-auto my-2" {...props}>
+        {children}
+      </pre>
+    ),
+    blockquote: ({ children, ...props }) => (
+      <blockquote className="border-l-2 border-primary/40 bg-primary/5 py-1.5 pl-3 my-2 rounded-r not-italic text-foreground/80 text-sm" {...props}>
+        {children}
+      </blockquote>
+    ),
+    hr: ({ ...props }) => (
+      <hr className="border-border my-4" {...props} />
     ),
   };
 
@@ -166,42 +236,7 @@ export function AiMarkdown({
         </div>
       )}
 
-      <div
-        className={cn(
-          "prose prose-sm dark:prose-invert max-w-none",
-          // Headings — premium hierarchy with colored left bar
-          "prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground",
-          "prose-h1:text-lg prose-h1:mt-3 prose-h1:mb-2 prose-h1:border-b prose-h1:pb-1 prose-h1:border-border",
-          "prose-h2:text-base prose-h2:mt-3 prose-h2:mb-1.5 prose-h2:text-foreground prose-h2:flex prose-h2:items-center prose-h2:gap-2",
-          "prose-h2:before:content-[''] prose-h2:before:inline-block prose-h2:before:w-1 prose-h2:before:h-4 prose-h2:before:bg-primary prose-h2:before:rounded-full",
-          "prose-h3:text-sm prose-h3:mt-2 prose-h3:mb-1 prose-h3:font-semibold prose-h3:text-foreground",
-          "prose-h4:text-sm prose-h4:mt-2 prose-h4:mb-1 prose-h4:font-medium prose-h4:text-muted-foreground",
-          // Paragraphs + lists
-          "prose-p:my-1.5 prose-p:leading-relaxed prose-P:text-foreground/90",
-          "prose-ul:my-1.5 prose-ul:list-disc prose-ul:pl-5",
-          "prose-ol:my-1.5 prose-ol:list-decimal prose-ol:pl-5",
-          "prose-li:my-0.5 prose-li:text-foreground/90",
-          // Tables (GFM) — premium styled like data tables
-          "prose-table:border-collapse prose-table:w-full prose-table:text-xs prose-table:overflow-hidden prose-table:rounded-md prose-table:border prose-table:border-border",
-          "prose-thead:bg-muted/60",
-          "prose-th:border prose-th:border-border prose-th:px-2.5 prose-th:py-1.5 prose-th:text-left prose-th:font-semibold prose-th:text-foreground prose-th:text-[11px] prose-th:uppercase prose-th:tracking-wide",
-          "prose-td:border prose-td:border-border prose-td:px-2.5 prose-td:py-1.5 prose-td:text-foreground/90",
-          "prose-tr:hover:bg-muted/30 prose-tr:transition-colors",
-          // Code — primary tint
-          "prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[11px] prose-code:font-mono prose-code:text-primary prose-code:before:content-none prose-code:after:content-none",
-          "prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:rounded-md prose-pre:text-xs",
-          // Blockquotes — info callout style
-          "prose-blockquote:border-l-2 prose-blockquote:border-primary/40 prose-blockquote:bg-primary/5 prose-blockquote:py-1.5 prose-blockquote:pl-3 prose-blockquote:my-2 prose-blockquote:rounded-r prose-blockquote:not-italic prose-blockquote:text-foreground/80",
-          // Links
-          "prose-a:text-primary prose-a:font-medium prose-a:underline prose-a:underline-offset-2",
-          // Strong + em
-          "prose-strong:font-semibold prose-strong:text-foreground",
-          "prose-em:text-muted-foreground",
-          // HR
-          "prose-hr:border-border prose-hr:my-4",
-          className,
-        )}
-      >
+      <div className={cn("text-sm", className)}>
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
           {cleaned}
         </ReactMarkdown>
