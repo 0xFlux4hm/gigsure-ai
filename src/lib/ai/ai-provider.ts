@@ -21,7 +21,7 @@
 import OpenAI from "openai";
 import { AuthnError } from "@/lib/auth/authorization";
 
-export type AiProvider = "agentrouter" | "zai" | "gemini" | "deepseek";
+export type AiProvider = "agentrouter" | "zai" | "gemini" | "deepseek" | "groq";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -44,6 +44,26 @@ export interface ChatOptions {
 
 /** Default model per provider. Override via AI_MODEL env var. */
 const DEFAULT_MODEL_PER_PROVIDER: Record<AiProvider, string> = {
+  // ─── Groq (FASTEST — 500+ tokens/sec on LPU hardware) ──────────────
+  // openai/gpt-oss-20b is the user-specified initial model for Groq.
+  // Per https://console.groq.com/docs/rate-limits free tier:
+  //    30 requests/minute (RPM)
+  //    1,000 requests/day (RPD)
+  //    ~6,000-8,000 tokens/minute (TPM)
+  //    No credit card required
+  //
+  // Groq's standout feature is speed — LPU hardware generates 500+ tokens/sec,
+  // 5-10× faster than typical GPU-based providers. Perfect for real-time UIs.
+  //
+  // Other models available on free tier:
+  //   - openai/gpt-oss-120b     (larger, more capable, 30 RPM / 1,000 RPD)
+  //   - llama-3.3-70b-versatile (open-weights, balanced)
+  //   - qwen-2.5-32b           (good for non-English)
+  //   - deepseek-r1-distill-llama-70b  (reasoning model)
+  //
+  // Get a free API key at https://console.groq.com/keys (no card needed)
+  groq: "openai/gpt-oss-20b",
+
   // ─── DeepSeek (BEST FOR HACKATHON DEMO — free $8 credit + no rate limits) ─
   // deepseek-flash is the cheapest production-tier model we've found.
   // Per https://api-docs.deepseek.com/quick_start/pricing:
@@ -102,28 +122,16 @@ let _cachedOpenAi: OpenAI | null = null;
 /**
  * Resolve the active AI provider from env vars.
  *
- *   AI_PROVIDER=deepseek     → DeepSeek (RECOMMENDED — $8 free credit, no rate limits)
+ *   AI_PROVIDER=groq          → Groq (FASTEST — 500 tok/s LPU, 30 RPM free)
+ *   AI_PROVIDER=deepseek     → DeepSeek (no rate limits, $8 free credit)
  *   AI_PROVIDER=zai          → Z.AI direct (DEFAULT — free glm-4.7-flash)
  *   AI_PROVIDER=gemini       → Google Gemini (15 RPM / 1,500 RPD free tier)
  *   AI_PROVIDER=agentrouter  → AgentRouter (multi-model gateway, $200 free credits)
  *   (unset)                  → defaults to "zai" for backwards compat
- *
- * The default is Z.AI because the user's ZAI_API_KEY is already on Vercel.
- * But DeepSeek is the best option for the hackathon demo — sign up at
- * https://platform.deepseek.com/usage to get $8 in free credits (no card),
- * then set:
- *   AI_PROVIDER=deepseek
- *   DEEPSEEK_API_KEY=<your key>
- *
- * DeepSeek advantages over the alternatives:
- *   - No 1302 'high concurrency' throttle like Z.AI's free tier
- *   - No 15 RPM cap like Gemini's free tier (DeepSeek only caps concurrency,
- *     at 2,500 concurrent for Flash — basically unlimited for our use case)
- *   - No geo-blocks like Gemini (works from HK, China, anywhere)
- *   - $8 free credit on signup = ~50,000+ AI calls before you'd pay anything
  */
 export function getAiProvider(): AiProvider {
   const v = (process.env.AI_PROVIDER ?? "zai").toLowerCase();
+  if (v === "groq") return "groq";
   if (v === "deepseek") return "deepseek";
   if (v === "agentrouter") return "agentrouter";
   if (v === "gemini" || v === "google") return "gemini";
@@ -143,12 +151,13 @@ export function getAiModel(): string {
 /**
  * Returns a cached OpenAI client configured for the active provider.
  *
- * For DeepSeek:      base URL = https://api.deepseek.com, key = DEEPSEEK_API_KEY
- * For Gemini:        base URL = https://generativelanguage.googleapis.com/v1beta/openai/, key = GEMINI_API_KEY
- * For AgentRouter:   base URL = https://co.agentrouter.org/v1, key = AGENTROUTER_API_KEY
- * For Z.AI direct:   base URL = https://api.z.ai/api/paas/v4/, key = ZAI_API_KEY
+ * For Groq:         base URL = https://api.groq.com/openai/v1, key = GROQ_API_KEY
+ * For DeepSeek:     base URL = https://api.deepseek.com, key = DEEPSEEK_API_KEY
+ * For Gemini:       base URL = https://generativelanguage.googleapis.com/v1beta/openai/, key = GEMINI_API_KEY
+ * For AgentRouter:  base URL = https://co.agentrouter.org/v1, key = AGENTROUTER_API_KEY
+ * For Z.AI direct:  base URL = https://api.z.ai/api/paas/v4/, key = ZAI_API_KEY
  *
- * All four providers expose an OpenAI-compatible /chat/completions
+ * All five providers expose an OpenAI-compatible /chat/completions
  * endpoint, so the standard `openai` SDK works for all of them — only
  * the baseURL + apiKey differ.
  *
@@ -161,7 +170,25 @@ export function getOpenAiClient(): OpenAI {
   let apiKey: string | undefined;
   let baseURL: string;
 
-  if (provider === "deepseek") {
+  if (provider === "groq") {
+    // Groq — OpenAI-compatible endpoint on LPU hardware (500+ tokens/sec).
+    // Get a free API key at https://console.groq.com/keys (no card needed).
+    // Free tier: 30 RPM, 1,000 RPD, ~6-8K TPM on openai/gpt-oss-20b.
+    apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      throw new AuthnError(
+        "AI_PROVIDER=groq is set, but GROQ_API_KEY is missing. " +
+          "Create a free API key at https://console.groq.com/keys (no credit card " +
+          "required) and add GROQ_API_KEY to Vercel Project Settings → Environment " +
+          "Variables, then redeploy. Free tier gives 30 RPM / 1,000 RPD on " +
+          "openai/gpt-oss-20b with 500+ tokens/sec generation speed.",
+        503,
+      );
+    }
+    // Per https://console.groq.com/docs/openai the OpenAI-compatible base URL is
+    // https://api.groq.com/openai/v1 (the standard OpenAI SDK appends /chat/completions).
+    baseURL = process.env.GROQ_BASE_URL ?? "https://api.groq.com/openai/v1";
+  } else if (provider === "deepseek") {
     // DeepSeek — OpenAI-compatible endpoint.
     // Sign up at https://platform.deepseek.com/usage to get $8 in free credits.
     // No credit card required. Free credits valid for 30 days.
@@ -244,6 +271,7 @@ export function getOpenAiClient(): OpenAI {
  */
 export function isAiConfigured(): boolean {
   const provider = getAiProvider();
+  if (provider === "groq") return !!process.env.GROQ_API_KEY;
   if (provider === "deepseek") return !!process.env.DEEPSEEK_API_KEY;
   if (provider === "gemini") return !!process.env.GEMINI_API_KEY;
   if (provider === "agentrouter") return !!process.env.AGENTROUTER_API_KEY;

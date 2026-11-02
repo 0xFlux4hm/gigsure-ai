@@ -18,6 +18,10 @@ const ASSISTANTS = [
   { key: "RISK", name: "Project Risk Assistant", desc: "Identify overdue work, unclear responsibilities" },
   { key: "EVIDENCE", name: "Evidence Assistant", desc: "Summarize dispute evidence and timelines" },
   { key: "PROGRESS", name: "Progress Assistant", desc: "Summarize project progress from records" },
+  // ─── New assistants (Groq-powered feature set) ────────────────────
+  { key: "PROJECT_BRIEF_HELPER", name: "Project Brief Helper", desc: "Improve project descriptions, ask clarifying questions" },
+  { key: "MILESTONE_HELPER", name: "Milestone Helper", desc: "Choose funding arrangement, suggest milestone splits" },
+  { key: "DISPUTE_HELPER", name: "Dispute Helper", desc: "Understand dispute process, suggest next steps (never decides)" },
 ] as const;
 
 type AssistantKey = typeof ASSISTANTS[number]["key"];

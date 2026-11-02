@@ -60,6 +60,25 @@ const ASSISTANTS = {
     systemPrompt:
       "You are GigSure's Progress Assistant. Summarize the project's current progress: completed milestones, pending tasks, upcoming deadlines, open disputes. Be concise and factual.",
   },
+  // ─── New assistants for the Groq-powered AI feature set ────────────
+  PROJECT_BRIEF_HELPER: {
+    name: "Project Brief Helper",
+    description: "Helps customers describe their project clearly. Asks clarifying questions, suggests improvements to vague descriptions, explains what details workers need to bid accurately.",
+    systemPrompt:
+      "You are GigSure's Project Brief Helper. Help customers describe their projects more clearly so workers can deliver accurately. If the description is vague, ask 2-3 specific clarifying questions. If it's already detailed, suggest 2-3 improvements (e.g. missing deliverables, unclear scope boundaries). Output as bullet points. Do not invent project details — only suggest what's missing. Recommend using the 'Generate Project Brief' button for a structured draft.",
+  },
+  MILESTONE_HELPER: {
+    name: "Milestone Helper",
+    description: "Explains milestone structure options. Helps choose between full/milestone/upfront-plus-milestones funding. Suggests realistic deliverable splits.",
+    systemPrompt:
+      "You are GigSure's Milestone Helper. Help customers and workers understand milestone structures. Explain the three GigSure funding arrangements (FULL, MILESTONE, UPFRONT_PLUS_MILESTONES) when asked. Suggest realistic splits based on project type. NEVER invent actual payment amounts — only percentages. Do not auto-approve funding. Recommend using the 'Generate Milestones' button for a structured draft.",
+  },
+  DISPUTE_HELPER: {
+    name: "Dispute Resolution Helper",
+    description: "Explains dispute process, suggests questions to clarify positions, recommends next steps (mediation, evidence collection). NEVER decides disputes or authorizes fund release.",
+    systemPrompt:
+      "You are GigSure's Dispute Resolution Helper. Help customers and workers understand the dispute process. Suggest clarifying questions to help parties understand each other's positions. Recommend next steps like collecting evidence or scheduling a mediation call. NEVER recommend fund release, refunds, account freezes, or any financial action. NEVER decide who is right. Be strictly neutral. Recommend using the 'Generate Dispute Summary' button for a structured timeline + gap analysis.",
+  },
 } as const;
 
 type AssistantKey = keyof typeof ASSISTANTS;
@@ -73,6 +92,9 @@ const Schema = z.object({
     "RISK",
     "EVIDENCE",
     "PROGRESS",
+    "PROJECT_BRIEF_HELPER",
+    "MILESTONE_HELPER",
+    "DISPUTE_HELPER",
   ]),
   prompt: z.string().min(1).max(8000),
   projectId: z.string().cuid().optional(),
@@ -652,5 +674,11 @@ function generateFallback(assistant: AssistantKey, context: string): string {
       } catch {
         return "Deterministic fallback: see project dashboard for current state.";
       }
+    case "PROJECT_BRIEF_HELPER":
+      return "AI provider unavailable. Deterministic fallback: a clear project description should include (1) what you want built, (2) the target audience or users, (3) any specific deliverables you have in mind, (4) timeline constraints, (5) must-have features vs nice-to-have. Use the 'Generate Project Brief' button to get a structured draft.";
+    case "MILESTONE_HELPER":
+      return "AI provider unavailable. Deterministic fallback: GigSure supports three funding arrangements — FULL (single payment on completion), MILESTONE (split across milestones), and UPFRONT_PLUS_MILESTONES (initial payment + milestone-based remainder). Choose based on project size and trust level. Use the 'Generate Milestones' button for a structured suggestion.";
+    case "DISPUTE_HELPER":
+      return "AI provider unavailable. Deterministic fallback: disputes are resolved through GigSure's review process. (1) Collect all evidence (messages, submitted work, original contract), (2) Identify the specific disagreement, (3) Attempt direct communication, (4) If unresolved, request platform review. NEVER release funds or take financial action unilaterally. Use the 'Generate Dispute Summary' button for a structured timeline.";
   }
 }
