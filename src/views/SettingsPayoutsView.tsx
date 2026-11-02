@@ -20,14 +20,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Building2,
   Plus,
@@ -38,6 +37,7 @@ import {
   Loader2,
   Banknote,
   ArrowDownToLine,
+  X,
 } from "lucide-react";
 import { api } from "@/lib/client-api";
 import { useNav } from "@/lib/nav";
@@ -254,82 +254,9 @@ export function SettingsPayoutsView() {
               Account name should match your KYC name to pass name-enquiry verification.
             </CardDescription>
           </div>
-          <Dialog open={addingAccount} onOpenChange={setAddingAccount}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-1" /> Add account
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add payout bank account</DialogTitle>
-                <DialogDescription>
-                  We&apos;ll verify the account name against the bank to confirm you own it.
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleAddAccount} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="accountName">Account name</Label>
-                  <Input className="input-premium"
-                    id="accountName"
-                    value={formState.accountName}
-                    onChange={(e) => setFormState((s) => ({ ...s, accountName: e.target.value }))}
-                    placeholder="e.g., Adaeze Okafor"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="accountNumber">Account number (10 digits)</Label>
-                  <Input className="input-premium"
-                    id="accountNumber"
-                    value={formState.accountNumber}
-                    onChange={(e) =>
-                      setFormState((s) => ({
-                        ...s,
-                        accountNumber: e.target.value.replace(/\D/g, "").slice(0, 10),
-                      }))
-                    }
-                    placeholder="0123456789"
-                    inputMode="numeric"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bank">Bank</Label>
-                  <Select value={formState.bankCode} onValueChange={handleBankChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select your bank" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {banks.map((b) => (
-                        <SelectItem key={b.code} value={b.code}>
-                          {b.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={formState.isDefault}
-                    onChange={(e) => setFormState((s) => ({ ...s, isDefault: e.target.checked }))}
-                    className="rounded"
-                  />
-                  Set as default payout account
-                </label>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setAddingAccount(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={submitting}>
-                    {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                    Add account
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => setAddingAccount(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Add account
+          </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -407,6 +334,88 @@ export function SettingsPayoutsView() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add bank account sheet */}
+      <Sheet open={addingAccount} onOpenChange={setAddingAccount}>
+        <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
+          <SheetHeader className="px-6 py-4 border-b shrink-0">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <SheetTitle>Add payout bank account</SheetTitle>
+                <SheetDescription className="text-xs">
+                  We&apos;ll verify the account name against the bank to confirm you own it.
+                </SheetDescription>
+              </div>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setAddingAccount(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </SheetHeader>
+          <form id="bank-account-form" onSubmit={handleAddAccount} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="accountName">Account name</Label>
+              <Input className="input-premium"
+                id="accountName"
+                value={formState.accountName}
+                onChange={(e) => setFormState((s) => ({ ...s, accountName: e.target.value }))}
+                placeholder="e.g., Adaeze Okafor"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="accountNumber">Account number (10 digits)</Label>
+              <Input className="input-premium"
+                id="accountNumber"
+                value={formState.accountNumber}
+                onChange={(e) =>
+                  setFormState((s) => ({
+                    ...s,
+                    accountNumber: e.target.value.replace(/\D/g, "").slice(0, 10),
+                  }))
+                }
+                placeholder="0123456789"
+                inputMode="numeric"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bank">Bank</Label>
+              <Select value={formState.bankCode} onValueChange={handleBankChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your bank" />
+                </SelectTrigger>
+                <SelectContent>
+                  {banks.map((b) => (
+                    <SelectItem key={b.code} value={b.code}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={formState.isDefault}
+                onChange={(e) => setFormState((s) => ({ ...s, isDefault: e.target.checked }))}
+                className="rounded"
+              />
+              Set as default payout account
+            </label>
+          </form>
+          <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
+            <div className="flex gap-2 w-full">
+              <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={() => setAddingAccount(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" form="bank-account-form" disabled={submitting} className="flex-1 sm:flex-none">
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                Add account
+              </Button>
+            </div>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* Payout history */}
       <Card className="premium-card">

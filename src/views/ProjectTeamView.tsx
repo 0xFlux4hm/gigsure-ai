@@ -6,10 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, timeAgo } from "@/lib/client-api";
-import { UserPlus, Trash2, Loader2, Mail, Copy, Check, Users } from "lucide-react";
+import { UserPlus, Trash2, Loader2, Mail, Copy, Check, Users, X } from "lucide-react";
 
 import { toast } from "sonner";
 import { formatStatus } from "@/components/shared/page-components";
@@ -76,12 +76,7 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
         description="Members and pending invitations."
         icon={Users}
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button><UserPlus className="mr-2 h-4 w-4" /> Invite</Button>
-            </DialogTrigger>
-            <InviteDialog projectId={projectId} onCreated={() => { setOpen(false); load(); }} />
-          </Dialog>
+          <Button onClick={() => setOpen(true)}><UserPlus className="mr-2 h-4 w-4" /> Invite</Button>
         }
       />
 
@@ -160,11 +155,11 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
           </CardContent>
         </Card>
       )}
+      <InviteDialog projectId={projectId} open={open} onOpenChange={setOpen} onCreated={() => { setOpen(false); load(); }} />
     </div>
   );
 }
-
-function InviteDialog({ projectId, onCreated }: { projectId: string; onCreated: () => void }) {
+function InviteDialog({ projectId, open, onOpenChange, onCreated }: { projectId: string; open: boolean; onOpenChange: (v: boolean) => void; onCreated: () => void }) {
   const [inviteeEmail, setInviteeEmail] = useState("");
   const [role, setRole] = useState("COLLABORATOR");
   const [loading, setLoading] = useState(false);
@@ -191,9 +186,17 @@ function InviteDialog({ projectId, onCreated }: { projectId: string; onCreated: 
   };
 
   return (
-    <DialogContent>
-      <DialogHeader><DialogTitle>Invite Service Provider</DialogTitle></DialogHeader>
-      <div className="space-y-3 py-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
+        <SheetHeader className="px-6 py-4 border-b shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <SheetTitle>Invite Service Provider</SheetTitle>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onOpenChange(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
           <Input className="input-premium" id="email" type="email" value={inviteeEmail} onChange={(e) => setInviteeEmail(e.target.value)} placeholder="service-provider@example.com" />
@@ -222,13 +225,14 @@ function InviteDialog({ projectId, onCreated }: { projectId: string; onCreated: 
             </div>
           </div>
         )}
-      </div>
-      <DialogFooter>
-        <Button onClick={submit} disabled={loading || !inviteeEmail}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
-          Send invitation
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+        </div>
+        <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
+          <Button onClick={submit} disabled={loading || !inviteeEmail} className="w-full sm:w-auto">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+            Send invitation
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

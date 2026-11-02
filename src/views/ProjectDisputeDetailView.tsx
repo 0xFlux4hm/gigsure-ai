@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, formatDateTime, timeAgo } from "@/lib/client-api";
 import { Send, Loader2, Scale, AlertTriangle } from "lucide-react";
+import { DisputeSummaryPanel } from "@/components/ai/AiFeaturePanels";
 
 import { toast } from "sonner";
 import { PageHeader, LoadingState, EmptyState, formatStatus } from "@/components/shared/page-components";
@@ -103,6 +104,9 @@ export function ProjectDisputeDetailView({ projectId, disputeId }: { projectId: 
       />
 
       <p className="text-muted-foreground -mt-4 whitespace-pre-wrap">{dispute.description}</p>
+
+      {/* AI Dispute Summary — neutral, never decides outcomes */}
+      <DisputeSummaryPanel disputeId={disputeId} />
 
       {dispute.status === "OPEN" && dispute.milestone && (
         <Card className="border-amber-500 premium-card">

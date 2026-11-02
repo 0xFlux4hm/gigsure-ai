@@ -9,14 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api, formatMinor, formatDateTime } from "@/lib/client-api";
 import { Loader2, Plus, Receipt, Check, X, Upload, Info } from "lucide-react";
@@ -198,20 +197,28 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
         description="Service providers can request funds from funded milestones for project-related expenses (domain, hosting, software)."
         icon={Receipt}
         actions={
-          <Dialog open={adding} onOpenChange={setAdding}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-1" /> Request Expense
+          <Button onClick={() => setAdding(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Request Expense
+          </Button>
+        }
+      />
+
+      <Sheet open={adding} onOpenChange={setAdding}>
+        <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
+          <SheetHeader className="px-6 py-4 border-b shrink-0">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <SheetTitle>Request expense funds</SheetTitle>
+                <SheetDescription className="text-xs">
+                  Request a partial release of milestone funds for project expenses.
+                </SheetDescription>
+              </div>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setAdding(false)}>
+                <X className="h-4 w-4" />
               </Button>
-            </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Request expense funds</DialogTitle>
-              <DialogDescription>
-                Request a partial release of milestone funds for project expenses. The client must approve before funds are released.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
+            </div>
+          </SheetHeader>
+          <form id="expense-form" onSubmit={handleCreate} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="milestone">Milestone</Label>
                 <Select value={formState.milestoneId} onValueChange={(v) => setFormState((s) => ({ ...s, milestoneId: v }))}>
@@ -268,18 +275,18 @@ export function ProjectExpensesView({ projectId }: { projectId: string }) {
                   rows={3}
                 />
               </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setAdding(false)}>Cancel</Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-                  Submit Request
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-          </Dialog>
-        }
-      />
+          </form>
+          <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
+            <div className="flex gap-2 w-full">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setAdding(false)}>Cancel</Button>
+              <Button type="submit" form="expense-form" disabled={submitting} className="flex-1">
+                {submitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+                Submit Request
+              </Button>
+            </div>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {error && (
         <Alert variant="destructive">

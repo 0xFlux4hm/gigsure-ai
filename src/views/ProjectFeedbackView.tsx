@@ -8,17 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api, formatDateTime } from "@/lib/client-api";
-import { Loader2, Star, Plus } from "lucide-react";
+import { Loader2, Star, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 
@@ -153,20 +152,28 @@ export function ProjectFeedbackView({ projectId }: { projectId: string }) {
         description="Share your experience working with others on this project."
         icon={Star}
         actions={
-          <Dialog open={adding} onOpenChange={setAdding}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-1" /> Leave a Review
+          <Button onClick={() => setAdding(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Leave a Review
+          </Button>
+        }
+      />
+
+      <Sheet open={adding} onOpenChange={setAdding}>
+        <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
+          <SheetHeader className="px-6 py-4 border-b shrink-0">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <SheetTitle>Review a team member</SheetTitle>
+                <SheetDescription className="text-xs">
+                  Rate your experience working with this person. Your review helps build trust on GigSure AI.
+                </SheetDescription>
+              </div>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setAdding(false)}>
+                <X className="h-4 w-4" />
               </Button>
-            </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Review a team member</DialogTitle>
-              <DialogDescription>
-                Rate your experience working with this person. Your review helps build trust on GigSure AI.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            </div>
+          </SheetHeader>
+          <form id="feedback-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div className="space-y-2">
                 <Label>Who are you reviewing?</Label>
                 <Select value={formState.revieweeId} onValueChange={(v) => setFormState((s) => ({ ...s, revieweeId: v }))}>
@@ -220,18 +227,18 @@ export function ProjectFeedbackView({ projectId }: { projectId: string }) {
                   rows={3}
                 />
               </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setAdding(false)}>Cancel</Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-                  Submit Review
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-          </Dialog>
-        }
-      />
+          </form>
+              <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
+                <div className="flex gap-2 w-full">
+                  <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={() => setAdding(false)}>Cancel</Button>
+                  <Button type="submit" form="feedback-form" disabled={submitting} className="flex-1 sm:flex-none">
+                    {submitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+                    Submit Review
+                  </Button>
+                </div>
+              </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
       {success && <Alert><AlertDescription>{success}</AlertDescription></Alert>}

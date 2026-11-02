@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
-import { X } from "lucide-react";
+import { X, Sparkles } from "lucide-react";
+import { MilestoneGenerator } from "@/components/ai/AiFeaturePanels";
 import { api, formatDate, formatMinor } from "@/lib/client-api";
 import { Plus, Loader2, ArrowRight, AlertTriangle, Target } from "lucide-react";
 
@@ -30,7 +31,8 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [project, setProject] = useState<{ currency: string } | null>(null);
+  const [aiGenOpen, setAiGenOpen] = useState(false);
+  const [project, setProject] = useState<{ currency: string; title: string; description: string; fundingArrangement: string } | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -38,7 +40,7 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
   };
   useEffect(load, [projectId]);
   useEffect(() => {
-    api.get<{ currency: string }>(`/api/projects/${projectId}`).then(setProject);
+    api.get<{ currency: string; title: string; description: string; fundingArrangement: string }>(`/api/projects/${projectId}`).then(setProject);
   }, [projectId]);
 
   const submit_milestone = async (id: string) => {
@@ -76,7 +78,12 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
         description="Fund, submit, approve, release. State transitions enforced on the backend."
         icon={Target}
         actions={
-          <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" /> New milestone</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setAiGenOpen(true)}>
+              <Sparkles className="mr-2 h-4 w-4" /> AI Generate
+            </Button>
+            <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" /> New milestone</Button>
+          </div>
         }
       />
 
@@ -209,6 +216,32 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
         onOpenChange={setOpen}
         onCreated={() => { setOpen(false); load(); }}
       />
+
+      {/* AI Milestone Generator Sheet */}
+      <Sheet open={aiGenOpen} onOpenChange={setAiGenOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
+          <SheetHeader className="px-6 py-4 border-b shrink-0">
+            <div className="flex items-center justify-between gap-3">
+              <SheetTitle className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" /> AI Milestone Generator
+              </SheetTitle>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setAiGenOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {project && (
+              <MilestoneGenerator
+                projectId={projectId}
+                projectTitle={project.title}
+                scopeOfWork={project.description}
+                fundingArrangement={project.fundingArrangement as "FULL" | "MILESTONE" | "UPFRONT_PLUS_MILESTONES"}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

@@ -7,11 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { api, formatMinor, formatDateTime } from "@/lib/client-api";
-import { Plus, Loader2, CheckCircle2, Info, Wallet } from "lucide-react";
+import { Plus, Loader2, CheckCircle2, Info, Wallet, X } from "lucide-react";
 
 import { toast } from "sonner";
 import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
@@ -72,10 +72,7 @@ export function ProjectCompensationView({ projectId }: { projectId: string }) {
         description="Internal allocations among service providers. Versioned. Each recipient must accept their own."
         icon={Wallet}
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> New agreement</Button></DialogTrigger>
-            <NewAgreementDialog projectId={projectId} members={members} onCreated={() => { setOpen(false); load(); }} />
-          </Dialog>
+          <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" /> New agreement</Button>
         }
       />
 
@@ -172,11 +169,13 @@ export function ProjectCompensationView({ projectId }: { projectId: string }) {
           })}
         </div>
       )}
+
+      <NewAgreementDialog projectId={projectId} members={members} open={open} onOpenChange={setOpen} onCreated={() => { setOpen(false); load(); }} />
     </div>
   );
 }
 
-function NewAgreementDialog({ projectId, members, onCreated }: { projectId: string; members: Array<{ user: { id: string; displayName: string }; role: string }>; onCreated: () => void }) {
+function NewAgreementDialog({ projectId, members, open, onOpenChange, onCreated }: { projectId: string; members: Array<{ user: { id: string; displayName: string }; role: string }>; open: boolean; onOpenChange: (v: boolean) => void; onCreated: () => void }) {
   const [currency, setCurrency] = useState("NGN");
   const [total, setTotal] = useState("0");
   const [allocations, setAllocations] = useState<Array<{ userId: string; role: string; amount: string; percentage: string }>>([]);
@@ -216,9 +215,17 @@ function NewAgreementDialog({ projectId, members, onCreated }: { projectId: stri
   const matches = Math.abs(sum - (Number(total) || 0)) < 0.01;
 
   return (
-    <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-      <DialogHeader><DialogTitle>New compensation agreement</DialogTitle></DialogHeader>
-      <div className="space-y-3 py-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
+        <SheetHeader className="px-6 py-4 border-b shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <SheetTitle>New compensation agreement</SheetTitle>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onOpenChange(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label>Currency</Label>
@@ -288,13 +295,14 @@ function NewAgreementDialog({ projectId, members, onCreated }: { projectId: stri
         </div>
 
         {error && <div className="text-sm text-destructive">{error}</div>}
-      </div>
-      <DialogFooter>
-        <Button onClick={submit} disabled={loading || !matches || allocations.length === 0}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-          Propose agreement
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+        </div>
+        <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
+          <Button onClick={submit} disabled={loading || !matches || allocations.length === 0} className="w-full sm:w-auto">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Propose agreement
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

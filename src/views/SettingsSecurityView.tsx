@@ -8,14 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { api } from "@/lib/client-api";
-import { Loader2, ShieldCheck, Trash2, Link2, KeyRound } from "lucide-react";
+import { Loader2, ShieldCheck, Trash2, Link2, KeyRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, LoadingState } from "@/components/shared/page-components";
 
@@ -357,16 +357,21 @@ export function SettingsSecurityView() {
         </CardContent>
       </Card>
 
-      {/* Sudo mode (reauth) modal */}
-      <Dialog open={sudoOpen} onOpenChange={setSudoOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              Confirm your identity
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
+      {/* Sudo mode (reauth) sheet */}
+      <Sheet open={sudoOpen} onOpenChange={setSudoOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
+          <SheetHeader className="px-6 py-4 border-b shrink-0">
+            <div className="flex items-center justify-between gap-3">
+              <SheetTitle className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                Confirm your identity
+              </SheetTitle>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSudoOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <p className="text-sm text-muted-foreground">
               {sudoAction === "link-google"
                 ? "To link your Google account, please enter your password to confirm it's really you."
@@ -387,17 +392,19 @@ export function SettingsSecurityView() {
             </div>
             {error && <div className="text-sm text-destructive">{error}</div>}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setSudoOpen(false); setSudoPassword(""); setError(null); }}>
-              Cancel
-            </Button>
-            <Button onClick={verifySudo} disabled={!sudoPassword || sudoLoading}>
-              {sudoLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
+            <div className="flex gap-2 w-full">
+              <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={() => { setSudoOpen(false); setSudoPassword(""); setError(null); }}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={verifySudo} disabled={!sudoPassword || sudoLoading} className="flex-1 sm:flex-none">
+                {sudoLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Confirm
+              </Button>
+            </div>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
