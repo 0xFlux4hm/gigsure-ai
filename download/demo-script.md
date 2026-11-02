@@ -1,164 +1,142 @@
-# GigSure AI — 3-Minute Demo Video Script
+# GigSure AI — PayPal AI Hackathon Demo Script
 
-**Hackathon:** PayPal AI Hackathon (Devpost)
-**Track:** Open (targeting Best Use of PayPal + AI, Best Use of Agentic Commerce, Most Impactful)
-**Length:** 3:00 (strict — judges only watch the first 3 minutes)
-
----
-
-## Recording Notes
-
-- **Tool:** Phone screen recorder (iOS Screen Recording or Android screen recorder)
-- **Voiceover:** Record separately using phone's voice memos app, then merge in CapCut (free)
-- **Resolution:** 1080p minimum, landscape preferred
-- **Audio:** Quiet room, speak clearly, no background music during the demo
-- **Pacing:** Aim for ~120-140 words per minute (conversational but not rushed)
+> **Duration:** 3 minutes
+> **Speaker:** Ahmad Muhammad Wammi
+> **Videos used:** `gigsure homepage.mp4` (landing page) + `gigsure ai .mp4` (app demo)
+> **Live app:** https://gigsure-ai.vercel.app/
 
 ---
 
-## Script
+## NARRATION SCRIPT
 
-### 0:00 — 0:20 · The Problem (Hook)
+### [0:00 — 0:15] The Problem — "Africa is invisible to the global gig economy"
 
-**[Visual: Ahmad's face to camera, or a title card with the GigSure AI logo]**
+**[SHOW: Homepage video — landing page features section]**
 
-> "I'm Ahmad, a cybersecurity bug hunter based in Lagos, Nigeria. Every freelancer I know has been burned by the same thing: vague contracts, unpaid milestones, and 'he said, she said' disputes with no paper trail.
+> "My name is Ahmad, I'm a cybersecurity bug hunter based in Lagos, Nigeria.
 >
-> Existing platforms like Upwork were built for Western, text-first, Stripe-paid work. They don't fit our market — where most communication happens via WhatsApp, payments run through local rails, and most freelancers can't afford a lawyer to review a contract.
+> Africa's independent professionals — developers, designers, writers — are invisible to the global gig economy. Upwork doesn't serve Nigeria. Stripe doesn't process NGN payouts. When African freelancers DO find international clients, there's no trust layer — no contract protection, no milestone-gated payments, no way for the client to pay in their currency.
 >
-> So I built GigSure AI — trust infrastructure for Africa's independent services market."
-
-**[Visual: Cut to the GigSure AI dashboard at gigsure-ai.vercel.app]**
+> So I built GigSure AI. We're solving for Africa, starting with Nigeria."
 
 ---
 
-### 0:20 — 1:10 · AI Contract Risk Score (Wow Moment #1)
+### [0:15 — 0:30] The Platform — "What GigSure AI gives you"
 
-**[Visual: Open a project → click Contracts → expand a contract version]**
+**[SHOW: Homepage video — "Six pillars" section + "From handshake to paid" 6-step process]**
 
-> "Here's the feature I'm most proud of. When a freelancer opens a contract, they can't always tell if the terms are fair. So I built an AI Contract Risk Analyzer.
+> "GigSure AI is a project contract and payment transparency platform. Six pillars: versioned contracts, secure collaboration, milestone funding, dispute resolution, AI assistants, and privacy by design.
 >
-> Watch this — I click 'Analyze risks'..."
-
-**[Visual: Click "Analyze risks" button → loading spinner → risk score appears]**
-
-> "...and the AI returns a risk score from 0 to 100, with specific clause flags.
+> The flow is simple — sign in, create a project, invite service providers, draft contracts, fund milestones, and if there's a dispute, resolve it with evidence and advisory AI summaries.
 >
-> This contract scored 73 out of 100 — high risk. The AI flagged three issues: unlimited liability, no specific payment deadline, and ambiguous IP ownership. For each one, it gives a recommendation on what to negotiate.
->
-> This is powered by Z.AI's GLM model, and it runs entirely on the free tier — zero cost per analysis. No Nigerian freelancer can afford a lawyer to review a 50,000 naira contract. Now they don't have to."
-
-**[Visual: Scroll through the flagged clauses + recommendations]**
+> Built for the Nigerian service provider market. Work with confidence. Get paid with trust."
 
 ---
 
-### 1:10 — 2:15 · PayPal Cross-Border Funding (Wow Moment #2)
+### [0:30 — 0:50] Dashboard — Account Setup + KYC
 
-**[Visual: Click "Funding" tab → scroll to the PayPal card]**
+**[SHOW: Main demo video — Dashboard view]**
 
-> "Now, the centerpiece for this hackathon. GigSure already supports Nigerian payment rails — Monnify and OPay — for local escrow. But what happens when an international client wants to hire a Nigerian freelancer?
+> "Here's the dashboard. I have one active project and ₦100,000 in earnings.
 >
-> I added PayPal for cross-border funding. Watch..."
-
-**[Visual: Select a milestone → see USD conversion → click "Pay with PayPal"]**
-
-> "This milestone is 450,000 naira. The platform converts it to 300 US dollars at the current rate. I click 'Pay with PayPal'..."
-
-**[Visual: PayPal sandbox opens in a new tab → login with test account → approve payment]**
-
-> "...PayPal sandbox opens. I log in with a test buyer account and approve the payment. PayPal processes it in USD..."
-
-**[Visual: Switch back to GigSure → milestone status updates to "Funded"]**
-
-> "...the webhook fires back to GigSure, the funds are confirmed in escrow, and the milestone status updates to 'Funded'.
+> The Account Setup checklist shows KYC is verified — that's NIN plus selfie liveness check via Smile ID. The next step is adding a bank account for payouts via Monnify or OPay.
 >
-> The freelancer will receive naira via Monnify or OPay when the milestone is complete. Cross-border payments, handled."
-
-**[Visual: Show the funding record in the transaction history with provider: "paypal"]**
+> This is the trust foundation — before anyone can fund a milestone, the freelancer's identity is verified."
 
 ---
 
-### 2:15 — 2:45 · AI Assistant + The Agentic Commerce Story
+### [0:50 — 1:25] PayPal Cross-Border Payment — "The centerpiece"
 
-**[Visual: Click "AI assistants" tab → select the Funding Assistant]**
+**[SHOW: Main demo video — Project Funding page with PayPal]**
 
-> "Underneath all of this are seven AI assistants — one for each step of the project lifecycle. Let me ask the Funding Assistant about the transaction we just made..."
-
-**[Visual: Type "Summarize this project's funding status" → click "Run assistant" → AI responds]**
-
-> "...and the AI summarizes the cross-border flow, confirms the escrow is held, and notes the next step.
+> "Now the key feature. An international client wants to fund a milestone. The milestone is ₦50,000 Nigerian Naira.
 >
-> This is agentic commerce — AI agents that understand the project context, the payment state, and the contract terms, and can advise on next steps. Not just a chatbot — a domain-aware assistant."
-
-**[Visual: Show the AI response briefly]**
-
----
-
-### 2:45 — 3:00 · The Ask + Wrap
-
-**[Visual: Cut back to Ahmad, or a closing title card]**
-
-> "GigSure AI: cross-border escrow via PayPal, AI agents for every project step, and a contract risk analyzer that gives every freelancer the lawyer they can't afford. Built for Africa's independent services market, starting in Nigeria.
+> GigSure converts this to USD at our demo rate — 1 USD equals 1,500 Naira. The client pays just $33.33 via PayPal.
 >
-> I'm Ahmad Muhammad Wammi, building from Lagos. The repo is open source — link in the description. Thank you."
-
-**[Visual: Final card with GigSure AI logo + "github.com/0xFlux4hm/gigsure-ai"]**
-
----
-
-## What to Prepare Before Recording
-
-1. **A test contract with realistic content** — at least 500 words of scope, payment schedule, deadlines. The AI needs enough text to analyze. Pre-fill this in your demo project before recording.
-
-2. **A test milestone in AWAITING_FUNDING status** — so the PayPal card shows it in the dropdown.
-
-3. **The PayPal sandbox buyer account credentials handy** — email + password from your PayPal developer dashboard. You'll need to log in during the demo.
-
-4. **A clean browser session** — log out, clear cache, log back in fresh so there's no clutter.
-
-5. **Stable internet** — the PayPal sandbox + webhook round-trip needs to work smoothly.
-
----
-
-## What Makes This Script Win
-
-1. **Two clear "wow moments" at 0:30 and 1:30** — the AI Contract Risk Score and the PayPal cross-border flow. Judges remember these.
-
-2. **The "lawyer they can't afford" line** — emotionally resonant, ties the AI feature to a real human need.
-
-3. **The agentic commerce angle is explicit** — directly targets the "Best Use of Agentic Commerce" prize ($5k).
-
-4. **The cross-border story is clear** — international client pays USD, freelancer receives NGN. No Western platform does this.
-
-5. **The ask is sharp** — 15 seconds, ends on the founder's name + location + repo link.
-
-6. **The total cost is $0** — free Z.AI model, free PayPal sandbox, free Vercel. Worth mentioning if a judge asks about scalability.
-
----
-
-## Demo Recording Tips
-
-- **Do 3-5 takes.** The first take is always bad. The third or fourth is usually the keeper.
-- **Smile when you say the founder's name.** It sounds warmer.
-- **Don't read the script verbatim.** Use it as a guide. Natural speech is more convincing.
-- **If you stumble, restart the sentence.** Don't say "um" or "sorry."
-- **Show your hands on the keyboard briefly** — it makes the demo feel live, not pre-recorded.
-- **End with the repo URL visible** for at least 3 seconds — judges need time to write it down or click.
-
----
-
-## Alternative Openings (if you want a different tone)
-
-### Option B — Problem-first (more emotional)
-
-> "Last year, my friend Tunde — a graphic designer in Lagos — completed a logo project for a client in the US. The client paid via PayPal. By the time Tunde withdrew the money, FX depreciation had eaten 12% of his fee. When the client requested revisions beyond the agreed scope, Tunde had no contract clause to push back. He lost two weeks of unpaid work.
+> Here's how it works:
+> 1. The client clicks 'Pay with PayPal' — PayPal sandbox opens
+> 2. They approve the payment in USD
+> 3. PayPal sends a webhook to our server
+> 4. We verify it using PayPal's official webhook verification API
+> 5. The funds are recorded in Naira and held under GigSure Payment Protection
+> 6. On milestone completion, the freelancer receives NGN via Monnify or OPay
 >
-> I built GigSure AI so this stops happening."
+> This is cross-border escrow — without the escrow license. PayPal holds the USD, Monnify holds the NGN, and GigSure controls the release. No Western platform does this."
 
-### Option C — Tech-first (more clinical)
+---
 
-> "GigSure AI is a freelance collaboration platform that combines PayPal cross-border escrow with seven AI agents and a contract risk analyzer. The stack: Next.js 16, Prisma, PostgreSQL, Z.AI's GLM model, and PayPal's Orders API v2.
+### [1:25 — 1:55] AI Contract Analysis — "Dashboard report, not chatbot text"
+
+**[SHOW: Main demo video — AI Assistants → Project Risk Assistant]**
+
+> "Now let's talk about AI. We use Groq's LPU hardware — that's 500+ tokens per second on the openai/gpt-oss-20b model. Free tier, no credit card.
 >
-> Let me show you how it works."
+> Here's the Project Risk Assistant. I type 'plan' and run it. Within seconds, the AI produces a structured risk assessment report — not raw text, but a dashboard.
+>
+> Three risks found: one HIGH, one MEDIUM, one LOW. The stat cards show the breakdown. The key findings table has severity badges — red for HIGH, amber for MEDIUM, blue for LOW — with evidence cited from the actual project data, and impact analysis for each.
+>
+> All advisory only. The AI never authorizes payments or makes binding decisions."
 
-**My recommendation: Option A (the script above). It balances emotion, story, and demo.**
+---
+
+### [1:55 — 2:25] AI Project Brief Helper — "Expert research-grade output"
+
+**[SHOW: Main demo video — Project Brief Helper response]**
+
+> "Here's another assistant — the Project Brief Helper. I ask it to 'brief us about the projects' and it analyzes what's missing.
+>
+> The AI identifies six missing elements — detailed task list, client contact details, milestone deliverables, acceptance criteria, communication plan, risk mitigation strategy. For each, it explains why it matters and suggests a clarifying question.
+>
+> This is a structured research report — not a chatbot response. Stat cards, severity badges, styled tables, recommendations. The same format a McKinsey analyst would produce, but generated in under a second on Groq's LPU hardware."
+
+---
+
+### [2:25 — 2:45] The Full Picture — "What this enables"
+
+**[SHOW: Main demo video — quick cut through dashboard → funding → AI assistants]**
+
+> "So here's what GigSure AI enables for the first time:
+>
+> An international client can hire a Nigerian professional, AI generates the project brief, AI suggests milestones with payment splits, the client funds in USD via PayPal, the freelancer receives NGN via Monnify, AI analyzes the contract for risks before anyone signs, and if there's a dispute, AI produces a neutral summary with timeline, gaps, and claims from both parties.
+>
+> All for zero cost — PayPal sandbox is free, Groq AI is free, Vercel is free."
+
+---
+
+### [2:45 — 3:00] Close — "Built for Africa, starting with Nigeria"
+
+**[SHOW: Homepage video — footer "Work with confidence. Get paid with trust."]**
+
+> "No Western platform has this. Upwork doesn't serve this market. Stripe doesn't process NGN. PayPal plus AI equals trust and transparency for Africa's independent professionals.
+>
+> I'm Ahmad Muhammad Wammi, building from Lagos. This is GigSure AI — built for Africa, starting with Nigeria.
+>
+> Thank you."
+
+---
+
+## VIDEO EDITING NOTES
+
+### Clips to use (in order):
+
+1. **Homepage video** (0:00–0:15): Landing page → "Six pillars" section
+2. **Homepage video** (0:15–0:30): "From handshake to paid" 6-step grid
+3. **Main demo video** (0:00–0:20): Dashboard with stat cards + Account Setup
+4. **Main demo video** (0:20–0:55): Funding page → PayPal payment card → "How cross-border funding works" info box
+5. **Main demo video** (0:55–1:30): AI Assistants → Project Risk Assistant → report with stat cards + table
+6. **Main demo video** (1:30–2:00): Project Brief Helper → response with missing elements table
+7. **Main demo video** (2:00–2:15): Quick cuts — dashboard → funding → AI
+8. **Homepage video** (ending): Footer with tagline
+
+### Recording tips:
+- Record in landscape (16:9) at 1080p minimum
+- Use screen recording software (OBS Studio, Loom, or Chrome's built-in screen recorder)
+- Speak clearly, moderate pace — you have 3 minutes, not 1
+- Show the actual live app at https://gigsure-ai.vercel.app/
+- For the PayPal section, actually click the "Pay $33.33 with PayPal" button to show the sandbox opening
+- For AI sections, actually type the prompt and wait for the response — it takes ~1 second on Groq
+
+### What to show on screen:
+- Full browser window (including URL bar so judges can see it's the real deployed app)
+- Zoom in on tables/badges when discussing them
+- Keep the sidebar visible so judges see the full feature set
