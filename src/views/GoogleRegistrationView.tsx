@@ -142,7 +142,31 @@ export function GoogleRegistrationView() {
           <CardContent>
             {error && (
               <Alert variant="destructive" className="mb-4">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription className="space-y-2">
+                  <div>{error}</div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        // Sign out + clear session, then retry Google sign-in
+                        await signIn("google", { callbackUrl: "/?view=google-registration" });
+                      }}
+                    >
+                      Try again
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        // Clear any stale cookies by navigating to signout
+                        window.location.href = "/api/auth/signout?callbackUrl=/?view=login";
+                      }}
+                    >
+                      Use different account
+                    </Button>
+                  </div>
+                </AlertDescription>
               </Alert>
             )}
 
