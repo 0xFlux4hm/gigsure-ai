@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GigSure AI — Technical Architecture Diagram</title>
+<style>
+  :root {
+    --page-bg: #f7f8f9;
+    --card: #ffffff;
+    --stripe: #eef1f3;
+    --ink: #222425;
+    --muted: #6b7378;
+    --border: #cdd5da;
+    --accent: #226b8f;
+    --accent-soft: #e6eef4;
+    --accent-2: #a93e50;
+    --accent-2-soft: #f6e8ea;
+    --layer-fill: #eceeee;
+    --layer-edge: #bcc9cf;
+    --frontend-fill: #e9eced;
+    --infra-fill: #eef1f3;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1200px; height: 760px;
+    background: var(--page-bg);
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    color: var(--ink);
+  }
+  .diagram {
+    position: relative;
+    width: 1200px; height: 760px;
+    background: var(--page-bg);
+    padding: 36px 44px;
+    overflow: hidden;
+  }
+  .diagram h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.2px;
+  }
+  .diagram .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 0.5px;
+  }
+  .layer-label {
+    position: absolute;
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .layer-label .num {
+    display: inline-block;
+    width: 22px; height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    margin-right: 8px;
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+
+  /* Lane backdrops */
+  .lane {
+    position: absolute;
+    background: var(--layer-fill);
+    border: 1px dashed var(--layer-edge);
+    border-radius: 10px;
+  }
+
+  /* Node card */
+  .node {
+    position: absolute;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    font-family: 'Inter', Arial, sans-serif;
+  }
+  .node .title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.1px;
+  }
+  .node .sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+    line-height: 1.35;
+  }
+  .node .tag {
+    display: inline-block;
+    margin-top: 6px;
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .node.paypal .tag { background: var(--accent-2-soft); color: var(--accent-2); }
+  .node.groq .tag { background: #e7f3ee; color: #3f8255; }
+  .node.db .tag { background: #f1ece6; color: #9a6c3a; }
+
+  /* SVG connector layer */
+  .connectors {
+    position: absolute;
+    top: 0; left: 0;
+    width: 1200px; height: 760px;
+    pointer-events: none;
+  }
+  .legend {
+    position: absolute;
+    bottom: 24px; left: 44px; right: 44px;
+    display: flex; gap: 22px; align-items: center;
+    font-size: 10.5px; color: var(--muted);
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .legend .item { display: flex; align-items: center; gap: 7px; }
+  .legend .swatch {
+    width: 14px; height: 8px; border-radius: 2px;
+  }
+  .legend .s-accent { background: var(--accent); }
+  .legend .s-accent2 { background: var(--accent-2); }
+  .legend .s-data { background: #9a6c3a; }
+  .legend .s-host { background: #5179a2; }
+
+  .footnote {
+    position: absolute;
+    bottom: 24px; right: 44px;
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 9.5px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="diagram">
+
+  <h1>GigSure AI &mdash; Technical Architecture</h1>
+  <div class="subtitle">Next.js full-stack &middot; Groq AI inference &middot; PayPal payments &middot; Prisma + PostgreSQL &middot; Vercel hosting</div>
+
+  <!-- Lanes -->
+  <!-- Frontend lane -->
+  <div class="lane" style="top:78px; left:44px; width:320px; height:600px;"></div>
+  <div class="layer-label" style="top:90px; left:60px;">
+    <span class="num">1</span>CLIENT &middot; NEXT.JS APP
+  </div>
+
+  <!-- API lane -->
+  <div class="lane" style="top:78px; left:410px; width:380px; height:600px;"></div>
+  <div class="layer-label" style="top:90px; left:426px;">
+    <span class="num">2</span>SERVER &middot; API ROUTES
+  </div>
+
+  <!-- External services lane -->
+  <div class="lane" style="top:78px; left:840px; width:316px; height:600px;"></div>
+  <div class="layer-label" style="top:90px; left:856px;">
+    <span class="num">3</span>EXTERNAL SERVICES
+  </div>
+
+  <!-- Nodes: Frontend -->
+  <div class="node" style="top:140px; left:64px; width:280px;">
+    <div class="title">React UI / Views</div>
+    <div class="sub">Dashboard &middot; Project workspace &middot; AI panels &middot; Admin</div>
+    <span class="tag">Tailwind v4</span>
+  </div>
+  <div class="node" style="top:228px; left:64px; width:280px;">
+    <div class="title">Next.js 16 App Router</div>
+    <div class="sub">Server components, streaming, edge middleware</div>
+    <span class="tag">REACT 19</span>
+  </div>
+  <div class="node" style="top:316px; left:64px; width:280px;">
+    <div class="title">AI Panels &amp; Markdown Renderer</div>
+    <div class="sub">5 AI features rendered as dashboards, badges, tables</div>
+    <span class="tag">CLIENT</span>
+  </div>
+  <div class="node" style="top:404px; left:64px; width:280px;">
+    <div class="title">Auth &amp; Session</div>
+    <div class="sub">NextAuth credentials + Google demo + email verify</div>
+    <span class="tag">SESSION</span>
+  </div>
+  <div class="node" style="top:492px; left:64px; width:280px;">
+    <div class="title">Trust &amp; Verified Badges</div>
+    <div class="sub">Tier-based trust signals, KYC linkage, suspensions</div>
+    <span class="tag">TRUST</span>
+  </div>
+
+  <!-- Nodes: API routes -->
+  <div class="node" style="top:140px; left:430px; width:340px;">
+    <div class="title">/api/ai/* &mdash; AI Inference Layer</div>
+    <div class="sub">project-brief &middot; milestones &middot; contract-analysis &middot; assistant &middot; dispute-summary</div>
+    <span class="tag">GROQ ROUTES</span>
+  </div>
+  <div class="node paypal" style="top:228px; left:430px; width:340px;">
+    <div class="title">/api/payments/* &mdash; PayPal Integration</div>
+    <div class="sub">initiate &middot; verify &middot; webhook &middot; refunds &middot; status</div>
+    <span class="tag">PAYPAL v2</span>
+  </div>
+  <div class="node" style="top:316px; left:430px; width:340px;">
+    <div class="title">/api/projects/* &mdash; Milestones &amp; Contracts</div>
+    <div class="sub">Milestone submit / approve / release; expense &amp; feedback</div>
+    <span class="tag">CORE DOMAIN</span>
+  </div>
+  <div class="node" style="top:404px; left:430px; width:340px;">
+    <div class="title">/api/payouts &middot; /api/projects/.../disputes</div>
+    <div class="sub">NGN payouts via Monnify / OPay &middot; dispute review flow</div>
+    <span class="tag">PAYOUT</span>
+  </div>
+  <div class="node" style="top:492px; left:430px; width:340px;">
+    <div class="title">Rate Limiter &amp; Input Validation</div>
+    <div class="sub">20 RPM per user &middot; Zod schemas &middot; prompt-injection defense</div>
+    <span class="tag">SAFETY</span>
+  </div>
+
+  <!-- External service nodes -->
+  <div class="node paypal" style="top:140px; left:860px; width:276px;">
+    <div class="title">PayPal Sandbox</div>
+    <div class="sub">Orders v2 &middot; OAuth2 &middot; Webhook verify &middot; Refunds</div>
+    <span class="tag">CROSS-BORDER USD</span>
+  </div>
+  <div class="node groq" style="top:228px; left:860px; width:276px;">
+    <div class="title">Groq Cloud</div>
+    <div class="sub">openai/gpt-oss-20b &middot; low-latency inference</div>
+    <span class="tag">AI</span>
+  </div>
+  <div class="node db" style="top:316px; left:860px; width:276px;">
+    <div class="title">Prisma ORM &rarr; PostgreSQL</div>
+    <div class="sub">Project, milestone, transaction, audit &amp; KYC models</div>
+    <span class="tag">DATABASE</span>
+  </div>
+  <div class="node" style="top:404px; left:860px; width:276px;">
+    <div class="title">Monnify / OPay</div>
+    <div class="sub">NGN payout rails &middot; virtual account funding</div>
+    <span class="tag">LOCAL PAYOUT</span>
+  </div>
+  <div class="node" style="top:492px; left:860px; width:276px;">
+    <div class="title">Vercel Hosting</div>
+    <div class="sub">Edge runtime &middot; serverless functions &middot; preview deploys</div>
+    <span class="tag">DEPLOY</span>
+  </div>
+
+  <!-- Connectors -->
+  <svg class="connectors" viewBox="0 0 1200 760" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#226b8f"/>
+      </marker>
+      <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#a93e50"/>
+      </marker>
+      <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#9a6c3a"/>
+      </marker>
+      <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#5179a2"/>
+      </marker>
+    </defs>
+
+    <!-- Frontend → API (3 user flows) -->
+    <path d="M344,164 C380,164 392,164 428,164" stroke="#226b8f" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+    <path d="M344,252 C380,252 392,252 428,252" stroke="#226b8f" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+    <path d="M344,340 C380,340 392,340 428,340" stroke="#226b8f" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+    <path d="M344,428 C380,428 392,428 428,428" stroke="#226b8f" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+
+    <!-- API → External services -->
+    <!-- AI → Groq -->
+    <path d="M770,164 C810,164 820,164 858,164" stroke="#3f8255" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+    <!-- PayPal route → PayPal sandbox -->
+    <path d="M770,252 C810,252 820,252 858,252" stroke="#a93e50" stroke-width="2" fill="none" marker-end="url(#arr2)"/>
+    <!-- Projects → Prisma/PostgreSQL -->
+    <path d="M770,340 C810,340 820,340 858,340" stroke="#9a6c3a" stroke-width="2" fill="none" marker-end="url(#arr3)"/>
+    <!-- Payouts → Monnify/OPay -->
+    <path d="M770,428 C810,428 820,428 858,428" stroke="#226b8f" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+    <!-- All API → Vercel hosting (host layer) -->
+    <path d="M770,516 C810,516 820,516 858,516" stroke="#5179a2" stroke-width="2" fill="none" marker-end="url(#arr4)"/>
+
+    <!-- Webhook back from PayPal sandbox to /api/payments/webhook -->
+    <path d="M858,268 C820,300 790,290 770,272" stroke="#a93e50" stroke-width="1.6" stroke-dasharray="5,3" fill="none" marker-end="url(#arr2)"/>
+  </svg>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="item"><span class="swatch s-accent"></span> User request / API call</div>
+    <div class="item"><span class="swatch s-accent2"></span> PayPal payment / webhook flow</div>
+    <div class="item"><span class="swatch s-data"></span> Database access (Prisma)</div>
+    <div class="item"><span class="swatch s-host"></span> Hosting &amp; deployment</div>
+    <div class="item"><span style="font-family:'DejaVu Sans Mono',monospace; font-size:11px; color:#a93e50;">- - -</span> Async webhook callback</div>
+  </div>
+
+  <div class="footnote">FIG 5.1 &middot; ARCHITECTURE</div>
+
+</div>
+</body>
+</html>

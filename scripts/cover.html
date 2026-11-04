@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GigSure AI — Technical Documentation Cover</title>
+<style>
+  /* ━━ Cover — HUD Data Terminal (Template 01), dark navy variant ━━ */
+  /* Page = A4 portrait @ 96dpi → 794 × 1123 px */
+  :root {
+    --navy:        #0f172a;
+    --navy-2:      #14233d;
+    --accent:      #226b8f;
+    --accent-2:    #467389;
+    --accent-3:    #a93e50;
+    --text:        #f3f6f8;
+    --text-muted:  #94a3b8;
+    --grid-line:   rgba(148, 163, 184, 0.06);
+    --hairline:    rgba(148, 163, 184, 0.18);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 794px;
+    height: 1123px;
+    background: var(--navy);
+    font-family: 'Inter', 'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: var(--text);
+  }
+  .poster {
+    position: relative;
+    width: 794px;
+    height: 1123px;
+    background:
+      radial-gradient(120% 80% at 85% 12%, rgba(34,107,143,0.20) 0%, rgba(34,107,143,0) 55%),
+      radial-gradient(90% 60% at 15% 92%, rgba(169,62,80,0.10) 0%, rgba(169,62,80,0) 60%),
+      var(--navy);
+    overflow: hidden;
+  }
+
+  /* ── Layer 1 — background grid + watermark ── */
+  .layer-bg {
+    position: absolute; inset: 0; z-index: 1;
+    overflow: hidden;
+  }
+  .grid-pattern {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+  .watermark {
+    position: absolute;
+    left: 60px; bottom: 36px;
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: rgba(148, 163, 184, 0.18);
+    text-transform: uppercase;
+  }
+  .corner-mark {
+    position: absolute;
+    width: 26px; height: 26px;
+    border: 1px solid var(--hairline);
+  }
+  .corner-mark.tl { top: 28px; left: 28px; border-right: none; border-bottom: none; }
+  .corner-mark.tr { top: 28px; right: 28px; border-left: none; border-bottom: none; }
+  .corner-mark.bl { bottom: 28px; left: 28px; border-right: none; border-top: none; }
+  .corner-mark.br { bottom: 28px; right: 28px; border-left: none; border-top: none; }
+
+  /* ── Layer 2 — structure: ultra-thick anchor line ── */
+  .layer-struct { position: absolute; inset: 0; z-index: 2; }
+  .anchor-line {
+    position: absolute;
+    left: 95px; /* 0.12 * 794 */
+    top: 112px;   /* 0.10 * 1123 */
+    bottom: 112px;
+    width: 6px;
+    background: var(--accent);
+    border-radius: 2px;
+    box-shadow: 0 0 24px rgba(34,107,143,0.55);
+  }
+  .anchor-tick {
+    position: absolute;
+    left: 95px;
+    width: 28px; height: 2px;
+    background: var(--accent);
+  }
+  .anchor-tick.t1 { top: 168px; }
+  .anchor-tick.t2 { top: 337px; }  /* ~0.30*H */
+  .anchor-tick.t3 { top: 562px; }  /* ~0.50*H */
+  .anchor-tick.t4 { top: 842px; }  /* ~0.75*H */
+
+  /* ── Layer 3 — content ── */
+  .layer-content {
+    position: absolute; inset: 0; z-index: 3;
+    padding: 0 60px 0 145px; /* content left edge offset from thick line */
+  }
+
+  /* top status bar */
+  .status-bar {
+    position: absolute;
+    top: 70px; left: 145px; right: 60px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+  .status-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent); margin-right: 8px;
+    box-shadow: 0 0 8px rgba(34,107,143,0.8);
+  }
+  .status-right { color: var(--accent-2); }
+
+  /* A — Kicker */
+  .kicker {
+    position: absolute;
+    top: 168px; left: 145px;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 4px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+  .kicker .accent-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    margin-right: 12px;
+    background: rgba(34,107,143,0.18);
+    color: var(--accent);
+    border: 1px solid rgba(34,107,143,0.45);
+    border-radius: 3px;
+    letter-spacing: 2px;
+  }
+
+  /* B — Hero title */
+  .hero {
+    position: absolute;
+    top: 218px; left: 145px;
+    width: 580px;
+  }
+  .hero .brand {
+    font-family: 'DejaVu Serif', 'Noto Serif SC', Georgia, serif;
+    font-size: 86px;
+    font-weight: 900;
+    line-height: 0.98;
+    letter-spacing: -2px;
+    color: var(--text);
+  }
+  .hero .brand::after {
+    content: ' AI';
+    color: var(--accent);
+    font-style: italic;
+  }
+  .hero .subtitle {
+    margin-top: 18px;
+    font-size: 19px;
+    font-weight: 400;
+    line-height: 1.35;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    max-width: 560px;
+  }
+  .hero .subtitle b { color: var(--text); font-weight: 600; }
+
+  /* C — Summary */
+  .summary {
+    position: absolute;
+    top: 562px; left: 145px;
+    width: 540px;
+    font-size: 14.5px;
+    line-height: 1.7;
+    color: rgba(243, 246, 248, 0.82);
+    font-weight: 300;
+  }
+  .summary .lead {
+    display: block;
+    margin-bottom: 14px;
+    padding-left: 14px;
+    border-left: 2px solid var(--accent);
+    font-weight: 400;
+    color: var(--text);
+  }
+
+  /* D — Meta grid */
+  .meta {
+    position: absolute;
+    top: 790px; left: 145px; right: 60px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px 32px;
+  }
+  .meta .label {
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .meta .value {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .meta .value a { color: var(--accent); text-decoration: none; }
+  .meta .value .small {
+    display: block;
+    font-size: 11px;
+    font-weight: 300;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* E — footer band */
+  .footer-band {
+    position: absolute;
+    bottom: 52px; left: 145px; right: 60px;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding-top: 14px;
+    border-top: 1px solid var(--hairline);
+  }
+  .footer-band .doc-id {
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+  .footer-band .doc-id b { color: var(--accent); font-weight: 700; }
+  .footer-band .ver {
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  /* tech badges row */
+  .tech-row {
+    position: absolute;
+    top: 945px; left: 145px; right: 60px;
+    display: flex; flex-wrap: wrap; gap: 7px;
+  }
+  .tech-row .chip {
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 5px 10px;
+    color: var(--text-muted);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+  .tech-row .chip.primary {
+    color: var(--accent);
+    border-color: rgba(34,107,143,0.55);
+    background: rgba(34,107,143,0.12);
+  }
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <!-- Layer 1 — background -->
+  <div class="layer-bg">
+    <div class="grid-pattern"></div>
+    <div class="watermark">PAYPAL · AI · HACKATHON · 2025</div>
+    <div class="corner-mark tl"></div>
+    <div class="corner-mark tr"></div>
+    <div class="corner-mark bl"></div>
+    <div class="corner-mark br"></div>
+  </div>
+
+  <!-- Layer 2 — structure -->
+  <div class="layer-struct">
+    <div class="anchor-line"></div>
+    <div class="anchor-tick t1"></div>
+    <div class="anchor-tick t2"></div>
+    <div class="anchor-tick t3"></div>
+    <div class="anchor-tick t4"></div>
+  </div>
+
+  <!-- Layer 3 — content -->
+  <div class="layer-content">
+
+    <div class="status-bar">
+      <div><span class="status-dot"></span>SYS // GIGSURE.AI / DOC</div>
+      <div class="status-right">BUILD 0.1 · CLASSIFIED · INTERNAL</div>
+    </div>
+
+    <div class="kicker">
+      <span class="accent-tag">DOC // 01</span>
+      Technical Documentation &amp; Hackathon Project Brief
+    </div>
+
+    <div class="hero">
+      <div class="brand">GigSure</div>
+      <div class="subtitle">
+        <b>Cross-border gig escrow, protected by AI.</b><br>
+        A milestone-gated collaboration platform connecting African freelancers with international clients &mdash; powered by PayPal rails and Groq inference.
+      </div>
+    </div>
+
+    <div class="summary">
+      <span class="lead">Project brief prepared for the PayPal AI Hackathon judging panel.</span>
+      This document covers the technical architecture, PayPal Orders&nbsp;v2 + Webhook verification integration, and the five production-grade AI features running on Groq (openai/gpt-oss-20b). It is written to be reviewable by both technical and non-technical judges, and clearly separates what is implemented today from what is planned on the future roadmap.
+    </div>
+
+    <div class="meta">
+      <div>
+        <div class="label">Builder</div>
+        <div class="value">
+          Ahmad Muhammad Wammi
+          <span class="small">0xFlux4hm &middot; Lagos, Nigeria</span>
+        </div>
+      </div>
+      <div>
+        <div class="label">Live Application</div>
+        <div class="value">
+          <a>gigsure-ai.vercel.app</a>
+          <span class="small">https://gigsure-ai.vercel.app/</span>
+        </div>
+      </div>
+      <div>
+        <div class="label">Source Code</div>
+        <div class="value">
+          <a>github.com/0xFlux4hm/gigsure-ai</a>
+          <span class="small">https://github.com/0xFlux4hm/gigsure-ai</span>
+        </div>
+      </div>
+      <div>
+        <div class="label">Stack</div>
+        <div class="value">
+          Next.js 16 &middot; Groq &middot; PayPal
+          <span class="small">Prisma + PostgreSQL &middot; Vercel</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tech-row">
+      <span class="chip primary">PAYPAL ORDERS v2</span>
+      <span class="chip primary">GROQ gpt-oss-20b</span>
+      <span class="chip">WEBHOOK VERIFY</span>
+      <span class="chip">REFUNDS v2</span>
+      <span class="chip">OAUTH2</span>
+      <span class="chip">PRISMA</span>
+      <span class="chip">VERCEL</span>
+    </div>
+
+    <div class="footer-band">
+      <div class="doc-id">DOC-ID &nbsp;·&nbsp; <b>GSAI-TB-001</b> &nbsp;·&nbsp; TECHNICAL BRIEF</div>
+      <div class="ver">REV 1.0 &nbsp;·&nbsp; A4</div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

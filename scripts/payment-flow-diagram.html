@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GigSure AI — Cross-Border Payment Lifecycle</title>
+<style>
+  :root {
+    --page-bg: #f7f8f9;
+    --card: #ffffff;
+    --stripe: #eef1f3;
+    --ink: #222425;
+    --muted: #6b7378;
+    --border: #cdd5da;
+    --accent: #226b8f;
+    --accent-soft: #e6eef4;
+    --accent-2: #a93e50;
+    --accent-2-soft: #f6e8ea;
+    --success: #3f8255;
+    --success-soft: #e7f3ee;
+    --warn: #9a7c3f;
+    --warn-soft: #f3ecdf;
+    --info: #5179a2;
+    --info-soft: #e7eef4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1200px; height: 760px;
+    background: var(--page-bg);
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    color: var(--ink);
+  }
+  .diagram {
+    position: relative;
+    width: 1200px; height: 760px;
+    background: var(--page-bg);
+    padding: 36px 44px;
+    overflow: hidden;
+  }
+  .diagram h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.2px;
+  }
+  .diagram .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Timeline track */
+  .track {
+    position: absolute;
+    top: 350px; left: 80px;
+    width: 1040px; height: 4px;
+    background: linear-gradient(to right, var(--accent-2) 0%, var(--accent-2) 18%, var(--warn) 18%, var(--warn) 42%, var(--accent) 42%, var(--accent) 66%, var(--success) 66%, var(--success) 100%);
+    border-radius: 2px;
+  }
+  .track-marks {
+    position: absolute;
+    top: 320px; left: 80px;
+    width: 1040px;
+    display: flex; justify-content: space-between;
+    pointer-events: none;
+  }
+  .track-marks .seg {
+    position: relative;
+    height: 60px;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  }
+  .track-marks .seg .dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--card);
+    border: 3px solid currentColor;
+    margin-bottom: 8px;
+  }
+  .track-marks .seg .stage {
+    position: absolute; top: -28px;
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .seg.s1 { color: var(--accent-2); }
+  .seg.s2 { color: var(--warn); }
+  .seg.s3 { color: var(--accent); }
+  .seg.s4 { color: var(--success); }
+
+  /* Stage cards (above & below the track) */
+  .card {
+    position: absolute;
+    width: 230px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .card .actor {
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 9.5px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .card .title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-top: 4px;
+  }
+  .card .desc {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 5px;
+    line-height: 1.4;
+  }
+  .card .tag {
+    display: inline-block;
+    margin-top: 8px;
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border-radius: 3px;
+  }
+  .card.client { top: 130px; left: 60px; border-top-color: var(--accent-2); }
+  .card.client .tag { background: var(--accent-2-soft); color: var(--accent-2); }
+  .card.paypal { top: 130px; left: 320px; border-top-color: var(--warn); }
+  .card.paypal .tag { background: var(--warn-soft); color: var(--warn); }
+  .card.gigsure { top: 130px; left: 580px; border-top-color: var(--accent); }
+  .card.gigsure .tag { background: var(--accent-soft); color: var(--accent); }
+  .card.payout { top: 130px; left: 840px; border-top-color: var(--success); }
+  .card.payout .tag { background: var(--success-soft); color: var(--success); }
+
+  /* Below-track detail cards */
+  .detail {
+    position: absolute;
+    width: 230px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .detail .label {
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 9.5px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .detail ul {
+    list-style: none;
+    padding: 0; margin: 0;
+  }
+  .detail li {
+    font-size: 11px;
+    color: var(--ink);
+    line-height: 1.55;
+    padding-left: 12px;
+    position: relative;
+  }
+  .detail li::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 8px;
+    width: 4px; height: 4px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+  .detail li.red::before { background: var(--accent-2); }
+  .detail li.warn::before { background: var(--warn); }
+  .detail li.green::before { background: var(--success); }
+  .detail li.blue::before { background: var(--info); }
+
+  .d1 { top: 430px; left: 60px; }
+  .d2 { top: 430px; left: 320px; }
+  .d3 { top: 430px; left: 580px; }
+  .d4 { top: 430px; left: 840px; }
+
+  .legend {
+    position: absolute;
+    bottom: 24px; left: 44px; right: 44px;
+    display: flex; gap: 18px; align-items: center;
+    font-size: 10.5px; color: var(--muted);
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .legend .item { display: flex; align-items: center; gap: 7px; }
+  .legend .swatch { width: 18px; height: 6px; border-radius: 2px; }
+  .legend .s-red { background: var(--accent-2); }
+  .legend .s-warn { background: var(--warn); }
+  .legend .s-blue { background: var(--accent); }
+  .legend .s-green { background: var(--success); }
+
+  .footnote {
+    position: absolute;
+    bottom: 24px; right: 44px;
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 9.5px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="diagram">
+
+  <h1>GigSure AI &mdash; Cross-Border Payment Lifecycle</h1>
+  <div class="subtitle">USD inflow via PayPal &rarr; verified webhook &rarr; NGN funds held under Payment Protection &rarr; milestone-gated payout via Monnify/OPay</div>
+
+  <!-- Stage cards (top row) -->
+  <div class="card client">
+    <div class="actor">STAGE 1 · ACTOR</div>
+    <div class="title">International Client</div>
+    <div class="desc">Initiates funding in USD via PayPal checkout on the GigSure order page.</div>
+    <span class="tag">USD IN</span>
+  </div>
+
+  <div class="card paypal">
+    <div class="actor">STAGE 2 · PAYMENT</div>
+    <div class="title">PayPal Orders v2</div>
+    <div class="desc">Order created &rarr; captured &rarr; webhook signature verified via PayPal API.</div>
+    <span class="tag">SANDBOX</span>
+  </div>
+
+  <div class="card gigsure">
+    <div class="actor">STAGE 3 · ESCROW</div>
+    <div class="title">GigSure Payment Protection</div>
+    <div class="desc">USD converted &amp; recorded in NGN. Funds held pending milestone approval.</div>
+    <span class="tag">HELD · NGN</span>
+  </div>
+
+  <div class="card payout">
+    <div class="actor">STAGE 4 · PAYOUT</div>
+    <div class="title">Freelancer (NGN)</div>
+    <div class="desc">On milestone approval, NGN released to local bank via Monnify or OPay.</div>
+    <span class="tag">RELEASED</span>
+  </div>
+
+  <!-- Timeline track -->
+  <div class="track"></div>
+  <div class="track-marks">
+    <div class="seg s1"><span class="stage">01 · INTAKE</span><span class="dot"></span></div>
+    <div class="seg s2"><span class="stage">02 · CAPTURE</span><span class="dot"></span></div>
+    <div class="seg s3"><span class="stage">03 · HOLD</span><span class="dot"></span></div>
+    <div class="seg s4"><span class="stage">04 · RELEASE</span><span class="dot"></span></div>
+  </div>
+
+  <!-- Detail cards (bottom row) -->
+  <div class="detail d1">
+    <div class="label">API CALLS · STAGE 1</div>
+    <ul>
+      <li>POST /api/payments/initiate</li>
+      <li>PayPal Orders v2 create</li>
+      <li class="red">Cross-border USD amount</li>
+      <li>Client fee-breakdown preview</li>
+    </ul>
+  </div>
+  <div class="detail d2">
+    <div class="label">API CALLS · STAGE 2</div>
+    <ul>
+      <li>POST /api/payments/verify</li>
+      <li class="warn">POST /v1/oauth2/token (server-to-server)</li>
+      <li>POST /v1/notifications/verify-webhook-signature</li>
+      <li>Capture id persisted to transaction</li>
+    </ul>
+  </div>
+  <div class="detail d3">
+    <div class="label">DOMAIN RULES · STAGE 3</div>
+    <ul>
+      <li>Transaction status = HELD</li>
+      <li class="blue">Milestone submit &amp; approve flow</li>
+      <li>Refund API available if cancelled</li>
+      <li>Project Protection policy enforced</li>
+    </ul>
+  </div>
+  <div class="detail d4">
+    <div class="label">PAYOUT · STAGE 4</div>
+    <ul>
+      <li>POST /api/payouts (Monnify/OPay)</li>
+      <li>POST /v2/payments/captures/{id}/refund</li>
+      <li class="green">NGN bank transfer on approval</li>
+      <li>Audit trail + receipt PDF</li>
+    </ul>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="item"><span class="swatch s-red"></span> Client intake (USD)</div>
+    <div class="item"><span class="swatch s-warn"></span> PayPal capture &amp; webhook verify</div>
+    <div class="item"><span class="swatch s-blue"></span> Held escrow (NGN)</div>
+    <div class="item"><span class="swatch s-green"></span> Milestone-gated release</div>
+  </div>
+
+  <div class="footnote">FIG 6.1 &middot; PAYMENT LIFECYCLE</div>
+
+</div>
+</body>
+</html>
