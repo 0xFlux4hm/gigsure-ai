@@ -193,7 +193,7 @@
     @apply rounded-xl border border-border/60 bg-gradient-to-br from-card to-muted/30 p-5 shadow-[var(--shadow-sm)] transition-all duration-200;
   }
   .premium-stat:hover {
-    @apply shadow-[var(--shadow-md)] -translate-y-0.5;
+    @apply shadow-[var(--shadow-md)] -translate-y-0.5 border-primary/20;
   }
 
   /* Premium sidebar link */
@@ -269,5 +269,28 @@
   /* Premium page transition */
   .page-enter {
     @apply animate-in fade-in-0 slide-in-from-bottom-1 duration-200;
+  }
+
+  /* Premium tech badge — for landing page */
+  .tech-badge {
+    @apply flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background border border-border/60 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5;
+  }
+
+  /* Premium glass nav — for sticky headers */
+  .glass-nav {
+    @apply bg-background/80 backdrop-blur-md border-b border-border/40;
+  }
+
+  /* Premium hero gradient */
+  .hero-gradient {
+    background: linear-gradient(to bottom, hsl(var(--primary) / 0.05), transparent 60%);
+  }
+  .hero-glow {
+    @apply absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/10 rounded-full blur-3xl opacity-30 pointer-events-none;
+  }
+
+  /* Premium section divider */
+  .section-divider {
+    @apply border-t border-border/40;
   }
 }
