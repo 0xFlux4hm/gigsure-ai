@@ -119,22 +119,6 @@ export function LandingView() {
                   I already have an account
                 </Button>
               </div>
-
-              {/* Tech badges */}
-              <div className="mt-8 flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background border border-border/60 shadow-sm">
-                  <span className="font-bold text-blue-600">PayPal</span>
-                  <span className="text-muted-foreground text-xs">Cross-border</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background border border-border/60 shadow-sm">
-                  <span className="font-bold text-orange-600">Groq</span>
-                  <span className="text-muted-foreground text-xs">500 tok/s LPU</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background border border-border/60 shadow-sm">
-                  <span className="font-bold text-emerald-600">Monnify</span>
-                  <span className="text-muted-foreground text-xs">NGN payouts</span>
-                </div>
-              </div>
             </div>
             <div className="relative">
               <div className="absolute -inset-4 bg-primary/5 rounded-3xl blur-2xl" aria-hidden />
