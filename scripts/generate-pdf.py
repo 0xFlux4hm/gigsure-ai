@@ -344,7 +344,7 @@ def _draw_header_footer(canvas, doc):
     canvas.line(MARGIN_L, 12 * mm, PAGE_W - MARGIN_R, 12 * mm)
     canvas.setFillColor(TEXT_MUTED)
     canvas.setFont(MONO_FONT, 7.5)
-    canvas.drawString(MARGIN_L, 8 * mm, '0xFlux4hm · Lagos, NG')
+    canvas.drawString(MARGIN_L, 8 * mm, '0xFlux4hm · Yobe, NG')
     # Page numbers — body PDF starts at page 1; merged with 1-page cover later
     page_num = doc.page
     canvas.setFillColor(HEADER_FILL)
@@ -374,7 +374,7 @@ def _draw_toc_page(canvas, doc):
     canvas.line(MARGIN_L, 12 * mm, PAGE_W - MARGIN_R, 12 * mm)
     canvas.setFillColor(TEXT_MUTED)
     canvas.setFont(MONO_FONT, 7.5)
-    canvas.drawString(MARGIN_L, 8 * mm, '0xFlux4hm · Lagos, NG')
+    canvas.drawString(MARGIN_L, 8 * mm, '0xFlux4hm · Yobe, NG')
     canvas.setFillColor(HEADER_FILL)
     canvas.setFont(MONO_FONT_BOLD, 8)
     canvas.drawCentredString(PAGE_W / 2, 8 * mm, 'PAGE  i  /  19')
@@ -547,7 +547,7 @@ story.append(p(
     'freelancers with international clients and protects every engagement with '
     'transparent contracts, escrow-style payment protection, and AI-powered '
     'advisory. The platform was built end-to-end for the PayPal AI Hackathon by '
-    'Ahmad Muhammad Wammi (0xFlux4hm) in Lagos, Nigeria, and is deployed at '
+    'Ahmad Muhammad Wammi (0xFlux4hm) in Yobe, Nigeria, and is deployed at '
     '<font color="#226b8f">gigsure-ai.vercel.app</font>.'
 ))
 story.append(p(
@@ -605,7 +605,7 @@ story.append(Spacer(1, 4))
 story.append(p(
     'Africa is one of the fastest-growing freelance talent markets in the world, '
     'yet it remains structurally invisible to the global gig economy. '
-    'Freelancers in Lagos, Accra, and Nairobi win clients in San Francisco, '
+    'Freelancers in Yobe, Accra, and Nairobi win clients in San Francisco, '
     'Berlin, and Singapore — but the work itself has to flow through a tangle of '
     'patchwork tools: chat apps for requirements, email for contracts, wire '
     'transfers for payment, and personal trust for dispute resolution. The result '
@@ -1016,7 +1016,7 @@ story.append(p(
 story.append(p_tight('<b>4. Mobile forms on a small screen.</b>'))
 story.append(p(
     'A freelancer filling out a milestone submission on a 5.5" Android screen '
-    'in Lagos traffic is the real user. Every form had to be reflowed for '
+    'in Yobe traffic is the real user. Every form had to be reflowed for '
     'mobile — stacked inputs, sticky submit bars, single-column tables, and '
     'no horizontal scroll. Tailwind v4 made the responsive grid painless.'
 ))
@@ -1209,7 +1209,7 @@ story.append(p(
     'GigSure went from a Notion doc to a deployed application with five AI '
     'features, four PayPal APIs, an audited payment flow, and a $0 cost '
     'basis. The infrastructure exists today, for free, that lets a single '
-    'builder in Lagos ship a product that competes with venture-funded teams. '
+    'builder in Yobe ship a product that competes with venture-funded teams. '
     'That is the new normal, and GigSure is a small proof that it works.'
 ))
 
@@ -1230,7 +1230,7 @@ story.append(Paragraph(
                    textColor=HEADER_FILL, alignment=TA_CENTER, spaceBefore=6)
 ))
 story.append(Paragraph(
-    'Ahmad Muhammad Wammi (0xFlux4hm), Lagos, Nigeria.',
+    'Ahmad Muhammad Wammi (0xFlux4hm), Yobe, Nigeria.',
     ParagraphStyle('SignSub', fontName=BODY_FONT, fontSize=10, leading=14,
                    textColor=TEXT_MUTED, alignment=TA_CENTER, spaceBefore=2)
 ))
@@ -1272,7 +1272,7 @@ links_data = [
      'Append-only audit trail for every state change.'],
     ['Builder',
      'Ahmad Muhammad Wammi · 0xFlux4hm',
-     'Lagos, Nigeria. PayPal AI Hackathon 2025.'],
+     'Yobe, Nigeria. PayPal AI Hackathon 2025.'],
 ]
 
 story.append(make_table(

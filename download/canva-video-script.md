@@ -21,7 +21,7 @@
 
 **[SCREEN: Ahmad in blue shirt, speaking to camera]**
 
-> "I'm Ahmad, building from Lagos, Nigeria. Africa's freelancers are invisible to the global gig economy. Upwork doesn't serve us. Stripe doesn't do Naira."
+> "I'm Ahmad, building from Yobe, Nigeria. Africa's freelancers are invisible to the global gig economy. Upwork doesn't serve us. Stripe doesn't do Naira."
 
 ---
 

@@ -4,7 +4,7 @@
 
 Africa's independent professionals — developers, designers, writers, consultants — are invisible to the global gig economy. **Upwork doesn't serve Nigeria.** Stripe doesn't process NGN payouts. When African freelancers DO find international clients, there's no trust layer — no contract protection, no milestone-gated payments, no way for the client to pay in their currency.
 
-I'm Ahmad Muhammad Wammi, a cybersecurity bug hunter based in Lagos, Nigeria. I've seen firsthand how Nigerian professionals lose money to FX depreciation, unclear requirements, unpaid completed work, and he-said-she-said disputes with no records. The existing platforms weren't built for us.
+I'm Ahmad Muhammad Wammi, a cybersecurity bug hunter based in Yobe, Nigeria. I've seen firsthand how Nigerian professionals lose money to FX depreciation, unclear requirements, unpaid completed work, and he-said-she-said disputes with no records. The existing platforms weren't built for us.
 
 So I built GigSure AI. We're solving for **Africa, starting with Nigeria.**
 
@@ -37,7 +37,7 @@ International clients fund milestones in **USD via PayPal**. The Nigerian profes
 
 Running on **Groq's LPU hardware** at **500+ tokens per second** with `openai/gpt-oss-20b`. Free tier: 30 RPM / 1,000 RPD, no credit card required.
 
-**1. AI Project Brief Generator** — Customer describes a project in plain language ("I need a website for my Lagos bakery with online ordering"). AI generates a structured brief: title, overview, scope of work, deliverables, skills required, complexity rating, clarifying questions, and estimated timeline. All editable before saving.
+**1. AI Project Brief Generator** — Customer describes a project in plain language ("I need a website for my Yobe bakery with online ordering"). AI generates a structured brief: title, overview, scope of work, deliverables, skills required, complexity rating, clarifying questions, and estimated timeline. All editable before saving.
 
 **2. AI Milestone Generator** — Analyzes project scope + funding arrangement and suggests a milestone breakdown with deliverables, acceptance criteria, dependencies, estimated days, and payment percentages. Supports all three GigSure funding arrangements (full / milestone / upfront + milestones). Never invents actual payment amounts — only percentages. The customer and worker must review and agree.
 

@@ -2,7 +2,7 @@
 
 > **Track:** Open (no prescribed tracks)
 > **Prize targets:** Best Use of PayPal + AI, Best Use of Agentic Commerce, Most Impactful
-> **Builder:** Ahmad Muhammad Wammi (0xFlux4hm) — Lagos, Nigeria 🇳🇬
+> **Builder:** Ahmad Muhammad Wammi (0xFlux4hm) — Yobe, Nigeria 🇳🇬
 > **Build period:** October 30 — November 12, 2026
 > **Submission deadline:** Wed Nov 12, 2026, 9 PM ET (Thu Nov 13, 2 AM WAT)
 > **Live app:** https://gigsure-ai.vercel.app/
@@ -235,8 +235,8 @@ SMTP_URL=<if-enabled>
 
 | Time | Demo beat | Tech shown |
 |---|---|---|
-| 0:00 – 0:20 | **"Why this, why now"** — Ahmad introduces himself (Lagos-based, cybersecurity bug hunter). The problem: Africa's independent professionals are invisible to the global gig economy. Upwork doesn't serve Nigeria. Stripe doesn't do NGN. We're building for **Africa, starting with Nigeria**. | — |
-| 0:20 – 0:50 | **AI Project Brief Generator** — Describe a project in plain language ("I need a website for my Lagos bakery with online ordering"). AI generates a structured brief: title, scope, deliverables, skills, complexity, timeline, clarifying questions. All editable before saving. | Groq AI — `openai/gpt-oss-20b` @ 500 tok/s |
+| 0:00 – 0:20 | **"Why this, why now"** — Ahmad introduces himself (Yobe-based, cybersecurity bug hunter). The problem: Africa's independent professionals are invisible to the global gig economy. Upwork doesn't serve Nigeria. Stripe doesn't do NGN. We're building for **Africa, starting with Nigeria**. | — |
+| 0:20 – 0:50 | **AI Project Brief Generator** — Describe a project in plain language ("I need a website for my Yobe bakery with online ordering"). AI generates a structured brief: title, scope, deliverables, skills, complexity, timeline, clarifying questions. All editable before saving. | Groq AI — `openai/gpt-oss-20b` @ 500 tok/s |
 | 0:50 – 1:20 | **AI Milestone Generator** — Click "AI Generate" on the milestones tab. AI suggests a milestone breakdown with deliverables, acceptance criteria, dependencies, and payment percentages. Supports all 3 funding arrangements. | Groq AI + project context |
 | 1:20 – 1:50 | **Pay with PayPal** — Click "Pay with PayPal" on a ₦450,000 milestone. Show USD conversion ($300 at 1 USD = ₦1,500). PayPal sandbox opens. Approve payment. Webhook fires. Milestone status → "Funded". Funds held under GigSure Payment Protection. | PayPal Orders API v2 + Webhook API |
 | 1:50 – 2:20 | **AI Contract Analysis** — Open the contract. Click "Analyze". AI produces a dashboard report: risk score (0-100), severity stat cards (Total/High/Medium/Low), key findings table with colored severity badges, missing information, recommendations. | Groq AI — dashboard report renderer |
@@ -313,7 +313,7 @@ For the first time, an international client can:
 
 ## Team
 
-- **Ahmad Muhammad Wammi** (0xFlux4hm) — founder + tech lead, Lagos 🇳🇬. Cybersecurity bug hunter. Building GigSure AI.
+- **Ahmad Muhammad Wammi** (0xFlux4hm) — founder + tech lead, Yobe 🇳🇬. Cybersecurity bug hunter. Building GigSure AI.
 
 ---
 

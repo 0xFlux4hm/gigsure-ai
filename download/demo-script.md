@@ -13,7 +13,7 @@
 
 **[SHOW: Homepage video — landing page features section]**
 
-> "My name is Ahmad, I'm a cybersecurity bug hunter based in Lagos, Nigeria.
+> "My name is Ahmad, I'm a cybersecurity bug hunter based in Yobe, Nigeria.
 >
 > Africa's independent professionals — developers, designers, writers — are invisible to the global gig economy. Upwork doesn't serve Nigeria. Stripe doesn't process NGN payouts. When African freelancers DO find international clients, there's no trust layer — no contract protection, no milestone-gated payments, no way for the client to pay in their currency.
 >
@@ -109,7 +109,7 @@
 
 > "No Western platform has this. Upwork doesn't serve this market. Stripe doesn't process NGN. PayPal plus AI equals trust and transparency for Africa's independent professionals.
 >
-> I'm Ahmad Muhammad Wammi, building from Lagos. This is GigSure AI — built for Africa, starting with Nigeria.
+> I'm Ahmad Muhammad Wammi, building from Yobe. This is GigSure AI — built for Africa, starting with Nigeria.
 >
 > Thank you."
 
