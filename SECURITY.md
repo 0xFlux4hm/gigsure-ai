@@ -17,7 +17,7 @@ please **do not open a public GitHub issue**. Instead:
 
 ### Preferred: Private disclosure
 
-1. Email: **security@gigsure.example.com** (replace with your real domain)
+1. Email: **ahmedmwammi92@gmail.com** (replace with your real domain)
 2. Subject line: `[SECURITY] <brief description>`
 3. Include:
    - Description of the vulnerability
