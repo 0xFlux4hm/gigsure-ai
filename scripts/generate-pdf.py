@@ -545,7 +545,7 @@ story.append(Spacer(1, 4))
 story.append(p(
     'GigSure AI is a milestone-gated collaboration platform that connects African '
     'freelancers with international clients and protects every engagement with '
-    'transparent contracts, escrow-style payment protection, and AI-powered '
+    'transparent contracts, milestone-gated payment protection, and AI-powered '
     'advisory. The platform was built end-to-end for the PayPal AI Hackathon by '
     'Ahmad Muhammad Wammi (0xFlux4hm) in Yobe, Nigeria, and is deployed at '
     '<font color="#226b8f">gigsure-ai.vercel.app</font>.'
@@ -616,10 +616,10 @@ story.append(p(
 story.append(p('<b>Four concrete problems drive the GigSure AI design:</b>'))
 
 story.append(bullet_list([
-    '<b>Africa is invisible to global gig rails.</b> Most international payment and escrow platforms either do not operate in Nigeria, do not support NGN payout, or charge fees that erase small-contract margins entirely. Freelancers cannot receive USD; clients cannot release NGN.',
+    '<b>Africa is invisible to global gig rails.</b> Most international payment platforms either do not operate in Nigeria, do not support NGN payout, or charge fees that erase small-contract margins entirely. Freelancers cannot receive USD; clients cannot release NGN.',
     '<b>Cross-border friction is non-technical but fatal.</b> Currency conversion, fee disclosure, milestone gating, and dispute handling all live in separate tools. Each one is a failure point.',
     '<b>Requirements are unclear before work starts.</b> Clients describe projects in plain English ("I need a Shopify store"); freelancers guess at scope, milestones, and risk. Misalignment is discovered after the work is done.',
-    '<b>Payments are delayed or unprotected.</b> Without a verified escrow layer, freelancers either wait 30–60 days for international wires or accept the risk of never being paid. Clients, in turn, fear paying upfront for work that may not arrive.',
+    '<b>Payments are delayed or unprotected.</b> Without a verified payment protection layer, freelancers either wait 30–60 days for international wires or accept the risk of never being paid. Clients, in turn, fear paying upfront for work that may not arrive.',
 ]))
 
 story.append(Spacer(1, 4))
@@ -659,7 +659,7 @@ story.append(p('<b>The product is built around four pillars:</b>'))
 story.append(bullet_list([
     '<b>Transparent agreements.</b> The AI Project Brief Generator turns a one-line client description into a structured, milestone-aware project brief. The AI Contract Analysis then re-reads the brief and flags eight categories of contract risk before either party signs.',
     '<b>Milestone workflows.</b> Every project is broken into milestones, each with a payment percentage, a submission flow, and an approval gate. Funds are released per milestone, never as a lump sum.',
-    '<b>PayPal cross-border escrow.</b> International clients fund milestones in USD via PayPal Orders v2. GigSure verifies every payment with PayPal\'s webhook signature verification API before recording it as HELD in NGN under GigSure Payment Protection.',
+    '<b>PayPal cross-border milestone-gated payments.</b> International clients fund milestones in USD via PayPal Orders v2. GigSure verifies every payment with PayPal\'s webhook signature verification API before recording it as HELD in NGN under GigSure Payment Protection.',
     '<b>AI assistance at every step.</b> Ten specialised AI assistants advise freelancers and clients on pricing, scope, deliverables, communication, disputes, and more — strictly advisory, never authoritative.',
 ]))
 
@@ -758,7 +758,7 @@ story.append(p('<b>The five PayPal APIs used by GigSure AI are summarised below.
 paypal_table_data = [
     ['#', 'PayPal API', 'Endpoint', 'Purpose in GigSure AI'],
     ['1', 'Orders API v2', 'POST /v2/checkout/orders',
-     'Create a cross-border USD payment order against a milestone. Captured funds become the source of NGN escrow.'],
+     'Create a cross-border USD payment order against a milestone. Captured funds become the source of held NGN funds.'],
     ['2', 'OAuth 2.0', 'POST /v1/oauth2/token',
      'Server-to-server auth used to obtain a bearer token for every subsequent PayPal API call.'],
     ['3', 'Webhook verification', 'POST /v1/notifications/verify-webhook-signature',
@@ -789,7 +789,7 @@ if PAY_PNG.exists():
     img.hAlign = 'CENTER'
     story.append(Spacer(1, 4))
     story.append(img)
-    story.append(Paragraph('Fig 5.2 — Cross-border payment lifecycle: USD intake → verified capture → NGN escrow → milestone-gated release.', STYLE_CAPTION))
+    story.append(Paragraph('Fig 5.2 — Cross-border payment lifecycle: USD intake → verified capture → NGN held funds → milestone-gated release.', STYLE_CAPTION))
 
 story.append(Spacer(1, 4))
 story.append(p('<b>Milestone-gated fund release workflow</b>'))
