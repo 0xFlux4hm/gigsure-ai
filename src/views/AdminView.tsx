@@ -42,6 +42,7 @@ type AdminTab = "overview" | "users" | "projects" | "payments" | "payouts" | "di
 export function AdminView() {
   const [tab, setTab] = useState<AdminTab>("overview");
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const { navigate } = useNav();
 
   useEffect(() => {
     // SECURITY: Check admin status via /api/me (not /api/admin/me)
@@ -72,44 +73,169 @@ export function AdminView() {
   }
 
   return (
-    <div className="page-enter space-y-6">
-      <PageHeader
-        title="Admin dashboard"
-        description="Platform-wide oversight. All actions are audited."
-        icon={ShieldCheck}
-      />
+    <div className="page-enter flex h-[calc(100vh-4rem)] -m-6">
+      {/* Dark navy sidebar */}
+      <aside className="hidden md:flex w-64 shrink-0 flex-col bg-slate-900 dark:bg-slate-950 border-r border-slate-800">
+        {/* Sidebar header */}
+        <div className="p-4 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white font-bold text-sm">G</div>
+            <div>
+              <div className="text-sm font-semibold text-white">GigSure Admin</div>
+              <div className="text-[10px] text-slate-400">Operations Console</div>
+            </div>
+          </div>
+        </div>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as AdminTab)}>
-        <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/40 p-1">
-          <TabsTrigger value="overview" className="data-[state=active]:bg-background"><TrendingUp className="h-3.5 w-3.5 mr-1" /> Overview</TabsTrigger>
-          <TabsTrigger value="users" className="data-[state=active]:bg-background"><Users className="h-3.5 w-3.5 mr-1" /> Users</TabsTrigger>
-          <TabsTrigger value="projects" className="data-[state=active]:bg-background"><FolderKanban className="h-3.5 w-3.5 mr-1" /> Projects</TabsTrigger>
-          <TabsTrigger value="payments" className="data-[state=active]:bg-background"><CreditCard className="h-3.5 w-3.5 mr-1" /> Payments</TabsTrigger>
-          <TabsTrigger value="payouts" className="data-[state=active]:bg-background"><Banknote className="h-3.5 w-3.5 mr-1" /> Payouts</TabsTrigger>
-          <TabsTrigger value="disputes" className="data-[state=active]:bg-background"><Scale className="h-3.5 w-3.5 mr-1" /> Disputes</TabsTrigger>
-          <TabsTrigger value="kyc" className="data-[state=active]:bg-background"><ShieldCheck className="h-3.5 w-3.5 mr-1" /> KYC</TabsTrigger>
-          <TabsTrigger value="audit" className="data-[state=active]:bg-background"><ScrollText className="h-3.5 w-3.5 mr-1" /> Audit</TabsTrigger>
-          <TabsTrigger value="ai" className="data-[state=active]:bg-background"><Bot className="h-3.5 w-3.5 mr-1" /> AI</TabsTrigger>
-          <TabsTrigger value="privacy" className="data-[state=active]:bg-background"><Lock className="h-3.5 w-3.5 mr-1" /> Privacy</TabsTrigger>
-          <TabsTrigger value="webhooks" className="data-[state=active]:bg-background"><Webhook className="h-3.5 w-3.5 mr-1" /> Webhooks</TabsTrigger>
-          <TabsTrigger value="gateway" className="data-[state=active]:bg-background"><Settings className="h-3.5 w-3.5 mr-1" /> Gateway</TabsTrigger>
-        </TabsList>
+        {/* Nav sections */}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-6">
+          {/* MAIN */}
+          <div>
+            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">Main</div>
+            <AdminNavLink icon={TrendingUp} label="Overview" active={tab === "overview"} onClick={() => setTab("overview")} />
+            <AdminNavLink icon={Users} label="Users & Accounts" active={tab === "users"} onClick={() => setTab("users")} />
+            <AdminNavLink icon={FolderKanban} label="Projects & Contracts" active={tab === "projects"} onClick={() => setTab("projects")} />
+          </div>
+          {/* FINANCIAL OPERATIONS */}
+          <div>
+            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">Financial Operations</div>
+            <AdminNavLink icon={CreditCard} label="Payments" active={tab === "payments"} onClick={() => setTab("payments")} />
+            <AdminNavLink icon={Banknote} label="Payouts" active={tab === "payouts"} onClick={() => setTab("payouts")} />
+          </div>
+          {/* TRUST & SAFETY */}
+          <div>
+            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">Trust & Safety</div>
+            <AdminNavLink icon={Scale} label="Disputes" active={tab === "disputes"} onClick={() => setTab("disputes")} />
+            <AdminNavLink icon={ShieldCheck} label="KYC Verification" active={tab === "kyc"} onClick={() => setTab("kyc")} />
+            <AdminNavLink icon={Lock} label="Privacy" active={tab === "privacy"} onClick={() => setTab("privacy")} />
+          </div>
+          {/* PLATFORM */}
+          <div>
+            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">Platform</div>
+            <AdminNavLink icon={Bot} label="AI Management" active={tab === "ai"} onClick={() => setTab("ai")} />
+            <AdminNavLink icon={ScrollText} label="Audit Logs" active={tab === "audit"} onClick={() => setTab("audit")} />
+            <AdminNavLink icon={Webhook} label="Webhooks" active={tab === "webhooks"} onClick={() => setTab("webhooks")} />
+            <AdminNavLink icon={Settings} label="Gateway Config" active={tab === "gateway"} onClick={() => setTab("gateway")} />
+          </div>
+        </nav>
 
-        <TabsContent value="overview" className="mt-4"><OverviewTab /></TabsContent>
-        <TabsContent value="users" className="mt-4"><UsersTab /></TabsContent>
-        <TabsContent value="projects" className="mt-4"><ProjectsTab /></TabsContent>
-        <TabsContent value="payments" className="mt-4"><PaymentsTab /></TabsContent>
-        <TabsContent value="payouts" className="mt-4"><PayoutsTab /></TabsContent>
-        <TabsContent value="disputes" className="mt-4"><DisputesTab /></TabsContent>
-        <TabsContent value="kyc" className="mt-4"><KycTab /></TabsContent>
-        <TabsContent value="audit" className="mt-4"><AuditTab /></TabsContent>
-        <TabsContent value="ai" className="mt-4"><AiTab /></TabsContent>
-        <TabsContent value="privacy" className="mt-4"><PrivacyTab /></TabsContent>
-        <TabsContent value="webhooks" className="mt-4"><WebhooksTab /></TabsContent>
-        <TabsContent value="gateway" className="mt-4"><GatewayTab /></TabsContent>
-      </Tabs>
+        {/* Footer */}
+        <div className="p-3 border-t border-slate-800">
+          <Button variant="ghost" size="sm" className="w-full justify-start text-slate-400 hover:text-white hover:bg-slate-800" onClick={() => navigate({ view: "dashboard" })}>
+            <ArrowRight className="h-3.5 w-3.5 mr-2" /> Back to app
+          </Button>
+        </div>
+      </aside>
+
+      {/* Mobile top bar */}
+      <div className="md:hidden flex items-center gap-2 p-3 border-b bg-background sticky top-0 z-10">
+        <Select value={tab} onValueChange={(v) => setTab(v as AdminTab)}>
+          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="overview">Overview</SelectItem>
+            <SelectItem value="users">Users</SelectItem>
+            <SelectItem value="projects">Projects</SelectItem>
+            <SelectItem value="payments">Payments</SelectItem>
+            <SelectItem value="payouts">Payouts</SelectItem>
+            <SelectItem value="disputes">Disputes</SelectItem>
+            <SelectItem value="kyc">KYC</SelectItem>
+            <SelectItem value="audit">Audit</SelectItem>
+            <SelectItem value="ai">AI</SelectItem>
+            <SelectItem value="privacy">Privacy</SelectItem>
+            <SelectItem value="webhooks">Webhooks</SelectItem>
+            <SelectItem value="gateway">Gateway</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Main content area */}
+      <main className="flex-1 overflow-y-auto bg-muted/20">
+        <div className="p-6 max-w-7xl mx-auto">
+          {/* Page header */}
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-semibold tracking-tight">{getTabTitle(tab)}</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">{getTabDescription(tab)}</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => navigate({ view: "dashboard" })} className="hidden md:flex">
+              <ArrowRight className="h-3.5 w-3.5 mr-1" /> Back to app
+            </Button>
+          </div>
+
+          {/* Tab content */}
+          {tab === "overview" && <OverviewTab />}
+          {tab === "users" && <UsersTab />}
+          {tab === "projects" && <ProjectsTab />}
+          {tab === "payments" && <PaymentsTab />}
+          {tab === "payouts" && <PayoutsTab />}
+          {tab === "disputes" && <DisputesTab />}
+          {tab === "kyc" && <KycTab />}
+          {tab === "audit" && <AuditTab />}
+          {tab === "ai" && <AiTab />}
+          {tab === "privacy" && <PrivacyTab />}
+          {tab === "webhooks" && <WebhooksTab />}
+          {tab === "gateway" && <GatewayTab />}
+        </div>
+      </main>
     </div>
   );
+}
+
+function AdminNavLink({ icon: Icon, label, active, onClick }: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+        active
+          ? "bg-emerald-600/15 text-emerald-400 border-l-2 border-emerald-500 -ml-0.5"
+          : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+      }`}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      {label}
+    </button>
+  );
+}
+
+function getTabTitle(tab: AdminTab): string {
+  const titles: Record<AdminTab, string> = {
+    overview: "Platform Overview",
+    users: "Users & Accounts",
+    projects: "Projects & Contracts",
+    payments: "Payments & Transactions",
+    payouts: "Payouts",
+    disputes: "Disputes & Resolution",
+    kyc: "KYC & Verification",
+    audit: "Audit Logs",
+    ai: "AI Management",
+    privacy: "Security & Privacy",
+    webhooks: "Webhook Events",
+    gateway: "Gateway & Configuration",
+  };
+  return titles[tab] ?? "Admin";
+}
+
+function getTabDescription(tab: AdminTab): string {
+  const descriptions: Record<AdminTab, string> = {
+    overview: "Platform-wide metrics, health checks, and recent activity.",
+    users: "Manage user accounts, roles, and account status.",
+    projects: "View all projects, contracts, and milestones across the platform.",
+    payments: "Monitor payment transactions and funding records.",
+    payouts: "Track and verify payout requests to service providers.",
+    disputes: "Review open disputes and resolution status.",
+    kyc: "Identity verification status via Smile ID.",
+    audit: "Immutable audit trail of all platform actions.",
+    ai: "AI assistant usage, token consumption, and fallback rates.",
+    privacy: "Data subject requests and privacy compliance.",
+    webhooks: "Webhook delivery status and signature verification.",
+    gateway: "Payment provider configuration and health.",
+  };
+  return descriptions[tab] ?? "";
 }
 
 // ---------------------------------------------------------------------------
@@ -169,67 +295,175 @@ function OverviewTab() {
 
   const c = stats.counts;
   const t = stats.trends.last7Days;
+  const recentEvents = stats.recentAuditEvents.slice(0, 5);
+  const contractRatio = c.contracts.total > 0 ? c.contracts.accepted / c.contracts.total : 0;
 
   return (
     <div className="space-y-6">
-      {/* Top stats grid */}
+      {/* Hero stat row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Total users" value={c.users.total} sub={`${c.users.active} active · ${c.users.suspended} suspended`} icon={Users} accent="primary" />
-        <StatCard label="Total projects" value={c.projects.total} sub={`${c.projects.active} active`} icon={FolderKanban} />
-        <StatCard label="Open disputes" value={c.disputes.open} sub={`${c.disputes.total} total · ${c.disputes.resolved} resolved`} icon={Scale} accent={c.disputes.open > 0 ? "destructive" : "default"} />
-        <StatCard label="Pending funding" value={c.funding.pending} sub={`${c.funding.confirmed} confirmed · ${c.funding.failed} failed`} icon={Wallet} />
+        <StatCard
+          label="Total users"
+          value={c.users.total}
+          sub={`${c.users.active} active · ${c.users.suspended} suspended`}
+          icon={Users}
+          accent="primary"
+        />
+        <StatCard
+          label="Active projects"
+          value={c.projects.active}
+          sub={`${c.projects.total} total · ${c.projects.cancelled} cancelled`}
+          icon={FolderKanban}
+        />
+        <StatCard
+          label="Transaction volume"
+          value={c.funding.confirmed}
+          sub={`${formatMinor(c.funding.confirmedVolumeMinor, "NGN")} confirmed`}
+          icon={CreditCard}
+        />
+        <StatCard
+          label="Open disputes"
+          value={c.disputes.open}
+          sub={`${c.disputes.resolved} resolved · ${c.disputes.total} total`}
+          icon={Scale}
+          accent={c.disputes.open > 0 ? "destructive" : "default"}
+        />
       </div>
 
-      {/* 7-day trend */}
-      <Card className="premium-card">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Last 7 days</CardTitle>
-          <CardDescription>Platform activity over the past week</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <TrendCard label="New users" value={t.newUsers} />
-          <TrendCard label="New funding records" value={t.newFunding} />
-          <TrendCard label="New disputes" value={t.newDisputes} />
-          <TrendCard label="AI calls" value={t.aiCalls} />
-        </CardContent>
-      </Card>
+      <div className="grid lg:grid-cols-3 gap-4">
+        {/* 7-day trends */}
+        <Card className="premium-card lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-emerald-500" />
+              Last 7 days
+            </CardTitle>
+            <CardDescription>Platform activity over the past week</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <TrendCard label="New users" value={t.newUsers} />
+            <TrendCard label="New funding" value={t.newFunding} />
+            <TrendCard label="New disputes" value={t.newDisputes} />
+            <TrendCard label="AI calls" value={t.aiCalls} />
+          </CardContent>
+        </Card>
 
-      {/* Financial overview */}
-      <Card className="premium-card">
-        <CardHeader>
-          <CardTitle className="text-base">Financial overview</CardTitle>
-          <CardDescription>Transaction history and payment records</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <div className="text-xs text-muted-foreground">Confirmed funding volume</div>
-            <div className="text-lg font-semibold mt-1">{formatMinor(c.funding.confirmedVolumeMinor, "NGN")}</div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Released volume</div>
-            <div className="text-lg font-semibold mt-1">{formatMinor(c.funding.releaseVolumeMinor, "NGN")}</div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Failed transactions</div>
-            <div className="text-lg font-semibold mt-1 text-destructive">{c.funding.failed}</div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Invalid webhook signatures</div>
-            <div className="text-lg font-semibold mt-1 text-destructive">{c.webhooks.invalidSignatures}</div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* System counts */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <MiniStat label="Contracts" value={`${c.contracts.accepted}/${c.contracts.total} accepted`} />
-        <MiniStat label="Milestones" value={String(c.milestones)} />
-        <MiniStat label="Tasks (open)" value={`${c.tasks.open} / ${c.tasks.total}`} />
-        <MiniStat label="Pending invitations" value={String(c.invitations.pending)} />
-        <MiniStat label="AI activities" value={String(c.ai.totalActivities)} />
-        <MiniStat label="Pending privacy requests" value={String(c.privacy.pendingRequests)} accent={c.privacy.pendingRequests > 0 ? "warning" : "default"} />
+        {/* System health */}
+        <Card className="premium-card">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-500" />
+              System health
+            </CardTitle>
+            <CardDescription>Platform integrity signals</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <HealthRow
+              label="Contract acceptance"
+              value={`${c.contracts.accepted}/${c.contracts.total}`}
+              ratio={contractRatio}
+            />
+            <HealthRow label="AI activities" value={String(c.ai.totalActivities)} />
+            <HealthRow
+              label="Pending privacy requests"
+              value={String(c.privacy.pendingRequests)}
+              accent={c.privacy.pendingRequests > 0 ? "warning" : "default"}
+            />
+            <HealthRow label="Pending invitations" value={String(c.invitations.pending)} />
+          </CardContent>
+        </Card>
       </div>
 
+      <div className="grid lg:grid-cols-3 gap-4">
+        {/* Financial overview */}
+        <Card className="premium-card lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-emerald-500" />
+              Financial overview
+            </CardTitle>
+            <CardDescription>Transaction history and payment records</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground">Confirmed volume</div>
+              <div className="text-lg font-semibold mt-1">{formatMinor(c.funding.confirmedVolumeMinor, "NGN")}</div>
+              <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">{c.funding.confirmed} records</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Released volume</div>
+              <div className="text-lg font-semibold mt-1">{formatMinor(c.funding.releaseVolumeMinor, "NGN")}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{c.milestones} milestones</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Failed transactions</div>
+              <div className="text-lg font-semibold mt-1 text-destructive">{c.funding.failed}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{c.funding.pending} pending</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Invalid webhook signatures</div>
+              <div className="text-lg font-semibold mt-1 text-destructive">{c.webhooks.invalidSignatures}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{c.webhooks.total} total events</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent activity feed */}
+        <Card className="premium-card">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <ScrollText className="h-4 w-4 text-emerald-500" />
+              Recent activity
+            </CardTitle>
+            <CardDescription>Latest platform audit events</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentEvents.length === 0 ? (
+              <div className="text-xs text-muted-foreground py-4 text-center">No recent activity</div>
+            ) : (
+              recentEvents.map((e) => (
+                <div key={e.id} className="flex items-start gap-3">
+                  <div className="h-7 w-7 rounded-full bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-semibold shrink-0">
+                    {(e.actor?.displayName ?? "?").charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate">{e.actor?.displayName ?? "System"}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      <span className="font-mono text-[11px]">{e.action}</span>
+                      {e.targetType ? ` · ${e.targetType}` : ""}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground/70 mt-0.5">{timeAgo(e.createdAt)}</div>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function HealthRow({ label, value, accent = "default", ratio }: {
+  label: string;
+  value: string;
+  accent?: "default" | "warning";
+  ratio?: number;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className={`text-sm font-semibold ${accent === "warning" ? "text-amber-600 dark:text-amber-400" : ""}`}>{value}</span>
+      </div>
+      {typeof ratio === "number" && (
+        <div className="h-1.5 bg-muted/60 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(100, Math.round(ratio * 100))}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }
