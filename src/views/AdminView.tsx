@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Component, useEffect, useState, type ReactNode } from "react";
 import { useNav } from "@/lib/nav";
 import { api, formatDateTime, timeAgo, formatMinor } from "@/lib/client-api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -215,18 +215,20 @@ export function AdminView() {
         {/* Tab content (scrollable) */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-            {tab === "overview" && <OverviewTab onNavigate={(t) => setTab(t)} />}
-            {tab === "users" && <UsersTab />}
-            {tab === "projects" && <ProjectsTab />}
-            {tab === "payments" && <PaymentsTab />}
-            {tab === "payouts" && <PayoutsTab />}
-            {tab === "disputes" && <DisputesTab />}
-            {tab === "kyc" && <KycTab />}
-            {tab === "audit" && <AuditTab />}
-            {tab === "ai" && <AiTab />}
-            {tab === "privacy" && <PrivacyTab />}
-            {tab === "webhooks" && <WebhooksTab />}
-            {tab === "gateway" && <GatewayTab />}
+            <TabErrorBoundary key={tab} onReset={() => setTab("overview")}>
+              {tab === "overview" && <OverviewTab onNavigate={(t) => setTab(t)} />}
+              {tab === "users" && <UsersTab />}
+              {tab === "projects" && <ProjectsTab />}
+              {tab === "payments" && <PaymentsTab />}
+              {tab === "payouts" && <PayoutsTab />}
+              {tab === "disputes" && <DisputesTab />}
+              {tab === "kyc" && <KycTab />}
+              {tab === "audit" && <AuditTab />}
+              {tab === "ai" && <AiTab />}
+              {tab === "privacy" && <PrivacyTab />}
+              {tab === "webhooks" && <WebhooksTab />}
+              {tab === "gateway" && <GatewayTab />}
+            </TabErrorBoundary>
           </div>
         </div>
       </main>
@@ -262,6 +264,61 @@ function IconRailButton({ icon: Icon, label, active, onClick }: {
       )}
     </button>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Error boundary — prevents one tab crash from killing the whole admin page
+// ---------------------------------------------------------------------------
+
+class TabErrorBoundary extends Component<
+  { children: ReactNode; onReset: () => void },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode; onReset: () => void }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: { componentStack: string }) {
+    // Log to console for debugging (Vercel captures this)
+    console.error("[AdminTab] render error:", error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card className="premium-card border-destructive/30">
+          <CardContent className="p-8 text-center">
+            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            </div>
+            <h3 className="text-sm font-semibold mb-1">This section couldn&apos;t load</h3>
+            <p className="text-xs text-muted-foreground mb-4 max-w-md mx-auto">
+              An error occurred while rendering this tab. You can go back to Overview or try again.
+            </p>
+            {this.state.error && (
+              <pre className="text-[10px] text-muted-foreground/70 bg-muted/40 rounded p-2 mb-4 max-h-24 overflow-auto text-left font-mono">
+                {this.state.error.message}
+              </pre>
+            )}
+            <div className="flex items-center justify-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => this.props.onReset()}>
+                <ArrowRight className="h-3.5 w-3.5 mr-1" /> Back to Overview
+              </Button>
+              <Button size="sm" onClick={() => this.setState({ hasError: false, error: null })}>
+                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Try again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 function getTabTitle(tab: AdminTab): string {
