@@ -124,9 +124,9 @@ export function AdminView() {
   return (
     <div className="page-enter flex h-[calc(100vh-3.5rem)] -m-4 sm:-m-6 bg-muted/20">
       {/* Slim icon rail (Pay-app style left sidebar) */}
-      <aside className="hidden sm:flex w-16 shrink-0 flex-col items-center bg-white dark:bg-slate-950 border-r border-border/60 py-4 gap-1.5">
+      <aside className="hidden sm:flex w-16 shrink-0 flex-col items-center bg-white dark:bg-slate-950 border-r border-border/60 py-3 gap-1">
         {navGroups.map((group, gi) => (
-          <div key={gi} className="flex flex-col items-center gap-1.5">
+          <div key={gi} className="flex flex-col items-center gap-1 shrink-0">
             {gi > 0 && <div className="h-px w-6 my-1 bg-border/60" />}
             {group.items.map((item) => (
               <IconRailButton
@@ -140,7 +140,7 @@ export function AdminView() {
           </div>
         ))}
 
-        <div className="flex-1" />
+        <div className="flex-1 min-h-2" />
 
         <IconRailButton
           icon={ArrowRight}
@@ -245,17 +245,21 @@ function IconRailButton({ icon: Icon, label, active, onClick }: {
       onClick={onClick}
       title={label}
       aria-label={label}
-      className={`group relative h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-150 ${
+      className={`group relative h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-150 shrink-0 ${
         active
           ? "bg-slate-900 text-white dark:bg-primary dark:text-primary-foreground shadow-sm"
           : "text-slate-500 dark:text-slate-400 hover:bg-muted hover:text-slate-900 dark:hover:text-white"
       }`}
     >
       <Icon className="h-[18px] w-[18px]" />
-      {/* Hover tooltip */}
-      <span className="pointer-events-none absolute left-full ml-2 z-50 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+      {/* Hover tooltip — appears to the right, not clipped by rail */}
+      <span className="pointer-events-none absolute left-full ml-2 z-50 whitespace-nowrap rounded-md bg-slate-900 dark:bg-slate-700 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
         {label}
       </span>
+      {/* Active indicator dot */}
+      {active && (
+        <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-primary" />
+      )}
     </button>
   );
 }
@@ -2250,12 +2254,12 @@ function PayoutsTab() {
           <CardTitle className="text-base flex items-center justify-between">
             <span>All payouts</span>
             <div className="flex items-center gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter || "ALL"} onValueChange={(v) => setStatusFilter(v === "ALL" ? "" : v)}>
                 <SelectTrigger className="w-[160px] h-8">
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All statuses</SelectItem>
+                  <SelectItem value="ALL">All statuses</SelectItem>
                   <SelectItem value="PENDING">Pending</SelectItem>
                   <SelectItem value="SUCCEEDED">Succeeded</SelectItem>
                   <SelectItem value="FAILED">Failed</SelectItem>
