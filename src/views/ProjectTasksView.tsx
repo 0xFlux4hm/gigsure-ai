@@ -9,9 +9,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
-import { X } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { X, Pencil, Bot } from "lucide-react";
 import { api, formatDate } from "@/lib/client-api";
 import { Plus, Loader2, ChevronDown, ChevronRight, Upload, Download, Trash2, Paperclip, CheckSquare } from "lucide-react";
+import { AiTaskCreator } from "@/components/ai/AiTaskCreator";
 
 import { toast } from "sonner";
 import { PageHeader, LoadingState, EmptyState, formatStatus } from "@/components/shared/page-components";
@@ -272,6 +274,7 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
 }
 
 function NewTaskDialog({ projectId, open, onOpenChange, onCreated }: { projectId: string; open: boolean; onOpenChange: (v: boolean) => void; onCreated: () => void }) {
+  const [mode, setMode] = useState<"manual" | "ai">("manual");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
@@ -299,6 +302,15 @@ function NewTaskDialog({ projectId, open, onOpenChange, onCreated }: { projectId
     }
   };
 
+  const handleAiCreated = () => {
+    // Reset state + close dialog; parent reloads the task list
+    setTitle("");
+    setDescription("");
+    setPriority("MEDIUM");
+    setDueDate("");
+    onCreated();
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
@@ -310,40 +322,64 @@ function NewTaskDialog({ projectId, open, onOpenChange, onCreated }: { projectId
             </Button>
           </div>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
-            <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} inputMode="text" autoCapitalize="sentences" placeholder="e.g. Implement login page" />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="desc">Description</Label>
-            <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="resize-y" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="priority">Priority</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger id="priority"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LOW">Low</SelectItem>
-                  <SelectItem value="MEDIUM">Medium</SelectItem>
-                  <SelectItem value="HIGH">High</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="due">Due date</Label>
-              <Input className="input-premium" id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-            </div>
-          </div>
-          {error && <div className="text-sm text-destructive p-2 rounded-md bg-destructive/5 border border-destructive/20">{error}</div>}
+
+        {/* Mode selector — Manual | Create with AI */}
+        <div className="px-6 pt-4 pb-2 shrink-0">
+          <Tabs value={mode} onValueChange={(v) => setMode(v as "manual" | "ai")}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="manual" className="text-xs">
+                <Pencil className="h-3.5 w-3.5 mr-1.5" /> Manual
+              </TabsTrigger>
+              <TabsTrigger value="ai" className="text-xs">
+                <Bot className="h-3.5 w-3.5 mr-1.5" /> Create with AI
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-        <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
-          <Button onClick={submit} disabled={loading || !title} className="w-full sm:w-auto">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-            Create task
-          </Button>
-        </SheetFooter>
+
+        {mode === "manual" ? (
+          <>
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
+                <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} inputMode="text" autoCapitalize="sentences" placeholder="e.g. Implement login page" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="desc">Description</Label>
+                <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="resize-y" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="priority">Priority</Label>
+                  <Select value={priority} onValueChange={setPriority}>
+                    <SelectTrigger id="priority"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LOW">Low</SelectItem>
+                      <SelectItem value="MEDIUM">Medium</SelectItem>
+                      <SelectItem value="HIGH">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="due">Due date</Label>
+                  <Input className="input-premium" id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+                </div>
+              </div>
+              {error && <div className="text-sm text-destructive p-2 rounded-md bg-destructive/5 border border-destructive/20">{error}</div>}
+            </div>
+            <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
+              <Button onClick={submit} disabled={loading || !title} className="w-full sm:w-auto">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                Create task
+              </Button>
+            </SheetFooter>
+          </>
+        ) : (
+          // AI mode — conversational task builder
+          <div className="flex-1 min-h-0 flex flex-col">
+            <AiTaskCreator projectId={projectId} onCreated={handleAiCreated} />
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
