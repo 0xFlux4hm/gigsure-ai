@@ -60,53 +60,47 @@ const ProjectProposalSchema = z.object({
   kind: z.literal("proposal"),
   title: z.string().min(3).max(160),
   description: z.string().min(10).max(8000),
-  objectives: z.array(z.string().max(300)).max(20).optional().default([]),
-  requirements: z.array(z.string().max(300)).max(30).optional().default([]),
-  scopeOfWork: z.string().max(4000).optional().default(""),
-  deliverables: z.array(z.string().max(300)).max(30).optional().default([]),
-  proposedTasks: z.array(z.string().max(200)).max(30).optional().default([]),
-  dependencies: z.array(z.string().max(200)).max(15).optional().default([]),
-  suggestedTimelineWeeks: z.number().int().min(1).max(52).nullable().optional(),
-  // Suggested budget in MAJOR units of the chosen currency (e.g. NGN 500000
-  // means ₦500,000). The client reviews + edits before creation.
-  suggestedBudget: z.number().int().min(0).nullable().optional(),
+  // REQUIRED fields — the AI must fill these in. If it doesn't, Zod
+  // rejects the proposal and the user gets a clear "try again" message
+  // instead of a confusing empty form.
+  objectives: z.array(z.string().min(2).max(300)).min(1).max(20),
+  requirements: z.array(z.string().min(2).max(300)).min(1).max(30),
+  scopeOfWork: z.string().min(10).max(4000),
+  deliverables: z.array(z.string().min(2).max(300)).min(1).max(30),
+  proposedTasks: z.array(z.string().min(2).max(200)).min(1).max(30),
+  dependencies: z.array(z.string().max(200)).max(15).default([]),
+  suggestedTimelineWeeks: z.number().int().min(1).max(52),
+  suggestedBudget: z.number().int().min(0),
   suggestedMilestones: z
     .array(
       z.object({
         title: z.string().min(2).max(200),
-        description: z.string().max(4000).optional().default(""),
-        deliverables: z.array(z.string().max(300)).max(10).optional().default([]),
+        description: z.string().max(4000).default(""),
+        deliverables: z.array(z.string().max(300)).max(10).default([]),
         dueDate: z.string().nullable().optional(),
-        // Suggested milestone amount in MAJOR units. For MILESTONE funding,
-        // the sum of milestone amounts should roughly equal the total budget.
         suggestedAmount: z.number().int().min(0).nullable().optional(),
       }),
     )
-    .max(15)
-    .optional()
-    .default([]),
+    .min(1)
+    .max(15),
   draftAgreement: z
     .object({
-      scopeOfWork: z.string().max(20000).optional().default(""),
-      deliverables: z.array(z.string().max(500)).max(50).optional().default([]),
-      deadlines: z.string().max(4000).optional().default(""),
-      paymentSchedule: z.string().max(8000).optional().default(""),
-      milestoneConditions: z.string().max(4000).optional().default(""),
-      revisionRules: z.string().max(4000).optional().default(""),
-      cancellationTerms: z.string().max(4000).optional().default(""),
-      disputeProcedures: z.string().max(4000).optional().default(""),
+      scopeOfWork: z.string().max(20000).default(""),
+      deliverables: z.array(z.string().max(500)).max(50).default([]),
+      deadlines: z.string().max(4000).default(""),
+      paymentSchedule: z.string().max(8000).default(""),
+      milestoneConditions: z.string().max(4000).default(""),
+      revisionRules: z.string().max(4000).default(""),
+      cancellationTerms: z.string().max(4000).default(""),
+      disputeProcedures: z.string().max(4000).default(""),
     })
     .optional(),
-  fundingArrangement: z.enum(["FULL", "MILESTONE", "UPFRONT_PLUS_MILESTONES"]).optional().default("MILESTONE"),
-  currency: z.string().max(8).optional().default("NGN"),
-  potentialRisks: z.array(z.string().max(300)).max(15).optional().default([]),
-  // Plain-language summary the client shows above the structured preview
-  summary: z.string().max(800).optional().default(""),
-  // Fields the AI explicitly flagged as assumptions made (not asked).
-  // CRITICAL: every assumption must be listed here so the client can verify.
-  assumptions: z.array(z.string().max(200)).max(15).optional().default([]),
-  // Fields the client should still confirm (only when truly necessary)
-  missingInformation: z.array(z.string().max(200)).max(5).optional().default([]),
+  fundingArrangement: z.enum(["FULL", "MILESTONE", "UPFRONT_PLUS_MILESTONES"]).default("MILESTONE"),
+  currency: z.string().max(8).default("NGN"),
+  potentialRisks: z.array(z.string().max(300)).min(1).max(15),
+  summary: z.string().max(800).default(""),
+  assumptions: z.array(z.string().max(200)).min(1).max(15),
+  missingInformation: z.array(z.string().max(200)).max(5).default([]),
 });
 
 // If the AI needs more information, it returns a clarifying question instead.
@@ -324,7 +318,7 @@ export const POST = apiRoute(async (req) => {
     ...sanitizedThread,
   ];
 
-  // 5. Call the AI provider
+  // 5. Call the AI provider (with one retry if the output fails validation)
   let aiContent = "";
   let tokensUsed = 0;
   let fallbackUsed = false;
@@ -341,6 +335,45 @@ export const POST = apiRoute(async (req) => {
       message: errMsg.slice(0, 200),
     });
     fallbackUsed = true;
+  }
+
+  // 5b. If we got content, try to parse + validate it. If validation fails
+  // because the AI returned a sparse/minimal proposal, retry ONCE with a
+  // correction message telling the AI to fill in ALL fields.
+  if (aiContent && !fallbackUsed) {
+    const cleaned = aiContent
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```\s*$/, "")
+      .trim();
+    try {
+      const parsedAi = JSON.parse(cleaned);
+      const validated = AIResponseSchema.safeParse(parsedAi);
+      if (!validated.success) {
+        // Retry once with a correction message
+        logSecurityEvent("warn", "ai.project_builder_invalid_output_retry", {
+          userId,
+          issues: validated.error.issues.map((i) => ({ path: i.path, message: i.message })),
+        });
+        const retryMessages: ChatMessage[] = [
+          ...llmMessages,
+          { role: "assistant", content: aiContent },
+          {
+            role: "user",
+            content:
+              "Your response was missing required fields. Please regenerate the COMPLETE proposal with ALL fields filled in: title, description, objectives (at least 3), requirements (at least 3), scopeOfWork, deliverables (at least 3), proposedTasks (at least 5), suggestedTimelineWeeks, suggestedBudget, suggestedMilestones (at least 2 with suggestedAmount), potentialRisks (at least 2), assumptions (at least 3), and summary. Respond with a single JSON object only.",
+          },
+        ];
+        try {
+          const retryResult = await callAI(retryMessages);
+          aiContent = retryResult.content;
+          tokensUsed += retryResult.tokensUsed;
+        } catch {
+          // Retry failed — keep the original content and let validation fail below
+        }
+      }
+    } catch {
+      // JSON parse failed — keep original content, will fail below
+    }
   }
 
   // 6. Parse + validate the AI output. Treat as untrusted.
