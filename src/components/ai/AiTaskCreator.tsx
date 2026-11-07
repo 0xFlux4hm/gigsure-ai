@@ -164,26 +164,29 @@ export function AiTaskCreator({
       if (res.kind === "clarify") {
         setMessages((m) => [...m, { role: "assistant", content: res.question }]);
       } else if (res.kind === "proposal") {
-        setProposal(res);
+        // The API returns { kind: "proposal", proposal: {...} }
+        // Extract the nested proposal object
+        const p = (res as { proposal?: TaskProposal }).proposal ?? res;
+        setProposal(p);
         // Pre-fill edit fields
-        setEditTitle(res.title);
-        setEditDescription(res.description);
-        setEditPriority(res.priority);
-        setEditDueDate(res.dueDate ? res.dueDate.slice(0, 10) : "");
+        setEditTitle(p.title || "");
+        setEditDescription(p.description || "");
+        setEditPriority(p.priority || "MEDIUM");
+        setEditDueDate(p.dueDate ? p.dueDate.slice(0, 10) : "");
         // Resolve suggested assignee name → member id
-        const suggested = res.suggestedAssigneeName
-          ? members.find((m) => m.user.displayName === res.suggestedAssigneeName)
+        const suggested = p.suggestedAssigneeName
+          ? members.find((m) => m.user.displayName === p.suggestedAssigneeName)
           : null;
         setEditAssigneeId(suggested?.user.id ?? "");
-        setEditDeliverables(res.deliverables.join("\n"));
-        setEditAcceptanceCriteria(res.acceptanceCriteria.join("\n"));
+        setEditDeliverables((p.deliverables || []).join("\n"));
+        setEditAcceptanceCriteria((p.acceptanceCriteria || []).join("\n"));
         setMessages((m) => [
           ...m,
           {
             role: "assistant",
             content:
-              res.summary ||
-              `I've drafted a task: "${res.title}". Review the details below and click Create task when you're happy with it.`,
+              p.summary ||
+              `I've drafted a task: "${p.title}". Review the details below and click Create task when you're happy with it.`,
           },
         ]);
       } else {

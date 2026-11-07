@@ -250,10 +250,13 @@ export function AiProjectCreator({
       if (res.kind === "clarify") {
         setMessages((m) => [...m, { role: "assistant", content: res.question }]);
       } else if (res.kind === "proposal") {
+        // The API returns { kind: "proposal", proposal: {...} }
+        // Extract the nested proposal object
+        const proposalData = (res as { proposal?: ProjectProposal }).proposal ?? res;
         // DEFENSIVE: normalize all array fields to [] and string fields to ""
         // in case the AI omitted them or returned null (prevents render crashes
         // from undefined.map() / undefined.length)
-        const safe = normalizeProposal(res);
+        const safe = normalizeProposal(proposalData);
         setProposal(safe);
         // Pre-fill editable fields
         setEditTitle(safe.title || "");
