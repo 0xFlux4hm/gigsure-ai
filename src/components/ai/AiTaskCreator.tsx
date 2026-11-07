@@ -19,7 +19,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Bot,
@@ -275,7 +274,7 @@ export function AiTaskCreator({
             </div>
           </div>
         ) : (
-          <ScrollArea className="flex-1 h-full" ref={scrollRef as never}>
+          <div className="flex-1 h-full overflow-y-auto" ref={scrollRef}>
             <div className="px-4 py-4 space-y-3">
               {messages.map((m, i) => (
                 <div
@@ -317,7 +316,7 @@ export function AiTaskCreator({
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
         )}
       </div>
 

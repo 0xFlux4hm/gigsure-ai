@@ -37,7 +37,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -66,9 +65,20 @@ import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
 // Types — mirror the API response shape from /api/ai/project-builder
+// All array fields are defaulted to [] defensively in case the AI omits
+// them or returns null (Zod defaults apply server-side, but we double-guard
+// on the client to prevent render crashes).
 // ---------------------------------------------------------------------------
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
+
+type Milestone = {
+  title: string;
+  description: string;
+  deliverables: string[];
+  dueDate: string | null;
+  suggestedAmount: number | null;
+};
 
 type ProjectProposal = {
   kind: "proposal";
@@ -82,13 +92,7 @@ type ProjectProposal = {
   dependencies: string[];
   suggestedTimelineWeeks: number | null;
   suggestedBudget: number | null;
-  suggestedMilestones: Array<{
-    title: string;
-    description: string;
-    deliverables: string[];
-    dueDate: string | null;
-    suggestedAmount: number | null;
-  }>;
+  suggestedMilestones: Milestone[];
   draftAgreement?: {
     scopeOfWork: string;
     deliverables: string[];
@@ -122,6 +126,57 @@ const SUGGESTED_PROMPTS = [
   "Create a company website with a blog, contact form, and CMS for content management.",
   "Develop an admin dashboard for managing users, orders, and analytics.",
 ];
+
+// ---------------------------------------------------------------------------
+// Defensive normalizer — guarantees all array fields exist as [] and all
+// string fields exist as "" so the render never throws on undefined.map()
+// or undefined.length. The Zod schema on the server applies defaults too,
+// but we double-guard on the client to be bulletproof against any AI output
+// shape that slips through.
+// ---------------------------------------------------------------------------
+
+function normalizeProposal(res: ProjectProposal): ProjectProposal {
+  const arr = <T,>(v: T[] | null | undefined): T[] =>
+    Array.isArray(v) ? v : [];
+  return {
+    kind: "proposal",
+    title: res.title || "Untitled project",
+    description: res.description || "",
+    objectives: arr(res.objectives),
+    requirements: arr(res.requirements),
+    scopeOfWork: res.scopeOfWork || "",
+    deliverables: arr(res.deliverables),
+    proposedTasks: arr(res.proposedTasks),
+    dependencies: arr(res.dependencies),
+    suggestedTimelineWeeks: res.suggestedTimelineWeeks ?? null,
+    suggestedBudget: res.suggestedBudget ?? null,
+    suggestedMilestones: arr(res.suggestedMilestones).map((m) => ({
+      title: m.title || "Untitled milestone",
+      description: m.description || "",
+      deliverables: arr(m.deliverables),
+      dueDate: m.dueDate ?? null,
+      suggestedAmount: m.suggestedAmount ?? null,
+    })),
+    draftAgreement: res.draftAgreement
+      ? {
+          scopeOfWork: res.draftAgreement.scopeOfWork || "",
+          deliverables: arr(res.draftAgreement.deliverables),
+          deadlines: res.draftAgreement.deadlines || "",
+          paymentSchedule: res.draftAgreement.paymentSchedule || "",
+          milestoneConditions: res.draftAgreement.milestoneConditions || "",
+          revisionRules: res.draftAgreement.revisionRules || "",
+          cancellationTerms: res.draftAgreement.cancellationTerms || "",
+          disputeProcedures: res.draftAgreement.disputeProcedures || "",
+        }
+      : undefined,
+    fundingArrangement: res.fundingArrangement || "MILESTONE",
+    currency: res.currency || "NGN",
+    potentialRisks: arr(res.potentialRisks),
+    summary: res.summary || "",
+    missingInformation: arr(res.missingInformation),
+    assumptions: arr(res.assumptions),
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -195,42 +250,46 @@ export function AiProjectCreator({
       if (res.kind === "clarify") {
         setMessages((m) => [...m, { role: "assistant", content: res.question }]);
       } else if (res.kind === "proposal") {
-        setProposal(res);
+        // DEFENSIVE: normalize all array fields to [] and string fields to ""
+        // in case the AI omitted them or returned null (prevents render crashes
+        // from undefined.map() / undefined.length)
+        const safe = normalizeProposal(res);
+        setProposal(safe);
         // Pre-fill editable fields
-        setEditTitle(res.title);
-        setEditDescription(res.description);
-        setEditCurrency(res.currency || "NGN");
-        setEditFundingArrangement(res.fundingArrangement || "MILESTONE");
-        setEditObjectives(res.objectives.join("\n"));
-        setEditRequirements(res.requirements.join("\n"));
-        setEditScope(res.scopeOfWork || "");
-        setEditDeliverables(res.deliverables.join("\n"));
-        setEditProposedTasks(res.proposedTasks.join("\n"));
+        setEditTitle(safe.title || "");
+        setEditDescription(safe.description || "");
+        setEditCurrency(safe.currency || "NGN");
+        setEditFundingArrangement(safe.fundingArrangement || "MILESTONE");
+        setEditObjectives((safe.objectives || []).join("\n"));
+        setEditRequirements((safe.requirements || []).join("\n"));
+        setEditScope(safe.scopeOfWork || "");
+        setEditDeliverables((safe.deliverables || []).join("\n"));
+        setEditProposedTasks((safe.proposedTasks || []).join("\n"));
         setEditTimelineWeeks(
-          res.suggestedTimelineWeeks ? String(res.suggestedTimelineWeeks) : "",
+          safe.suggestedTimelineWeeks ? String(safe.suggestedTimelineWeeks) : "",
         );
         setEditBudget(
-          res.suggestedBudget != null ? String(res.suggestedBudget) : "",
+          safe.suggestedBudget != null ? String(safe.suggestedBudget) : "",
         );
         setEditMilestones(
-          res.suggestedMilestones
+          (safe.suggestedMilestones || [])
             .map(
               (m) =>
-                `${m.title} | ${m.description} | ${m.dueDate ? m.dueDate.slice(0, 10) : "no date"} | amount: ${m.suggestedAmount ?? 0} | deliverables: ${m.deliverables.join("; ")}`,
+                `${m.title || "Untitled"} | ${m.description || ""} | ${m.dueDate ? m.dueDate.slice(0, 10) : "no date"} | amount: ${m.suggestedAmount ?? 0} | deliverables: ${(m.deliverables || []).join("; ")}`,
             )
             .join("\n"),
         );
         setEditAgreement(
-          res.draftAgreement
+          safe.draftAgreement
             ? [
-                `SCOPE: ${res.draftAgreement.scopeOfWork}`,
-                `DELIVERABLES: ${res.draftAgreement.deliverables.join("; ")}`,
-                `DEADLINES: ${res.draftAgreement.deadlines}`,
-                `PAYMENT: ${res.draftAgreement.paymentSchedule}`,
-                `MILESTONE CONDITIONS: ${res.draftAgreement.milestoneConditions}`,
-                `REVISION RULES: ${res.draftAgreement.revisionRules}`,
-                `CANCELLATION: ${res.draftAgreement.cancellationTerms}`,
-                `DISPUTE: ${res.draftAgreement.disputeProcedures}`,
+                `SCOPE: ${safe.draftAgreement.scopeOfWork || ""}`,
+                `DELIVERABLES: ${(safe.draftAgreement.deliverables || []).join("; ")}`,
+                `DEADLINES: ${safe.draftAgreement.deadlines || ""}`,
+                `PAYMENT: ${safe.draftAgreement.paymentSchedule || ""}`,
+                `MILESTONE CONDITIONS: ${safe.draftAgreement.milestoneConditions || ""}`,
+                `REVISION RULES: ${safe.draftAgreement.revisionRules || ""}`,
+                `CANCELLATION: ${safe.draftAgreement.cancellationTerms || ""}`,
+                `DISPUTE: ${safe.draftAgreement.disputeProcedures || ""}`,
               ].join("\n\n")
             : "",
         );
@@ -239,8 +298,8 @@ export function AiProjectCreator({
           {
             role: "assistant",
             content:
-              res.summary ||
-              `I've drafted a project proposal: "${res.title}". Review the details below and click "Approve & create project" when you're ready.`,
+              safe.summary ||
+              `I've drafted a project proposal: "${safe.title}". Review the details below and click "Approve & create project" when you're ready.`,
           },
         ]);
       } else {
@@ -426,7 +485,7 @@ export function AiProjectCreator({
             </div>
           </div>
         ) : (
-          <ScrollArea className="flex-1 h-full" ref={scrollRef as never}>
+          <div className="flex-1 h-full overflow-y-auto" ref={scrollRef}>
             <div className="px-4 py-4 space-y-3">
               {messages.map((m, i) => (
                 <div
@@ -468,7 +527,7 @@ export function AiProjectCreator({
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
         )}
       </div>
 
