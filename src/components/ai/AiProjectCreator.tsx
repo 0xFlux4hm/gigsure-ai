@@ -81,11 +81,13 @@ type ProjectProposal = {
   proposedTasks: string[];
   dependencies: string[];
   suggestedTimelineWeeks: number | null;
+  suggestedBudget: number | null;
   suggestedMilestones: Array<{
     title: string;
     description: string;
     deliverables: string[];
     dueDate: string | null;
+    suggestedAmount: number | null;
   }>;
   draftAgreement?: {
     scopeOfWork: string;
@@ -156,6 +158,7 @@ export function AiProjectCreator({
   const [editDeliverables, setEditDeliverables] = useState("");
   const [editProposedTasks, setEditProposedTasks] = useState("");
   const [editTimelineWeeks, setEditTimelineWeeks] = useState("");
+  const [editBudget, setEditBudget] = useState("");
   const [editMilestones, setEditMilestones] = useState("");
   const [editAgreement, setEditAgreement] = useState("");
 
@@ -206,11 +209,14 @@ export function AiProjectCreator({
         setEditTimelineWeeks(
           res.suggestedTimelineWeeks ? String(res.suggestedTimelineWeeks) : "",
         );
+        setEditBudget(
+          res.suggestedBudget != null ? String(res.suggestedBudget) : "",
+        );
         setEditMilestones(
           res.suggestedMilestones
             .map(
               (m) =>
-                `${m.title} | ${m.description} | ${m.dueDate ? m.dueDate.slice(0, 10) : "no date"} | deliverables: ${m.deliverables.join("; ")}`,
+                `${m.title} | ${m.description} | ${m.dueDate ? m.dueDate.slice(0, 10) : "no date"} | amount: ${m.suggestedAmount ?? 0} | deliverables: ${m.deliverables.join("; ")}`,
             )
             .join("\n"),
         );
@@ -270,13 +276,17 @@ export function AiProjectCreator({
 
     try {
       // 1. Create the project via the EXISTING /api/projects endpoint
+      //    The budget is the AI-suggested (and client-edited) value in
+      //    major units; the existing endpoint converts to minor via
+      //    amountToMinor().
+      const budgetValue = Number(editBudget) || 0;
       const project = await api.post<{ id: string }>("/api/projects", {
         title,
         description,
         currency: editCurrency,
-        budget: 0, // AI never invents budgets — client sets later
+        budget: budgetValue,
         fundingArrangement: editFundingArrangement,
-        // dueDate omitted — AI never invents deadlines; client sets later
+        // dueDate omitted — client sets later if needed
       });
 
       const projectId = project.id;
@@ -308,17 +318,35 @@ export function AiProjectCreator({
       }
 
       // 3. Create milestones (if AI suggested any)
+      //    Parse the editable milestones text. Each line format:
+      //    "Title | Description | YYYY-MM-DD | amount: N | deliverables: a; b"
+      //    If parsing fails for a line, fall back to the original proposal milestone.
       if (proposal.suggestedMilestones.length > 0 && editFundingArrangement !== "FULL") {
-        for (const m of proposal.suggestedMilestones) {
+        const milestoneLines = editMilestones.split("\n").filter((l) => l.trim());
+        for (let i = 0; i < milestoneLines.length; i++) {
+          const line = milestoneLines[i].trim();
+          if (!line) continue;
+          // Try to parse the pipe-delimited format
+          const parts = line.split("|").map((p) => p.trim());
+          const title = parts[0] || proposal.suggestedMilestones[i]?.title || `Milestone ${i + 1}`;
+          const description = parts[1] || proposal.suggestedMilestones[i]?.description || "";
+          const dateStr = parts[2] && parts[2] !== "no date" ? parts[2] : null;
+          // Parse amount from "amount: N" part
+          const amountPart = parts.find((p) => p.startsWith("amount:"));
+          const amountStr = amountPart ? amountPart.replace("amount:", "").trim() : "0";
+          const amountMajor = parseInt(amountStr, 10) || 0;
+          // amountMinor must be >= 1 per the existing /milestones endpoint
+          const amountMinor = Math.max(1, amountMajor * 100);
+          // Parse deliverables from "deliverables: a; b" part
+          const delivPart = parts.find((p) => p.startsWith("deliverables:"));
+          const delivStr = delivPart ? delivPart.replace("deliverables:", "").trim() : "";
+
           try {
             await api.post(`/api/projects/${projectId}/milestones`, {
-              title: m.title,
-              description: m.description || undefined,
-              // amountMinor: AI never invents budgets; client sets later.
-              // The existing /milestones endpoint requires amountMinor >= 1,
-              // so we use a placeholder the client will revise.
-              amountMinor: 1,
-              dueDate: m.dueDate ? new Date(m.dueDate).toISOString() : null,
+              title,
+              description: description || undefined,
+              amountMinor,
+              dueDate: dateStr ? new Date(dateStr).toISOString() : null,
             });
           } catch (err) {
             // Non-fatal — project is created
@@ -346,7 +374,7 @@ export function AiProjectCreator({
       }
 
       toast.success("Project created", {
-        description: `"${title}" is ready. ${proposal.suggestedMilestones.length} milestone(s) and ${taskLines.length} task(s) drafted for your review.`,
+        description: `"${title}" is ready. Budget ${editCurrency} ${Number(editBudget || 0).toLocaleString()}, ${proposal.suggestedMilestones.length} milestone(s), ${taskLines.length} task(s) drafted for your review.`,
       });
       onCreated(projectId);
     } catch (err) {
@@ -575,13 +603,45 @@ export function AiProjectCreator({
                     )}
                   </Field>
                 </div>
-                {proposal.suggestedTimelineWeeks && (
-                  <Field label="Suggested timeline">
-                    <Badge variant="outline" className="text-[10px]">
-                      ~{proposal.suggestedTimelineWeeks} weeks
-                    </Badge>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Suggested budget" editing={editing}>
+                    {editing ? (
+                      <Input
+                        className="h-8 text-sm"
+                        type="number"
+                        min="0"
+                        value={editBudget}
+                        onChange={(e) => setEditBudget(e.target.value)}
+                        placeholder="0"
+                        inputMode="decimal"
+                      />
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]">
+                        {proposal.suggestedBudget != null
+                          ? `${editCurrency} ${Number(proposal.suggestedBudget).toLocaleString()}`
+                          : "Not set"}
+                      </Badge>
+                    )}
                   </Field>
-                )}
+                  <Field label="Timeline (weeks)" editing={editing}>
+                    {editing ? (
+                      <Input
+                        className="h-8 text-sm"
+                        type="number"
+                        min="1"
+                        max="52"
+                        value={editTimelineWeeks}
+                        onChange={(e) => setEditTimelineWeeks(e.target.value)}
+                        placeholder="8"
+                        inputMode="numeric"
+                      />
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]">
+                        {proposal.suggestedTimelineWeeks ? `~${proposal.suggestedTimelineWeeks} weeks` : "Not set"}
+                      </Badge>
+                    )}
+                  </Field>
+                </div>
                 <ListField
                   label="Objectives"
                   items={proposal.objectives}
@@ -655,7 +715,7 @@ export function AiProjectCreator({
                     value={editMilestones}
                     onChange={(e) => setEditMilestones(e.target.value)}
                     rows={6}
-                    placeholder={"One milestone per line\nFormat: Title | Description | YYYY-MM-DD | deliverables: item1; item2"}
+                    placeholder={"One milestone per line\nFormat: Title | Description | YYYY-MM-DD | amount: 250000 | deliverables: item1; item2"}
                   />
                 ) : proposal.suggestedMilestones.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
@@ -667,11 +727,18 @@ export function AiProjectCreator({
                       <div key={i} className="rounded-lg border border-border/60 p-2">
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-medium text-xs">{m.title}</span>
-                          {m.dueDate && (
-                            <Badge variant="outline" className="text-[10px]">
-                              {m.dueDate.slice(0, 10)}
-                            </Badge>
-                          )}
+                          <div className="flex gap-1">
+                            {m.suggestedAmount != null && (
+                              <Badge variant="outline" className="text-[10px] text-primary">
+                                {proposal.currency} {Number(m.suggestedAmount).toLocaleString()}
+                              </Badge>
+                            )}
+                            {m.dueDate && (
+                              <Badge variant="outline" className="text-[10px]">
+                                {m.dueDate.slice(0, 10)}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         {m.description && (
                           <p className="text-[11px] text-muted-foreground mb-1">{m.description}</p>
