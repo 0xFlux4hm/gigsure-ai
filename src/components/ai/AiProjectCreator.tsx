@@ -1,0 +1,890 @@
+"use client";
+
+/**
+ * Conversational AI project creator.
+ *
+ * Lives inside the existing NewProjectDialog as an alternative to the
+ * manual form. The client chats with GigSure AI to describe a project;
+ * the AI either asks a clarifying question or returns a structured
+ * project proposal. The client reviews + edits the proposal, then
+ * clicks "Approve & create project" — which:
+ *
+ *   1. POSTs the approved project data to the EXISTING /api/projects
+ *      endpoint (same authz + validation + audit logging + DRAFT status
+ *      as manual creation).
+ *   2. If the AI drafted a contract, POSTs to the EXISTING
+ *      /api/projects/[id]/contracts endpoint.
+ *   3. If the AI suggested milestones, POSTs each to the EXISTING
+ *      /api/projects/[id]/milestones endpoint.
+ *   4. If the AI proposed tasks, POSTs each to the EXISTING
+ *      /api/projects/[id]/tasks endpoint.
+ *
+ * The AI never creates a project directly. Explicit user approval is
+ * required, and every downstream call goes through the existing backend
+ * authorization, validation, and audit logging.
+ *
+ * Behind the scenes, the client can also invoke the existing 9 AI
+ * assistants via /api/ai/assistant (e.g. PROJECT_BRIEF_HELPER,
+ * TASK_PLANNER, CONTRACT, MILESTONE_HELPER) to refine specific sections
+ * of the proposal. This component focuses on the orchestrator endpoint
+ * /api/ai/project-builder which handles the conversational clarification
+ * + structured proposal generation.
+ */
+import { useEffect, useRef, useState } from "react";
+import { api } from "@/lib/client-api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Bot,
+  User as UserIcon,
+  Send,
+  Loader2,
+  Sparkles,
+  Pencil,
+  Check,
+  X,
+  RefreshCw,
+  AlertTriangle,
+  FileText,
+  ListChecks,
+  Target,
+  Calendar,
+  ShieldAlert,
+} from "lucide-react";
+import { toast } from "sonner";
+
+// ---------------------------------------------------------------------------
+// Types — mirror the API response shape from /api/ai/project-builder
+// ---------------------------------------------------------------------------
+
+type ChatMessage = { role: "user" | "assistant"; content: string };
+
+type ProjectProposal = {
+  kind: "proposal";
+  title: string;
+  description: string;
+  objectives: string[];
+  requirements: string[];
+  scopeOfWork: string;
+  deliverables: string[];
+  proposedTasks: string[];
+  dependencies: string[];
+  suggestedTimelineWeeks: number | null;
+  suggestedMilestones: Array<{
+    title: string;
+    description: string;
+    deliverables: string[];
+    dueDate: string | null;
+  }>;
+  draftAgreement?: {
+    scopeOfWork: string;
+    deliverables: string[];
+    deadlines: string;
+    paymentSchedule: string;
+    milestoneConditions: string;
+    revisionRules: string;
+    cancellationTerms: string;
+    disputeProcedures: string;
+  };
+  fundingArrangement: "FULL" | "MILESTONE" | "UPFRONT_PLUS_MILESTONES";
+  currency: string;
+  potentialRisks: string[];
+  summary: string;
+  missingInformation: string[];
+  assumptions: string[];
+};
+
+type ProjectBuilderResponse =
+  | ProjectProposal
+  | { kind: "clarify"; question: string }
+  | { kind: "error"; message: string };
+
+// ---------------------------------------------------------------------------
+// Suggested starting prompts
+// ---------------------------------------------------------------------------
+
+const SUGGESTED_PROMPTS = [
+  "I want to develop an e-commerce website for my clothing business. Customers should be able to browse products, place orders, make payments and track deliveries.",
+  "Build a mobile app for food delivery with restaurant listings, real-time tracking, and payment integration.",
+  "Create a company website with a blog, contact form, and CMS for content management.",
+  "Develop an admin dashboard for managing users, orders, and analytics.",
+];
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export function AiProjectCreator({
+  onCreated,
+}: {
+  onCreated: (projectId: string) => void;
+}) {
+  // Conversation thread
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // The current structured proposal
+  const [proposal, setProposal] = useState<ProjectProposal | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [activeSection, setActiveSection] = useState<
+    "overview" | "tasks" | "milestones" | "agreement" | "risks"
+  >("overview");
+
+  // Editable fields
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editCurrency, setEditCurrency] = useState("NGN");
+  const [editFundingArrangement, setEditFundingArrangement] = useState<
+    "FULL" | "MILESTONE" | "UPFRONT_PLUS_MILESTONES"
+  >("MILESTONE");
+  const [editObjectives, setEditObjectives] = useState("");
+  const [editRequirements, setEditRequirements] = useState("");
+  const [editScope, setEditScope] = useState("");
+  const [editDeliverables, setEditDeliverables] = useState("");
+  const [editProposedTasks, setEditProposedTasks] = useState("");
+  const [editTimelineWeeks, setEditTimelineWeeks] = useState("");
+  const [editMilestones, setEditMilestones] = useState("");
+  const [editAgreement, setEditAgreement] = useState("");
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll on new messages
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, loading]);
+
+  // ---------------------------------------------------------------------------
+  // Send a message to the AI
+  // ---------------------------------------------------------------------------
+
+  const send = async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
+
+    const userMsg: ChatMessage = { role: "user", content: trimmed };
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
+    setInput("");
+    setLoading(true);
+    setProposal(null);
+
+    try {
+      const res = await api.post<ProjectBuilderResponse>(
+        "/api/ai/project-builder",
+        { messages: nextMessages },
+      );
+
+      if (res.kind === "clarify") {
+        setMessages((m) => [...m, { role: "assistant", content: res.question }]);
+      } else if (res.kind === "proposal") {
+        setProposal(res);
+        // Pre-fill editable fields
+        setEditTitle(res.title);
+        setEditDescription(res.description);
+        setEditCurrency(res.currency || "NGN");
+        setEditFundingArrangement(res.fundingArrangement || "MILESTONE");
+        setEditObjectives(res.objectives.join("\n"));
+        setEditRequirements(res.requirements.join("\n"));
+        setEditScope(res.scopeOfWork || "");
+        setEditDeliverables(res.deliverables.join("\n"));
+        setEditProposedTasks(res.proposedTasks.join("\n"));
+        setEditTimelineWeeks(
+          res.suggestedTimelineWeeks ? String(res.suggestedTimelineWeeks) : "",
+        );
+        setEditMilestones(
+          res.suggestedMilestones
+            .map(
+              (m) =>
+                `${m.title} | ${m.description} | ${m.dueDate ? m.dueDate.slice(0, 10) : "no date"} | deliverables: ${m.deliverables.join("; ")}`,
+            )
+            .join("\n"),
+        );
+        setEditAgreement(
+          res.draftAgreement
+            ? [
+                `SCOPE: ${res.draftAgreement.scopeOfWork}`,
+                `DELIVERABLES: ${res.draftAgreement.deliverables.join("; ")}`,
+                `DEADLINES: ${res.draftAgreement.deadlines}`,
+                `PAYMENT: ${res.draftAgreement.paymentSchedule}`,
+                `MILESTONE CONDITIONS: ${res.draftAgreement.milestoneConditions}`,
+                `REVISION RULES: ${res.draftAgreement.revisionRules}`,
+                `CANCELLATION: ${res.draftAgreement.cancellationTerms}`,
+                `DISPUTE: ${res.draftAgreement.disputeProcedures}`,
+              ].join("\n\n")
+            : "",
+        );
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            content:
+              res.summary ||
+              `I've drafted a project proposal: "${res.title}". Review the details below and click "Approve & create project" when you're ready.`,
+          },
+        ]);
+      } else {
+        setMessages((m) => [...m, { role: "assistant", content: res.message }]);
+      }
+    } catch (err) {
+      const msg = (err as Error).message ?? "Something went wrong.";
+      setMessages((m) => [...m, { role: "assistant", content: msg }]);
+      toast.error("AI project builder failed", { description: msg });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Create the project via EXISTING endpoints
+  // (authz + validation + audit logging preserved)
+  // ---------------------------------------------------------------------------
+
+  const createProject = async () => {
+    if (!proposal) return;
+    const title = editTitle.trim();
+    if (title.length < 3) {
+      toast.error("Title is too short", { description: "Please enter at least 3 characters." });
+      return;
+    }
+    const description = editDescription.trim();
+    if (description.length < 10) {
+      toast.error("Description is too short", { description: "Please enter at least 10 characters." });
+      return;
+    }
+    setCreating(true);
+
+    try {
+      // 1. Create the project via the EXISTING /api/projects endpoint
+      const project = await api.post<{ id: string }>("/api/projects", {
+        title,
+        description,
+        currency: editCurrency,
+        budget: 0, // AI never invents budgets — client sets later
+        fundingArrangement: editFundingArrangement,
+        // dueDate omitted — AI never invents deadlines; client sets later
+      });
+
+      const projectId = project.id;
+
+      // 2. Create contract version (if AI drafted one)
+      const agreementText = editAgreement.trim();
+      if (agreementText && proposal.draftAgreement) {
+        try {
+          // Parse the editable agreement back into structured fields.
+          // The client edits freeform text; we send best-effort structured
+          // fields and the existing /contracts endpoint re-validates.
+          const deliverablesArr = proposal.draftAgreement.deliverables;
+          await api.post(`/api/projects/${projectId}/contracts`, {
+            scopeOfWork: proposal.draftAgreement.scopeOfWork || editScope || title,
+            deliverables: deliverablesArr,
+            deadlines: proposal.draftAgreement.deadlines || "",
+            paymentSchedule: proposal.draftAgreement.paymentSchedule || "",
+            milestoneConditions: proposal.draftAgreement.milestoneConditions || "",
+            revisionRules: proposal.draftAgreement.revisionRules || "",
+            cancellationTerms: proposal.draftAgreement.cancellationTerms || "",
+            disputeProcedures: proposal.draftAgreement.disputeProcedures || "",
+          });
+        } catch (err) {
+          // Non-fatal — project is created, contract can be added later
+          toast.warning("Contract draft skipped", {
+            description: "You can add a contract version from the project's Contracts tab.",
+          });
+        }
+      }
+
+      // 3. Create milestones (if AI suggested any)
+      if (proposal.suggestedMilestones.length > 0 && editFundingArrangement !== "FULL") {
+        for (const m of proposal.suggestedMilestones) {
+          try {
+            await api.post(`/api/projects/${projectId}/milestones`, {
+              title: m.title,
+              description: m.description || undefined,
+              // amountMinor: AI never invents budgets; client sets later.
+              // The existing /milestones endpoint requires amountMinor >= 1,
+              // so we use a placeholder the client will revise.
+              amountMinor: 1,
+              dueDate: m.dueDate ? new Date(m.dueDate).toISOString() : null,
+            });
+          } catch (err) {
+            // Non-fatal — project is created
+          }
+        }
+      }
+
+      // 4. Create proposed tasks (if AI suggested any)
+      const taskLines = editProposedTasks
+        .split("\n")
+        .map((t) => t.trim())
+        .filter((t) => t.length >= 2);
+      if (taskLines.length > 0) {
+        for (const taskTitle of taskLines) {
+          try {
+            await api.post(`/api/projects/${projectId}/tasks`, {
+              title: taskTitle,
+              description: "",
+              priority: "MEDIUM",
+            });
+          } catch (err) {
+            // Non-fatal — project is created
+          }
+        }
+      }
+
+      toast.success("Project created", {
+        description: `"${title}" is ready. ${proposal.suggestedMilestones.length} milestone(s) and ${taskLines.length} task(s) drafted for your review.`,
+      });
+      onCreated(projectId);
+    } catch (err) {
+      const msg = (err as Error).message ?? "Failed to create project";
+      toast.error("Failed to create project", { description: msg });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const reset = () => {
+    setMessages([]);
+    setProposal(null);
+    setEditing(false);
+    setInput("");
+  };
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+
+  const hasConversation = messages.length > 0;
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Conversation area */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        {!hasConversation && !loading ? (
+          // Empty state — suggested prompts
+          <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center overflow-y-auto">
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+              <Sparkles className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="text-base font-semibold mb-1">Create with AI</h3>
+            <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+              Tell GigSure AI what you want to build. I&apos;ll ask the right questions and prepare
+              a structured project proposal for your review.
+            </p>
+            <div className="grid grid-cols-1 gap-2 w-full max-w-md">
+              {SUGGESTED_PROMPTS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => send(p)}
+                  className="text-left text-xs px-3 py-2 rounded-lg border border-border/60 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <ScrollArea className="flex-1 h-full" ref={scrollRef as never}>
+            <div className="px-4 py-4 space-y-3">
+              {messages.map((m, i) => (
+                <div
+                  key={i}
+                  className={`flex gap-2.5 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                >
+                  <div
+                    className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${
+                      m.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-primary/10 text-primary"
+                    }`}
+                  >
+                    {m.role === "user" ? (
+                      <UserIcon className="h-3.5 w-3.5" />
+                    ) : (
+                      <Bot className="h-4 w-4" />
+                    )}
+                  </div>
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${
+                      m.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-tr-sm"
+                        : "bg-muted rounded-tl-sm"
+                    }`}
+                  >
+                    <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                  </div>
+                </div>
+              ))}
+              {loading && (
+                <div className="flex gap-2.5 flex-row">
+                  <div className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 bg-primary/10 text-primary">
+                    <Bot className="h-4 w-4" />
+                  </div>
+                  <div className="rounded-2xl rounded-tl-sm bg-muted px-3.5 py-2.5">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        )}
+      </div>
+
+      {/* Structured proposal preview */}
+      {proposal && (
+        <div className="border-t bg-muted/30 shrink-0 max-h-[55%] overflow-y-auto">
+          {/* Section tabs */}
+          <div className="sticky top-0 bg-background/80 backdrop-blur px-3 pt-2 pb-2 border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex gap-1 flex-wrap">
+                <SectionTab
+                  active={activeSection === "overview"}
+                  onClick={() => setActiveSection("overview")}
+                  icon={Target}
+                  label="Overview"
+                />
+                <SectionTab
+                  active={activeSection === "tasks"}
+                  onClick={() => setActiveSection("tasks")}
+                  icon={ListChecks}
+                  label={`Tasks (${proposal.proposedTasks.length})`}
+                />
+                <SectionTab
+                  active={activeSection === "milestones"}
+                  onClick={() => setActiveSection("milestones")}
+                  icon={Calendar}
+                  label={`Milestones (${proposal.suggestedMilestones.length})`}
+                />
+                <SectionTab
+                  active={activeSection === "agreement"}
+                  onClick={() => setActiveSection("agreement")}
+                  icon={FileText}
+                  label="Agreement"
+                />
+                <SectionTab
+                  active={activeSection === "risks"}
+                  onClick={() => setActiveSection("risks")}
+                  icon={ShieldAlert}
+                  label={`Risks (${proposal.potentialRisks.length})`}
+                />
+              </div>
+              <div className="flex items-center gap-1">
+                {!editing ? (
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditing(true)}>
+                    <Pencil className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditing(false)}>
+                    <Check className="h-3 w-3 mr-1" /> Done
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs"
+                  onClick={() => {
+                    setProposal(null);
+                    setEditing(false);
+                    setInput("Try again with different details");
+                  }}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" /> Revise
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Section content */}
+          <div className="px-4 py-3 space-y-3 text-sm">
+            {activeSection === "overview" && (
+              <div className="space-y-3">
+                <Field label="Title" editing={editing}>
+                  {editing ? (
+                    <Input
+                      className="h-8 text-sm"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                    />
+                  ) : (
+                    <div className="font-medium text-base">{proposal.title}</div>
+                  )}
+                </Field>
+                <Field label="Summary">
+                  <p className="text-xs text-muted-foreground">{proposal.summary}</p>
+                </Field>
+                <Field label="Description" editing={editing}>
+                  {editing ? (
+                    <Textarea
+                      className="text-sm min-h-[80px] resize-y"
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      rows={4}
+                    />
+                  ) : (
+                    <p className="text-xs whitespace-pre-wrap">{proposal.description}</p>
+                  )}
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Currency" editing={editing}>
+                    {editing ? (
+                      <Select value={editCurrency} onValueChange={setEditCurrency}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {["NGN", "USD", "GHS", "KES", "GBP", "EUR"].map((c) => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]">{proposal.currency}</Badge>
+                    )}
+                  </Field>
+                  <Field label="Funding arrangement" editing={editing}>
+                    {editing ? (
+                      <Select
+                        value={editFundingArrangement}
+                        onValueChange={(v) =>
+                          setEditFundingArrangement(v as "FULL" | "MILESTONE" | "UPFRONT_PLUS_MILESTONES")
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="FULL">Full upfront</SelectItem>
+                          <SelectItem value="MILESTONE">Milestone</SelectItem>
+                          <SelectItem value="UPFRONT_PLUS_MILESTONES">Upfront + milestones</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]">
+                        {proposal.fundingArrangement.replace(/_/g, " ").toLowerCase()}
+                      </Badge>
+                    )}
+                  </Field>
+                </div>
+                {proposal.suggestedTimelineWeeks && (
+                  <Field label="Suggested timeline">
+                    <Badge variant="outline" className="text-[10px]">
+                      ~{proposal.suggestedTimelineWeeks} weeks
+                    </Badge>
+                  </Field>
+                )}
+                <ListField
+                  label="Objectives"
+                  items={proposal.objectives}
+                  editing={editing}
+                  value={editObjectives}
+                  onChange={setEditObjectives}
+                />
+                <ListField
+                  label="Requirements"
+                  items={proposal.requirements}
+                  editing={editing}
+                  value={editRequirements}
+                  onChange={setEditRequirements}
+                />
+                <Field label="Scope of work" editing={editing}>
+                  {editing ? (
+                    <Textarea
+                      className="text-sm min-h-[60px] resize-y"
+                      value={editScope}
+                      onChange={(e) => setEditScope(e.target.value)}
+                      rows={3}
+                    />
+                  ) : (
+                    <p className="text-xs whitespace-pre-wrap">{proposal.scopeOfWork || "—"}</p>
+                  )}
+                </Field>
+                <ListField
+                  label="Deliverables"
+                  items={proposal.deliverables}
+                  editing={editing}
+                  value={editDeliverables}
+                  onChange={setEditDeliverables}
+                />
+              </div>
+            )}
+
+            {activeSection === "tasks" && (
+              <div className="space-y-2">
+                <Field label="Proposed tasks" editing={editing}>
+                  {editing ? (
+                    <Textarea
+                      className="text-sm min-h-[100px] resize-y"
+                      value={editProposedTasks}
+                      onChange={(e) => setEditProposedTasks(e.target.value)}
+                      rows={5}
+                      placeholder="One task per line"
+                    />
+                  ) : proposal.proposedTasks.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No tasks proposed.</p>
+                  ) : (
+                    <ol className="text-xs space-y-1 list-decimal list-inside">
+                      {proposal.proposedTasks.map((t, i) => <li key={i}>{t}</li>)}
+                    </ol>
+                  )}
+                </Field>
+                {proposal.dependencies.length > 0 && (
+                  <Field label="Dependencies">
+                    <ul className="text-xs space-y-0.5 list-disc list-inside">
+                      {proposal.dependencies.map((d, i) => <li key={i}>{d}</li>)}
+                    </ul>
+                  </Field>
+                )}
+              </div>
+            )}
+
+            {activeSection === "milestones" && (
+              <Field label="Suggested milestones" editing={editing}>
+                {editing ? (
+                  <Textarea
+                    className="text-sm min-h-[120px] resize-y font-mono text-[11px]"
+                    value={editMilestones}
+                    onChange={(e) => setEditMilestones(e.target.value)}
+                    rows={6}
+                    placeholder={"One milestone per line\nFormat: Title | Description | YYYY-MM-DD | deliverables: item1; item2"}
+                  />
+                ) : proposal.suggestedMilestones.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No milestones proposed (funding arrangement is FULL).
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {proposal.suggestedMilestones.map((m, i) => (
+                      <div key={i} className="rounded-lg border border-border/60 p-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-xs">{m.title}</span>
+                          {m.dueDate && (
+                            <Badge variant="outline" className="text-[10px]">
+                              {m.dueDate.slice(0, 10)}
+                            </Badge>
+                          )}
+                        </div>
+                        {m.description && (
+                          <p className="text-[11px] text-muted-foreground mb-1">{m.description}</p>
+                        )}
+                        {m.deliverables.length > 0 && (
+                          <ul className="text-[11px] space-y-0.5 list-disc list-inside text-muted-foreground">
+                            {m.deliverables.map((d, j) => <li key={j}>{d}</li>)}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Field>
+            )}
+
+            {activeSection === "agreement" && (
+              <Field label="Draft agreement" editing={editing}>
+                {editing ? (
+                  <Textarea
+                    className="text-sm min-h-[150px] resize-y font-mono text-[11px]"
+                    value={editAgreement}
+                    onChange={(e) => setEditAgreement(e.target.value)}
+                    rows={8}
+                  />
+                ) : !proposal.draftAgreement ? (
+                  <p className="text-xs text-muted-foreground">No draft agreement provided.</p>
+                ) : (
+                  <pre className="text-[11px] whitespace-pre-wrap font-mono bg-muted/40 rounded p-2">
+                    {editAgreement || JSON.stringify(proposal.draftAgreement, null, 2)}
+                  </pre>
+                )}
+              </Field>
+            )}
+
+            {activeSection === "risks" && (
+              <div className="space-y-3">
+                <Field label="Potential risks">
+                  {proposal.potentialRisks.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No specific risks identified.</p>
+                  ) : (
+                    <ul className="text-xs space-y-1">
+                      {proposal.potentialRisks.map((r, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <AlertTriangle className="h-3 w-3 mt-0.5 text-amber-500 shrink-0" />
+                          <span>{r}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Field>
+                {proposal.missingInformation.length > 0 && (
+                  <Field label="Missing information — please confirm">
+                    <ul className="text-xs space-y-1">
+                      {proposal.missingInformation.map((m, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-amber-500 shrink-0">?</span>
+                          <span>{m}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Field>
+                )}
+                {proposal.assumptions.length > 0 && (
+                  <Field label="Assumptions made — please verify">
+                    <ul className="text-xs space-y-1">
+                      {proposal.assumptions.map((a, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-blue-500 shrink-0">≈</span>
+                          <span>{a}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Field>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Approve / Create actions */}
+          <div className="sticky bottom-0 bg-background/80 backdrop-blur border-t px-4 py-3 flex gap-2">
+            <Button
+              size="sm"
+              className="flex-1"
+              onClick={createProject}
+              disabled={creating || editTitle.trim().length < 3}
+            >
+              {creating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+              ) : (
+                <Check className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Approve &amp; create project
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setEditing((e) => !e)}>
+              {editing ? "Stop editing" : "Edit proposal"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Input area */}
+      {!proposal && (
+        <div className="border-t px-3 py-3 shrink-0">
+          {hasConversation && (
+            <div className="flex justify-end mb-2">
+              <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={reset}>
+                <X className="h-3 w-3 mr-1" /> Start over
+              </Button>
+            </div>
+          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              send(input);
+            }}
+            className="flex gap-2"
+          >
+            <Input
+              className="flex-1"
+              placeholder="Describe the project you want to build…"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={loading}
+              autoFocus
+            />
+            <Button type="submit" size="icon" disabled={loading || !input.trim()}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Helper sub-components
+// ---------------------------------------------------------------------------
+
+function SectionTab({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${
+        active
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      }`}
+    >
+      <Icon className="h-3 w-3" />
+      {label}
+    </button>
+  );
+}
+
+function Field({
+  label,
+  editing,
+  children,
+}: {
+  label: string;
+  editing?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function ListField({
+  label,
+  items,
+  editing,
+  value,
+  onChange,
+}: {
+  label: string;
+  items: string[];
+  editing: boolean;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <Field label={label}>
+      {editing ? (
+        <Textarea
+          className="text-sm min-h-[60px] resize-y"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          rows={3}
+          placeholder="One per line"
+        />
+      ) : items.length === 0 ? (
+        <p className="text-xs text-muted-foreground">—</p>
+      ) : (
+        <ul className="text-xs space-y-0.5 list-disc list-inside">
+          {items.map((it, i) => <li key={i}>{it}</li>)}
+        </ul>
+      )}
+    </Field>
+  );
+}

@@ -9,10 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetDescription } from "@/components/ui/sheet";
-import { X } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { X, Pencil, Bot } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, formatDate, timeAgo, formatMinor } from "@/lib/client-api";
 import { FolderKanban, Plus, Loader2, ArrowRight } from "lucide-react";
+import { AiProjectCreator } from "@/components/ai/AiProjectCreator";
 import { toast } from "sonner";
 import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 
@@ -123,6 +125,7 @@ export function ProjectsView() {
 }
 
 function NewProjectDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (v: boolean) => void; onCreated: (id: string) => void }) {
+  const [mode, setMode] = useState<"manual" | "ai">("manual");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [currency, setCurrency] = useState("NGN");
@@ -163,6 +166,17 @@ function NewProjectDialog({ open, onOpenChange, onCreated }: { open: boolean; on
     }
   };
 
+  const handleAiCreated = (projectId: string) => {
+    // Reset manual form state + close dialog; parent navigates to project detail
+    setTitle("");
+    setDescription("");
+    setCurrency("NGN");
+    setBudget("0");
+    setFundingArrangement("MILESTONE");
+    setDueDate("");
+    onCreated(projectId);
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
@@ -174,77 +188,101 @@ function NewProjectDialog({ open, onOpenChange, onCreated }: { open: boolean; on
             </Button>
           </div>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="title">Project title <span className="text-destructive">*</span></Label>
-            <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Lagos Bakery Website Redesign" inputMode="text" autoCapitalize="sentences" />
-            {title.trim().length > 0 && !titleValid && (
-              <p className="text-xs text-destructive">Title must be at least 3 characters.</p>
-            )}
-            <p className="text-[10px] text-muted-foreground text-right tabular-nums">{title.length} / 160</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="description">Description / scope <span className="text-destructive">*</span></Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of what the client needs delivered. Include scope, target users, and key features."
-              rows={4}
-              className="resize-y"
-            />
-            {description.trim().length > 0 && !descriptionValid && (
-              <p className="text-xs text-destructive">Description must be at least 10 characters.</p>
-            )}
-            <p className="text-[10px] text-muted-foreground text-right tabular-nums">{description.length} / 8000</p>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="currency">Currency</Label>
-              <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger id="currency"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="NGN">NGN — Nigerian Naira</SelectItem>
-                  <SelectItem value="USD">USD — US Dollar</SelectItem>
-                  <SelectItem value="GHS">GHS — Ghanaian Cedi</SelectItem>
-                  <SelectItem value="KES">KES — Kenyan Shilling</SelectItem>
-                  <SelectItem value="GBP">GBP — Pound Sterling</SelectItem>
-                  <SelectItem value="EUR">EUR — Euro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="budget">Budget (major units)</Label>
-              <Input className="input-premium" id="budget" type="number" min="0" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0" inputMode="decimal" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="funding">Funding arrangement</Label>
-              <Select value={fundingArrangement} onValueChange={setFundingArrangement}>
-                <SelectTrigger id="funding"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FULL">Full funding</SelectItem>
-                  <SelectItem value="MILESTONE">Milestone-based</SelectItem>
-                  <SelectItem value="UPFRONT_PLUS_MILESTONES">Upfront + milestones</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="due">Due date</Label>
-              <Input className="input-premium" id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-            </div>
-          </div>
-          {error && (
-            <div className="text-sm text-destructive p-2 rounded-md bg-destructive/5 border border-destructive/20">{error}</div>
-          )}
+
+        {/* Mode selector — Manual | Create with AI */}
+        <div className="px-6 pt-4 pb-2 shrink-0">
+          <Tabs value={mode} onValueChange={(v) => setMode(v as "manual" | "ai")}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="manual" className="text-xs">
+                <Pencil className="h-3.5 w-3.5 mr-1.5" /> Manual
+              </TabsTrigger>
+              <TabsTrigger value="ai" className="text-xs">
+                <Bot className="h-3.5 w-3.5 mr-1.5" /> Create with AI
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-        <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
-          <Button onClick={submit} disabled={!canSubmit} className="w-full sm:w-auto">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-            Create project
-          </Button>
-        </SheetFooter>
+
+        {mode === "manual" ? (
+          <>
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="title">Project title <span className="text-destructive">*</span></Label>
+                <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Lagos Bakery Website Redesign" inputMode="text" autoCapitalize="sentences" />
+                {title.trim().length > 0 && !titleValid && (
+                  <p className="text-xs text-destructive">Title must be at least 3 characters.</p>
+                )}
+                <p className="text-[10px] text-muted-foreground text-right tabular-nums">{title.length} / 160</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="description">Description / scope <span className="text-destructive">*</span></Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Brief description of what the client needs delivered. Include scope, target users, and key features."
+                  rows={4}
+                  className="resize-y"
+                />
+                {description.trim().length > 0 && !descriptionValid && (
+                  <p className="text-xs text-destructive">Description must be at least 10 characters.</p>
+                )}
+                <p className="text-[10px] text-muted-foreground text-right tabular-nums">{description.length} / 8000</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="currency">Currency</Label>
+                  <Select value={currency} onValueChange={setCurrency}>
+                    <SelectTrigger id="currency"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NGN">NGN — Nigerian Naira</SelectItem>
+                      <SelectItem value="USD">USD — US Dollar</SelectItem>
+                      <SelectItem value="GHS">GHS — Ghanaian Cedi</SelectItem>
+                      <SelectItem value="KES">KES — Kenyan Shilling</SelectItem>
+                      <SelectItem value="GBP">GBP — Pound Sterling</SelectItem>
+                      <SelectItem value="EUR">EUR — Euro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="budget">Budget (major units)</Label>
+                  <Input className="input-premium" id="budget" type="number" min="0" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0" inputMode="decimal" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="funding">Funding arrangement</Label>
+                  <Select value={fundingArrangement} onValueChange={setFundingArrangement}>
+                    <SelectTrigger id="funding"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FULL">Full funding</SelectItem>
+                      <SelectItem value="MILESTONE">Milestone-based</SelectItem>
+                      <SelectItem value="UPFRONT_PLUS_MILESTONES">Upfront + milestones</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="due">Due date</Label>
+                  <Input className="input-premium" id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+                </div>
+              </div>
+              {error && (
+                <div className="text-sm text-destructive p-2 rounded-md bg-destructive/5 border border-destructive/20">{error}</div>
+              )}
+            </div>
+            <SheetFooter className="px-6 py-3 border-t bg-background shrink-0">
+              <Button onClick={submit} disabled={!canSubmit} className="w-full sm:w-auto">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                Create project
+              </Button>
+            </SheetFooter>
+          </>
+        ) : (
+          // AI mode — conversational project builder
+          <div className="flex-1 min-h-0 flex flex-col">
+            <AiProjectCreator onCreated={handleAiCreated} />
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
