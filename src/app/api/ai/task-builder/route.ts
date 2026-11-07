@@ -236,13 +236,16 @@ You will receive the project context as a JSON object inside <!--GIGSURE_CONTEXT
 // ---------------------------------------------------------------------------
 
 async function callAI(messages: ChatMessage[]): Promise<{ content: string; tokensUsed: number }> {
-  const client = getOpenAiClient();
-  const model = getAiModel();
   const maxRetries = 4;
   let lastErr: Error | null = null;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
+      // getOpenAiClient() is called INSIDE the try so that a missing
+      // env var (AuthnError 503) is caught and surfaces as a generic
+      // fallback — never the raw env-var-name/dashboard-URL error.
+      const client = getOpenAiClient();
+      const model = getAiModel();
       const completion = await client.chat.completions.create({
         model,
         messages,
