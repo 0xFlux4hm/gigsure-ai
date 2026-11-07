@@ -40,7 +40,9 @@ export type ViewName =
   | "notifications"
   | "invitation"
   | "admin"
-  | "kyc";
+  | "kyc"
+  | "ai-project-create"
+  | "ai-task-create";
 
 export interface ViewState {
   view: ViewName;

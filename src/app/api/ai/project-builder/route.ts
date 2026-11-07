@@ -199,6 +199,15 @@ To produce a project proposal (DEFAULT — use this almost always):
 
 Rules:
 - GENERATE FIRST. Do not ask questions unless the request is truly unworkable. Make reasonable assumptions instead.
+- ALWAYS fill in EVERY field in the proposal. Never leave objectives, requirements, deliverables, proposedTasks, or suggestedMilestones empty — generate at least 3-5 items for each based on the project description.
+- objectives: generate 3-6 clear objectives.
+- requirements: generate 3-8 specific technical/functional requirements.
+- deliverables: generate 3-8 concrete deliverables.
+- proposedTasks: generate 5-15 high-level tasks.
+- suggestedMilestones: generate 2-5 milestones for MILESTONE funding, each with a title, description, 2-4 deliverables, and a suggestedAmount.
+- draftAgreement: ALWAYS include it with all 8 sections filled in with reasonable content.
+- potentialRisks: generate 2-5 risks.
+- assumptions: list EVERY assumption (at least 3-5).
 - suggestedBudget is in MAJOR units of the chosen currency (e.g. for NGN, 500000 means ₦500,000). Make a reasonable estimate based on the project scope. If the client mentioned a budget, use it. Otherwise estimate based on typical market rates for the work described. The client will review and edit.
 - suggestedAmount per milestone is also in MAJOR units. The sum of milestone amounts should roughly equal suggestedBudget.
 - suggestedTimelineWeeks: make a reasonable estimate based on the scope. Never null — always suggest something the client can adjust.
@@ -234,7 +243,7 @@ async function callAI(messages: ChatMessage[]): Promise<{ content: string; token
         model,
         messages,
         temperature: 0.3,
-        max_tokens: 2000, // proposals are longer than assistant responses
+        max_tokens: 4000, // full structured proposal with draft agreement needs room
       });
       const content = completion.choices?.[0]?.message?.content ?? "";
       const tokensUsed = completion.usage?.total_tokens ?? 0;

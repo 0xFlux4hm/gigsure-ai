@@ -31,6 +31,8 @@ import { NotificationsView } from "@/views/NotificationsView";
 import { InvitationView } from "@/views/InvitationView";
 import { AdminView } from "@/views/AdminView";
 import { KycView } from "@/views/KycView";
+import { AiProjectCreatorPage } from "@/views/AiProjectCreatorPage";
+import { AiTaskCreatorPage } from "@/views/AiTaskCreatorPage";
 
 function Router() {
   const { data: session, status } = useSession();
@@ -109,6 +111,8 @@ function Router() {
       {view === "notifications" && <NotificationsView />}
       {view === "admin" && <AdminView />}
       {view === "kyc" && <KycView />}
+      {view === "ai-project-create" && <AiProjectCreatorPage />}
+      {view === "ai-task-create" && projectId && <AiTaskCreatorPage projectId={projectId} />}
     </AppShell>
   );
 }

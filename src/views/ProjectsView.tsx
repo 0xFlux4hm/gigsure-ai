@@ -9,12 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetDescription } from "@/components/ui/sheet";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { X, Pencil, Bot } from "lucide-react";
+import { X, Bot } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, formatDate, timeAgo, formatMinor } from "@/lib/client-api";
 import { FolderKanban, Plus, Loader2, ArrowRight } from "lucide-react";
-import { AiProjectCreator } from "@/components/ai/AiProjectCreator";
 import { toast } from "sonner";
 import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
 
@@ -54,7 +52,12 @@ export function ProjectsView() {
         description="Create and manage your client collaborations."
         icon={FolderKanban}
         actions={
-          <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" /> New project</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate({ view: "ai-project-create" })}>
+              <Bot className="mr-2 h-4 w-4" /> Create with AI
+            </Button>
+            <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" /> New project</Button>
+          </div>
         }
       />
 
@@ -125,7 +128,6 @@ export function ProjectsView() {
 }
 
 function NewProjectDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (v: boolean) => void; onCreated: (id: string) => void }) {
-  const [mode, setMode] = useState<"manual" | "ai">("manual");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [currency, setCurrency] = useState("NGN");
@@ -166,17 +168,6 @@ function NewProjectDialog({ open, onOpenChange, onCreated }: { open: boolean; on
     }
   };
 
-  const handleAiCreated = (projectId: string) => {
-    // Reset manual form state + close dialog; parent navigates to project detail
-    setTitle("");
-    setDescription("");
-    setCurrency("NGN");
-    setBudget("0");
-    setFundingArrangement("MILESTONE");
-    setDueDate("");
-    onCreated(projectId);
-  };
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
@@ -188,24 +179,7 @@ function NewProjectDialog({ open, onOpenChange, onCreated }: { open: boolean; on
             </Button>
           </div>
         </SheetHeader>
-
-        {/* Mode selector — Manual | Create with AI */}
-        <div className="px-6 pt-4 pb-2 shrink-0">
-          <Tabs value={mode} onValueChange={(v) => setMode(v as "manual" | "ai")}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="manual" className="text-xs">
-                <Pencil className="h-3.5 w-3.5 mr-1.5" /> Manual
-              </TabsTrigger>
-              <TabsTrigger value="ai" className="text-xs">
-                <Bot className="h-3.5 w-3.5 mr-1.5" /> Create with AI
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
-        {mode === "manual" ? (
-          <>
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="title">Project title <span className="text-destructive">*</span></Label>
                 <Input className="input-premium" id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Lagos Bakery Website Redesign" inputMode="text" autoCapitalize="sentences" />
@@ -276,13 +250,6 @@ function NewProjectDialog({ open, onOpenChange, onCreated }: { open: boolean; on
                 Create project
               </Button>
             </SheetFooter>
-          </>
-        ) : (
-          // AI mode — conversational project builder
-          <div className="flex-1 min-h-0 flex flex-col">
-            <AiProjectCreator onCreated={handleAiCreated} />
-          </div>
-        )}
       </SheetContent>
     </Sheet>
   );
