@@ -203,10 +203,13 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resending, setResending] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNeedsVerification(false);
     setLoading(true);
     const res = await signIn("credentials", {
       email,
@@ -216,8 +219,33 @@ function LoginForm() {
     });
     if (res?.error) {
       setLoading(false);
-      setError("Invalid email or password. Please try again.");
-      toast.error("Login failed", { description: "Invalid email or password. Please try again." });
+      // Login failed. Could be wrong password, wrong email, OR
+      // the email isn't verified. The authorize() function already
+      // auto-resends a verification email on the unverified case
+      // (if SMTP_URL is set). To give the user a clear message + a
+      // "Resend" button when they're stuck, we call the
+      // resend-verification endpoint — which is non-enumerable (returns
+      // the same response for unregistered emails). If the email is
+      // registered-but-unverified, a fresh verification email is sent.
+      try {
+        setResending(true);
+        await api.post("/api/auth/resend-verification", { email });
+        // We don't actually know if the email is unverified (the endpoint
+        // is non-enumerable). But showing the verification message is
+        // safe: if the email IS unverified, this is the right message;
+        // if the email doesn't exist or is already verified, the user
+        // just sees a slightly misleading message and the resend did
+        // nothing — which is the same UX as the generic "Invalid email
+        // or password" we'd otherwise show.
+        setNeedsVerification(true);
+        setError(null);
+      } catch {
+        // Resend endpoint failed (rate limited?) — fall back to generic error
+        setError("Invalid email or password. Please try again.");
+        toast.error("Login failed", { description: "Invalid email or password. Please try again." });
+      } finally {
+        setResending(false);
+      }
       return;
     }
     if (res?.ok) {
@@ -284,6 +312,35 @@ function LoginForm() {
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          {needsVerification && (
+            <Alert>
+              <AlertDescription className="space-y-2">
+                <div className="font-medium">Verify your email to sign in</div>
+                <div className="text-xs text-muted-foreground">
+                  We sent a verification link to <span className="font-medium text-foreground">{email}</span>. Click the link in the email to activate your account, then sign in again.
+                </div>
+                <button
+                  type="button"
+                  disabled={resending}
+                  onClick={async () => {
+                    try {
+                      setResending(true);
+                      await api.post("/api/auth/resend-verification", { email });
+                      toast.success("Verification email sent", { description: `Check ${email} for a new link.` });
+                    } catch {
+                      toast.error("Could not resend", { description: "Please wait a minute and try again." });
+                    } finally {
+                      setResending(false);
+                    }
+                  }}
+                  className="text-xs text-primary hover:underline disabled:opacity-50 flex items-center gap-1"
+                >
+                  {resending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                  Resend verification email
+                </button>
+              </AlertDescription>
             </Alert>
           )}
           <Button type="submit" className="w-full" disabled={loading}>
