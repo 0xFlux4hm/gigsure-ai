@@ -576,76 +576,34 @@ export const POST = apiRoute(async (req) => {
       promptHash: hashToken(parsed.data.prompt).slice(0, 16),
     });
     fallbackUsed = true;
-    // Detect auth errors specifically — give the user a clear actionable
-    // message instead of dumping SDK internals.
+    // SECURITY: Log diagnostic detail server-side only. Never surface the
+    // AI provider name, model identifier, env-var names, or dashboard URLs
+    // to the client — that information aids attackers probing the deployment.
     const errStatus = (err as { status?: number })?.status ?? 0;
     const isAuthError = errStatus === 401 || sanitizedErrMsg.includes("401") || sanitizedErrMsg.toLowerCase().includes("invalid api key");
     const isRateLimit = sanitizedErrMsg.includes("1302") || sanitizedErrMsg.includes("1305") || sanitizedErrMsg.includes("429") || errStatus === 429;
-    if (isAuthError) {
-      const providerHelp =
-        provider === "deepseek"
-          ? `DeepSeek rejected the API key (401). Sign up at\n` +
-            `https://platform.deepseek.com/usage to get $8 in free credits (no card needed),\n` +
-            `then update DEEPSEEK_API_KEY in Vercel env vars and redeploy.\n` +
-            `Free credit gives ~50K+ AI calls; no rate limits (only concurrency caps).`
-          : provider === "gemini"
-          ? `Google Gemini rejected the API key (401). Get a free key at\n` +
-            `https://aistudio.google.com/apikey — sign in with any Google account,\n` +
-            `click "Create API key", and update GEMINI_API_KEY in Vercel env vars,\n` +
-            `then redeploy. The free tier gives 15 RPM / 1,500 RPD on gemini-3.8-flash.`
-          : provider === "agentrouter"
-          ? `AgentRouter rejected the API key (401 Invalid API Key). This usually means:\n` +
-            `  • The key was regenerated since you copied it — generate a fresh one at\n` +
-            `    https://agentrouter.org/console/token and copy the new key.\n` +
-            `  • You copied a session token instead of the API Key field — make sure\n` +
-            `    the value starts with "sk-".\n` +
-            `  • Your GitHub sign-in on agentrouter.org wasn't completed.\n\n` +
-            `Update AGENTROUTER_API_KEY in Vercel env vars with the fresh key, then redeploy.`
-          : `Z.AI rejected the API key (401). Regenerate the key at\n` +
-            `https://z.ai/manage-apikey/apikey-list and update ZAI_API_KEY in Vercel\n` +
-            `env vars, then redeploy.`;
-      response =
-        `🔒 AI authentication failed.\n\n${providerHelp}\n\n` +
-        `Provider error detail: ${sanitizedErrMsg.slice(0, 200)}\n\n` +
-        `Until fixed, this deterministic fallback is shown:\n\n` +
-        generateFallback(parsed.data.assistant, context);
-    } else if (isRateLimit) {
-      const providerHelp =
-        provider === "deepseek"
-          ? `DeepSeek is rate-limiting you (concurrency cap reached). DeepSeek has no\n` +
-            `per-minute or daily caps — only a concurrency limit of 2,500 for Flash\n` +
-            `and 500 for V4-Pro. This error is rare. Check your quota/credit at\n` +
-            `https://platform.deepseek.com/usage.`
-          : provider === "gemini"
-          ? `Gemini's free tier is rate-limiting you (15 RPM / 1,500 RPD).\n` +
-            `Wait ~60 seconds for the per-minute quota to reset, then try again.\n` +
-            `Check your quota at https://aistudio.google.com/apikey.\n\n` +
-            `Tip: avoid rapid-fire AI calls during demos — the per-minute quota is\n` +
-            `shared across all users on this API key.`
-          : provider === "agentrouter"
-          ? `AgentRouter is rate-limiting your account. Wait ~1 minute and try again,\n` +
-            `or check your AgentRouter dashboard for quota/credit status.`
-          : `Z.AI's free-tier model (glm-4.7-flash) limits how many requests your\n` +
-            `account can make per minute. Wait ~1 minute and try again, or add\n` +
-            `credit at https://z.ai/manage-apikey and set AI_MODEL=glm-4.5-air\n` +
-            `in Vercel env vars for the paid tier (100× the rate limit).`;
-      response =
-        `⏳ The AI service is busy right now.\n\n${providerHelp}\n\n` +
-        `Provider error detail: ${sanitizedErrMsg.slice(0, 200)}\n\n` +
-        `For now, here's the deterministic fallback:\n\n` +
-        generateFallback(parsed.data.assistant, context);
-    } else {
-      response =
-        `[AI provider error]: ${sanitizedErrMsg}\n\n` +
-        `Provider: ${provider} | Model: ${model}\n\n` +
-        `Common causes:\n` +
-        `  • Network/firewall issue reaching the provider endpoint\n` +
-        `  • Provider returned a transient 500/502/503 error\n` +
-        `  • Invalid model identifier (check AI_MODEL env var)\n\n` +
-        `Check the Vercel function logs (Project → Functions → Logs) for the full stack trace.\n\n` +
-        `Until fixed, this deterministic fallback is shown:\n\n` +
-        generateFallback(parsed.data.assistant, context);
-    }
+
+    // Server-side diagnostic log (not exposed to client)
+    logSecurityEvent("error", "ai.assistant_provider_error", {
+      assistant: parsed.data.assistant,
+      provider,
+      model,
+      status: errStatus,
+      isAuthError,
+      isRateLimit,
+      message: sanitizedErrMsg.slice(0, 200),
+    });
+
+    // Generic, non-disclosing user-facing message + fallback
+    const userMessage = isAuthError
+      ? "The AI assistant is temporarily unavailable. Please try again later."
+      : isRateLimit
+      ? "The AI service is busy right now. Please wait a moment and try again."
+      : "The AI assistant could not respond to this request. Please try again later.";
+
+    response =
+      `${userMessage}\n\nHere is a general reference you may find useful:\n\n` +
+      generateFallback(parsed.data.assistant, context);
   }
 
   // Persist activity log (no sensitive PII in prompt body — already sanitized).

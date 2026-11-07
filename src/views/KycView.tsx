@@ -262,7 +262,7 @@ export function KycView() {
                 disabled={submitting}
               />
               <p className="text-xs text-muted-foreground">
-                Your NIN is hashed with SHA-256 before storage. We never store the raw number.
+                Your NIN is protected — we never store the raw number.
               </p>
             </div>
 
@@ -336,9 +336,7 @@ export function KycView() {
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription className="text-xs">
-                {status?.provider === "mock"
-                  ? "Identity verification via Smile ID with NIN lookup and selfie liveness check."
-                  : "Your NIN is verified against the Nigerian government database. A selfie liveness check ensures you are the real owner."}
+                Your NIN is verified against the Nigerian government database. A selfie liveness check ensures you are the real owner.
               </AlertDescription>
             </Alert>
 
@@ -368,8 +366,8 @@ export function KycView() {
             impersonation.
           </p>
           <p>
-            <strong className="text-foreground">Your data is protected.</strong> We store only a
-            SHA-256 hash of your NIN + the last 4 digits for display. The full NIN is sent
+            <strong className="text-foreground">Your data is protected.</strong> We store only
+            a masked reference and the last 4 digits for display. The full NIN is sent
             directly to the verification provider and never persisted in our database.
           </p>
           <p>

@@ -30,10 +30,10 @@ function useGoogleAuthAvailable(): boolean {
 }
 
 const PILLARS = [
-  { icon: FileCheck, title: "Verifiable contracts", desc: "Versioned scope, milestones, and terms." },
-  { icon: Wallet, title: "GigSure Payment Protection", desc: "Platform holds funds until milestones are met." },
+  { icon: FileCheck, title: "Verifiable agreements", desc: "Versioned scope, milestones, and terms." },
+  { icon: Wallet, title: "GigSure Payment Protection", desc: "Funds are held by licensed payment providers until milestones are met." },
   { icon: Scale, title: "Dispute resolution", desc: "Structured review process with evidence." },
-  { icon: Bot, title: "AI assistants", desc: "7 advisory assistants for contracts, risk, and progress." },
+  { icon: Bot, title: "AI assistants", desc: "AI-powered project assistance for contracts, risk, and progress." },
 ];
 
 export function AuthViews() {

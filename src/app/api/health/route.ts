@@ -39,14 +39,13 @@ export async function GET() {
   const allOk = Object.values(checks).every((c) => c.ok);
   const status = allOk ? "healthy" : "unhealthy";
 
+  // SECURITY: Return only minimal info to unauthenticated callers.
+  // Do not expose app version, NODE_ENV, or DB latency — these aid
+  // attackers probing the deployment (version → known CVEs, env →
+  // dev vs prod, latency → timing oracle). Full diagnostic detail is
+  // logged server-side for ops.
   return NextResponse.json(
-    {
-      status,
-      timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version ?? "unknown",
-      environment: process.env.NODE_ENV ?? "unknown",
-      checks,
-    },
+    { status },
     { status: allOk ? 200 : 503 },
   );
 }

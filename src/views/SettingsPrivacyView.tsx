@@ -78,8 +78,8 @@ export function SettingsPrivacyView() {
             <FileText className="h-4 w-4" /> Data export (PDF)
           </CardTitle>
           <CardDescription>
-            Download a PDF document containing all personal data we hold about your account,
-            in compliance with the Nigeria Data Protection Regulation (NDPR).
+            Download a PDF document containing the personal data we hold about your account,
+            designed with Nigerian data protection principles in mind.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

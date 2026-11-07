@@ -20,46 +20,46 @@ const FEATURES = [
     icon: FileText,
     image: "/images/feature-contracts.png",
     title: "Versioned Contracts",
-    body: "Draft, propose, and accept client-facing contracts. Accepted versions are preserved — never silently overwritten.",
+    body: "Draft, propose, and accept client-facing agreements. Accepted versions are preserved so terms are never silently changed.",
   },
   {
     icon: Users,
     image: "/images/feature-team.png",
     title: "Secure Collaboration",
-    body: "Invite service providers with cryptographically secure, expiring tokens. Roles enforced on the backend.",
+    body: "Work confidently with your team. Manage invitations, responsibilities, and project access through a secure collaboration experience.",
   },
   {
     icon: Wallet,
     image: "/images/feature-funding.png",
     title: "Cross-Border Funding",
-    body: "International clients pay in USD via PayPal. Nigerian freelancers receive NGN via Monnify/OPay. Milestone-gated payment protection.",
+    body: "Enable international clients to fund projects in USD while supporting convenient payment experiences for service providers in Nigeria.",
   },
   {
     icon: Scale,
     image: "/images/feature-disputes.png",
     title: "Dispute Resolution",
-    body: "Open disputes, upload evidence, assign independent reviewers. AI produces neutral dispute summaries.",
+    body: "Open disputes, upload evidence, and assign independent reviewers. AI produces neutral dispute summaries to support fair outcomes.",
   },
   {
     icon: Bot,
     image: "/images/feature-ai.png",
     title: "AI Assistants",
-    body: "Five AI features on Groq's LPU — project briefs, milestone generation, contract analysis, 10 advisory assistants, and dispute summaries.",
+    body: "Turn project descriptions into actionable plans, clearer agreements, structured milestones, and better-informed decisions with AI-powered project assistance.",
   },
   {
     icon: ShieldCheck,
     image: "/images/feature-privacy.png",
     title: "Privacy by Design",
-    body: "Data export, account deletion, NDPR-aware compliance research. Your data stays yours.",
+    body: "Maintain control over your information with account privacy controls, data access, and deletion options.",
   },
 ];
 
 const STEPS = [
   { step: 1, title: "Sign in", body: "Continue with Google or register with email + password." },
   { step: 2, title: "Create a project", body: "AI generates a project brief from your description. Set budget, milestones, and funding arrangement." },
-  { step: 3, title: "Invite service providers", body: "Secure, expiring invitation tokens. Project-specific roles." },
-  { step: 4, title: "Draft contracts", body: "Versioned. AI analyzes for risks across 8 categories. Accepted terms are preserved." },
-  { step: 5, title: "Fund milestones", body: "International clients pay USD via PayPal. Freelancers receive NGN via Monnify/OPay." },
+  { step: 3, title: "Invite service providers", body: "Send secure, expiring invitations with project-specific roles." },
+  { step: 4, title: "Draft contracts", body: "Versioned agreements with AI-assisted risk review. Accepted terms are preserved." },
+  { step: 5, title: "Fund milestones", body: "International clients fund in USD; Nigerian professionals receive NGN. Funds are held by licensed payment providers under GigSure Payment Protection until milestones are met." },
   { step: 6, title: "Resolve disputes", body: "Evidence uploads, reviewer notes. AI produces neutral dispute summaries." },
 ];
 
@@ -107,9 +107,9 @@ export function LandingView() {
                 <span className="text-primary">Get paid with trust.</span>
               </h1>
               <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto md:mx-0 mb-10">
-                AI-powered project contracts and cross-border payment protection.
-                International clients pay in USD via PayPal. Nigerian professionals receive NGN.
-                No marketplace, no middlemen.
+                AI-powered project agreements and cross-border payment protection.
+                International clients fund in USD. Nigerian professionals receive NGN.
+                Funds are held by licensed payment providers until milestones are met.
               </p>
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
                 <Button size="lg" onClick={() => navigate({ view: "register" })}>

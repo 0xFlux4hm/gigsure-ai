@@ -114,7 +114,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
     <div className="page-enter space-y-6">
       <PageHeader
         title="Funding & payments"
-        description="Fund your project by bank transfer to a dedicated virtual account. The platform holds the funds under GigSure Payment Protection until milestones are completed."
+        description="Fund your project by bank transfer to a dedicated virtual account. Funds are held by licensed payment providers under GigSure Payment Protection until milestones are completed."
         icon={Wallet}
       />
 
@@ -250,7 +250,7 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
           </CardTitle>
           <CardDescription>
             International clients can fund milestones in USD via PayPal.
-            Funds are converted to NGN at the platform rate (demo: 1 USD = ₦1,500) and held under GigSure Payment Protection.
+            Funds are converted to NGN at the platform rate (1 USD = ₦1,500) and held under GigSure Payment Protection.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -331,15 +331,12 @@ export function ProjectFundingView({ projectId }: { projectId: string }) {
 
 // ---------------------------------------------------------------------------
 //
-// Lets an international client fund a milestone in USD via PayPal sandbox.
-// Funds convert to NGN at the platform demo rate (1 USD = ₦1,500) and land
-// in the existing NGN funding records. The freelancer receives NGN via Monnify/OPay
-// payouts — the cross-border loop is the demo centerpiece.
+// Lets an international client fund a milestone in USD via PayPal.
+// Funds convert to NGN at the platform rate and land in the existing NGN
+// funding records. The service provider receives NGN via bank transfer.
 //
-// NOTE: This component depends on PAYPAL_ENABLED + PAYPAL_CLIENT_ID +
-// PAYPAL_CLIENT_SECRET being set on the server. When not configured, the
-// /api/payments/initiate call returns 503 and we show a friendly message
-// instead of crashing.
+// When PayPal is not configured on the server, the /api/payments/initiate
+// call returns 503 and we show a friendly message instead of crashing.
 // ---------------------------------------------------------------------------
 
 type Milestone = {
@@ -585,7 +582,7 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t text-xs text-muted-foreground">
-            <span>FX rate (demo)</span>
+            <span>Conversion rate</span>
             <span>1 USD = ₦{FX_RATE.toLocaleString()}</span>
           </div>
         </div>
@@ -649,7 +646,7 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
             </div>
           </div>
           <p className="text-xs text-muted-foreground pl-7">
-            A PayPal sandbox tab has opened. Log in with the test buyer account and approve the
+            A PayPal tab has opened. Log in and approve the
             <strong> ${verifiedAmount ?? usdAmount} USD</strong> payment. Once you've approved it, click "Verify Payment" below.
           </p>
           <a
@@ -752,14 +749,11 @@ function PayPalFundingCard({ projectId, onPaymentConfirmed }: { projectId: strin
           <p className="font-medium mb-1">How cross-border funding works</p>
           <ol className="list-decimal list-inside space-y-0.5">
             <li>International client clicks "Pay with PayPal".</li>
-            <li>PayPal sandbox opens — client approves payment in USD.</li>
-            <li>PayPal webhook confirms the payment on our server.</li>
+            <li>PayPal opens — client approves the payment in USD.</li>
+            <li>The payment is confirmed on our server.</li>
             <li>Funds convert to NGN at the platform rate and are held under GigSure Payment Protection.</li>
-            <li>On milestone completion, the freelancer is paid out via Monnify/OPay in NGN.</li>
+            <li>On milestone completion, the service provider is paid out in NGN via bank transfer.</li>
           </ol>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Sandbox mode: no real money moves. Uses PayPal developer test accounts.
-          </p>
         </div>
       </div>
     </div>

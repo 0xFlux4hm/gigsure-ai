@@ -17,7 +17,7 @@ import { requireUserId } from "@/lib/auth/session";
 import { getOpenAiClient, getAiModel, getAiProvider, aiCacheKey, aiCacheGet, aiCacheSet, type ChatMessage } from "@/lib/ai/ai-provider";
 import { isPlatformAdmin } from "@/lib/auth/admin-access";
 import { AuthzError } from "@/lib/auth/authorization";
-import { recordAuditEvent } from "@/lib/auth/audit";
+import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { z } from "zod";
 
 const Schema = z.object({
@@ -249,36 +249,39 @@ export const POST = apiRoute(async (req) => {
     }
   } catch (err) {
     // All retries failed. Capture a friendly message + return a neutral
-    // analysis object so the UI doesn't crash — the user gets actionable
-    // feedback instead of a generic 500.
+    // analysis object so the UI doesn't crash — the user gets a friendly
+    // message instead of a generic 500.
+    // SECURITY: Log the diagnostic detail server-side only. Never surface
+    // the AI provider name, model identifier, env-var names, or dashboard
+    // URLs to the client — that information aids attackers probing the
+    // deployment (which provider is configured, which model, free vs paid
+    // tier, quota windows, remediation steps for a compromised key).
     const errStatus = (err as { status?: number })?.status ?? 0;
     const errMsg = (err as Error)?.message ?? "Unknown error";
-    if (errStatus === 401 || errMsg.includes("401") || errMsg.toLowerCase().includes("invalid api key")) {
-      const providerHint =
-        provider === "deepseek"
-          ? "Sign up at https://platform.deepseek.com/usage to get $8 in free credits (no card needed) and update DEEPSEEK_API_KEY."
-          : provider === "gemini"
-          ? "Get a free key at https://aistudio.google.com/apikey and update GEMINI_API_KEY."
-          : provider === "agentrouter"
-          ? "Generate a fresh key at https://agentrouter.org/console/token (the old one was likely regenerated)."
-          : "Regenerate the key at https://z.ai/manage-apikey/apikey-list and update ZAI_API_KEY.";
+    const isAuthError = errStatus === 401 || errMsg.includes("401") || errMsg.toLowerCase().includes("invalid api key");
+    const isRateLimit = errMsg.includes("1302") || errMsg.includes("1305") || errMsg.includes("429") || errStatus === 429;
+
+    // Server-side diagnostic log (not exposed to client)
+    logSecurityEvent("error", "ai.provider_error", {
+      provider,
+      model,
+      status: errStatus,
+      isAuthError,
+      isRateLimit,
+      message: errMsg.slice(0, 200),
+      contractVersionId: contract.id,
+    });
+
+    // Generic, non-disclosing user-facing message
+    if (isAuthError) {
       providerErrorMessage =
-        "AI authentication failed — the API key was rejected. " + providerHint +
-        ` (Error detail: ${errMsg.slice(0, 150)})`;
-    } else if (errMsg.includes("1302") || errMsg.includes("1305") || errMsg.includes("429") || errStatus === 429) {
-      const providerHint =
-        provider === "deepseek"
-          ? "DeepSeek has no per-minute or daily caps — only concurrency (2,500 for Flash). This error is rare; check your credit balance at https://platform.deepseek.com/usage."
-          : provider === "gemini"
-          ? "Gemini free tier allows 15 RPM / 1,500 RPD. Wait ~60 seconds for the per-minute quota to reset, then try again. Avoid rapid-fire calls during demos."
-          : provider === "agentrouter"
-          ? "Check your AgentRouter dashboard for quota/credit status."
-          : "For higher limits, switch to AI_MODEL=glm-4.5-air (paid Z.AI tier) or AI_PROVIDER=deepseek (free $8 credit, no rate limits).";
+        "AI analysis is temporarily unavailable. Please try again later.";
+    } else if (isRateLimit) {
       providerErrorMessage =
-        "AI rate limit reached. " + providerHint +
-        ` (Error detail: ${errMsg.slice(0, 150)})`;
+        "The AI service is busy right now. Please wait a moment and try again.";
     } else {
-      providerErrorMessage = `AI provider error: ${errMsg.slice(0, 200)}. Check Vercel function logs for details.`;
+      providerErrorMessage =
+        "AI analysis could not be completed. Please try again later.";
     }
   }
 

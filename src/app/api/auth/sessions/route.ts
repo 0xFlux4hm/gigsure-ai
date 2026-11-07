@@ -35,10 +35,5 @@ export const GET = apiRoute(async () => {
 
   return {
     revokedSessions,
-    // Note: we can't list active (non-revoked) JWT sessions because they're
-    // stateless. The current session's JTI is available via the session
-    // object on the frontend. To list ALL active sessions, we'd need to
-    // switch to database session strategy or maintain an ActiveSession table.
-    note: "Active sessions are stateless JWTs. Only revoked sessions are listed here. To see all active sessions, switch to database session strategy.",
   };
 });

@@ -77,7 +77,7 @@ export function AdminView() {
       <EmptyState
         icon={ShieldCheck}
         title="Administrator access required"
-        description="This page is restricted to platform administrators. If you believe you should have access, contact your platform administrator or set ADMIN_EMAILS in the environment."
+        description="This page is restricted to platform administrators. If you believe you should have access, contact your platform administrator."
       />
     );
   }

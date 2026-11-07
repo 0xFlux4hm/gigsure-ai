@@ -47,19 +47,10 @@ export function GoogleRegistrationView() {
         acceptedTerms: true,
       });
 
-      //
-      // HISTORY: this flow broke THREE TIMES before:
-      //   1. complete-registration bumped passwordChangedAt → JWT invalidated
-      //   2. Even after that fix, used setTimeout + window.location.href →
-      //      hard reload races with session cookie set
-      //   3. Even after the in-band updateSession() fix, the cached client
-      //      session sometimes still shows PENDING_REGISTRATION, causing the
-      //      Router to bounce the user back to this page
-      //
-      //   1. Call complete-registration (server marks user ACTIVE in DB)
-      //   2. Force-useSession refresh via updateSession() — this triggers
-      //      jwt() callback which re-reads accountStatus from DB
-      //   3. VERIFY the new session has accountStatus === "ACTIVE"
+      // Complete registration flow:
+      //   1. Server marks the user account as active
+      //   2. Force a session refresh so the new status is reflected client-side
+      //   3. Verify the refreshed session before navigating away
       //   4. If yes → navigate via SPA (no hard reload)
       //   5. If no (refresh failed or returned stale status) → fall back to
       //      hard reload, which forces a fresh /api/auth/session fetch
@@ -221,7 +212,7 @@ export function GoogleRegistrationView() {
                   <li>Your Google password is never shared with GigSure AI</li>
                   <li>You can unlink Google at any time in Settings → Security</li>
                   <li>You can add a password as an alternative sign-in method</li>
-                  <li>Your data is protected under NDPR (Nigeria Data Protection Regulation)</li>
+                  <li>Your data is handled with Nigerian data protection principles in mind</li>
                 </ul>
               </div>
 

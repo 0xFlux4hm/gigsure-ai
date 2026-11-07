@@ -75,7 +75,7 @@ export function ProjectMilestonesView({ projectId }: { projectId: string }) {
     <div className="page-enter space-y-6">
       <PageHeader
         title="Milestones"
-        description="Fund, submit, approve, release. State transitions enforced on the backend."
+        description="Fund, submit, approve, release. Each step is server-validated."
         icon={Target}
         actions={
           <div className="flex items-center gap-2">

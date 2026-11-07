@@ -140,7 +140,7 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
     <div className="page-enter space-y-6">
       <PageHeader
         title="Tasks"
-        description="Drag state-machine enforced on the backend."
+        description="Drag to reorder. Status updates are server-validated."
         icon={CheckSquare}
         actions={
           <Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" /> New task</Button>
