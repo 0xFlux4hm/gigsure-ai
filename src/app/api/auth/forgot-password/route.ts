@@ -17,6 +17,7 @@ import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { sendEmail, passwordResetEmail } from "@/lib/email/provider";
 import { resolveBaseUrl } from "@/lib/auth/base-url";
+import { getClientIp } from "@/lib/auth/session";
 import { z } from "zod";
 
 const Schema = z.object({ email: z.string().min(5).max(254) });
