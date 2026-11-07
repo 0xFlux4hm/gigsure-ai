@@ -244,6 +244,8 @@ async function callAI(messages: ChatMessage[]): Promise<{ content: string; token
         messages,
         temperature: 0.3,
         max_tokens: 4000, // full structured proposal with draft agreement needs room
+        // Force JSON output — Groq/OpenAI-compatible providers respect this
+        response_format: { type: "json_object" },
       });
       const content = completion.choices?.[0]?.message?.content ?? "";
       const tokensUsed = completion.usage?.total_tokens ?? 0;
