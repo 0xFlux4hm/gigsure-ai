@@ -358,17 +358,20 @@ export const POST = apiRoute(async (req) => {
   let aiContent = "";
   let tokensUsed = 0;
   let fallbackUsed = false;
+  let isDailyLimit = false;
   try {
     const result = await callAI(llmMessages);
     aiContent = result.content;
     tokensUsed = result.tokensUsed;
   } catch (err) {
+    const errMsg = (err as Error)?.message ?? "";
+    isDailyLimit = /daily|per.?day|24.?hour/i.test(errMsg) || (err as { status?: number })?.status === 429;
     // SECURITY: log diagnostic detail server-side only (never expose
     // provider/model/env-var names to the client — see security audit).
     logSecurityEvent("error", "ai.task_builder_provider_error", {
       userId,
       projectId,
-      message: (err as Error)?.message?.slice(0, 200),
+      message: errMsg.slice(0, 200),
     });
     fallbackUsed = true;
   }
@@ -378,7 +381,9 @@ export const POST = apiRoute(async (req) => {
   if (!aiContent || fallbackUsed) {
     response = {
       kind: "error",
-      message: "I couldn't draft a task right now. Please try again, or use the manual form.",
+      message: isDailyLimit
+        ? "The daily AI request limit has been reached. Please try again tomorrow, or use the manual form."
+        : "I couldn't draft a task right now. Please try again, or use the manual form.",
     };
     fallbackUsed = true;
   } else {

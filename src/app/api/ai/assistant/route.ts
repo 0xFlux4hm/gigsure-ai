@@ -595,10 +595,15 @@ export const POST = apiRoute(async (req) => {
     });
 
     // Generic, non-disclosing user-facing message + fallback
+    // Detect daily vs per-minute rate limits from the error message
+    // (Groq returns "daily" in the 429 body when the 1,000 RPD limit is hit)
+    const isDailyLimit = isRateLimit && /daily|per.?day|24.?hour/i.test(sanitizedErrMsg);
     const userMessage = isAuthError
       ? "The AI assistant is temporarily unavailable. Please try again later."
+      : isDailyLimit
+      ? "The daily AI request limit has been reached. Please try again tomorrow."
       : isRateLimit
-      ? "The AI service is busy right now. Please wait a moment and try again."
+      ? "The AI service is busy right now. Please wait about a minute and try again."
       : "The AI assistant could not respond to this request. Please try again later.";
 
     response =
