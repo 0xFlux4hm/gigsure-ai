@@ -122,7 +122,7 @@ export function AdminView() {
   const pendingTasksCount = 0; // could be wired to dispute/KYC counts later
 
   return (
-    <div className="page-enter flex h-[calc(100vh-3.5rem)] -m-4 sm:-m-6 bg-muted/20">
+    <div className="page-enter flex h-[calc(100vh-3.5rem)] lg:h-[calc(100vh-3.5rem)] -m-4 sm:-m-6 mb-14 lg:mb-0 bg-muted/20">
       {/* Slim icon rail (Pay-app style left sidebar) */}
       <aside className="hidden sm:flex w-16 shrink-0 flex-col items-center bg-white dark:bg-slate-950 border-r border-border/60 py-3 gap-1">
         {navGroups.map((group, gi) => (
