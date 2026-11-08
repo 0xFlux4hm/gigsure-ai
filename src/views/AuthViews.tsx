@@ -397,38 +397,26 @@ function RegisterForm() {
       if (res.verificationUrl) setVerifyUrl(res.verificationUrl);
       if (res.created) {
         toast.success("Account created", { description: "Welcome to GigSure AI." });
-        // Auto-login after registration, then redirect to dashboard.
-        // Use a timeout so we don't hang forever if NextAuth is slow.
+        // Auto-login after registration, then hard-redirect to dashboard.
+        // Hard redirect avoids the updateSession() hang that was causing
+        // the spinner to go forever on slow mobile connections.
         try {
-          const signInPromise = signIn("credentials", {
+          const signInResult = await signIn("credentials", {
             email,
             password,
             redirect: false,
             callbackUrl: "/?view=dashboard",
           });
-          const timeoutPromise = new Promise<{ ok: false; error: string; url: null }>((resolve) =>
-            setTimeout(() => resolve({ ok: false, error: "timeout", url: null }), 10000)
-          );
-          const signInResult = await Promise.race([signInPromise, timeoutPromise]) as { ok?: boolean; error?: string; url?: string | null };
-
           if (signInResult?.ok) {
-            try {
-              await updateSession();
-            } catch {
-              // If in-band refresh fails, hard-reload to dashboard
-              window.location.href = "/?view=dashboard";
-              return;
-            }
-            setLoading(false);
-            navigate({ view: "dashboard" });
+            // Hard redirect — the session cookie is set by signIn()
+            window.location.href = "/?view=dashboard";
+            return;
           } else {
-            // Auto-login failed or timed out — redirect to login page
-            // so the user can sign in manually
+            // Auto-login failed — redirect to login page
             toast.info("Please sign in", { description: "Your account was created. Sign in to continue." });
             navigate({ view: "login" });
           }
         } catch {
-          // signIn threw — navigate to login
           toast.info("Please sign in", { description: "Your account was created. Sign in to continue." });
           navigate({ view: "login" });
         }
