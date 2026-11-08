@@ -36,6 +36,7 @@ import {
 import { toast } from "sonner";
 import { formatStatus } from "@/components/shared/page-components";
 import { PageHeader, LoadingState, EmptyState } from "@/components/shared/page-components";
+import { useConfirm } from "@/components/shared/ConfirmDialog";
 
 type Member = {
   id: string;
@@ -59,6 +60,7 @@ type Invitation = {
 };
 
 export function ProjectTeamView({ projectId }: { projectId: string }) {
+  const { confirm } = useConfirm();
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +91,13 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
   };
 
   const revoke = async (id: string) => {
-    if (!confirm("Revoke this invitation? The recipient will no longer be able to accept it.")) return;
+    const result = await confirm({
+      title: "Revoke invitation?",
+      description: "The recipient will no longer be able to accept this invitation.",
+      confirmText: "Revoke",
+      variant: "destructive",
+    });
+    if (!result.ok) return;
     try {
       await api.del(`/api/projects/${projectId}/invitations/${id}`);
       toast.success("Invitation revoked", { description: "The invitation has been cancelled." });
@@ -128,7 +136,13 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
   };
 
   const removeMember = async (memberId: string, name: string) => {
-    if (!confirm(`Remove ${name} from this project? They will lose all access.`)) return;
+    const result = await confirm({
+      title: `Remove ${name}?`,
+      description: "They will lose all access to this project immediately.",
+      confirmText: "Remove member",
+      variant: "destructive",
+    });
+    if (!result.ok) return;
     setActingMemberId(memberId);
     try {
       await api.del(`/api/projects/${projectId}/members/${memberId}`);

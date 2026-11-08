@@ -5,6 +5,7 @@ import { SessionProvider, useSession } from "next-auth/react";
 import { useNav, type ViewName } from "@/lib/nav";
 import { LandingView } from "@/views/LandingView";
 import { GoogleRegistrationView } from "@/views/GoogleRegistrationView";
+import { ConfirmDialogProvider } from "@/components/shared/ConfirmDialog";
 import { AuthViews } from "@/views/AuthViews";
 import { AppShell } from "@/views/AppShell";
 import { DashboardView } from "@/views/DashboardView";
@@ -128,7 +129,9 @@ export default function Home() {
 
   return (
     <SessionProvider>
-      <Router />
+      <ConfirmDialogProvider>
+        <Router />
+      </ConfirmDialogProvider>
     </SessionProvider>
   );
 }

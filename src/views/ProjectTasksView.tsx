@@ -16,6 +16,7 @@ import { Plus, Loader2, ChevronDown, ChevronRight, Upload, Download, Trash2, Pap
 
 import { toast } from "sonner";
 import { PageHeader, LoadingState, EmptyState, formatStatus } from "@/components/shared/page-components";
+import { useConfirm } from "@/components/shared/ConfirmDialog";
 type Deliverable = {
   id: string;
   filename: string;
@@ -56,6 +57,7 @@ const NEXT_STATUS: Record<string, { label: string; value: string }[]> = {
 
 export function ProjectTasksView({ projectId }: { projectId: string }) {
   const { navigate } = useNav();
+  const { confirm } = useConfirm();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -105,7 +107,13 @@ export function ProjectTasksView({ projectId }: { projectId: string }) {
   };
 
   const deleteDeliverable = async (taskId: string, deliverableId: string) => {
-    if (!confirm("Delete this deliverable?")) return;
+    const result = await confirm({
+      title: "Delete this deliverable?",
+      description: "The file will be permanently removed from this task.",
+      confirmText: "Delete",
+      variant: "destructive",
+    });
+    if (!result.ok) return;
     try {
       await api.del(`/api/projects/${projectId}/tasks/${taskId}/deliverables/${deliverableId}`);
       toast.success("Deliverable deleted", { description: "The file has been removed." });

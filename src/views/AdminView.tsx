@@ -46,6 +46,7 @@ import { exportAdminPDF } from "@/lib/pdf/export";
 
 import { toast } from "sonner";
 import { EmptyState, formatStatus } from "@/components/shared/page-components";
+import { useConfirm } from "@/components/shared/ConfirmDialog";
 type AdminTab = "overview" | "users" | "projects" | "payments" | "payouts" | "disputes" | "kyc" | "audit" | "ai" | "privacy" | "webhooks" | "gateway";
 
 export function AdminView() {
@@ -1027,11 +1028,28 @@ function UsersTab() {
   };
   useEffect(load, [search, statusFilter, roleFilter]);
 
+  const { confirm } = useConfirm();
+
   const act = async (userId: string, action: "suspend" | "activate" | "promote_admin" | "demote_admin") => {
-    if (!confirm(`Are you sure you want to ${action.replace("_", " ")} this user?`)) return;
+    const isSuspend = action === "suspend";
+    const result = await confirm({
+      title: `${isSuspend ? "Suspend" : action === "activate" ? "Activate" : action === "promote_admin" ? "Promote to admin" : "Demote to user"}?`,
+      description: isSuspend
+        ? "This user will be unable to sign in until reactivated."
+        : action === "activate"
+        ? "This user will be able to sign in again."
+        : action === "promote_admin"
+        ? "This user will gain full admin dashboard access."
+        : "This user will lose admin dashboard access.",
+      confirmText: isSuspend ? "Suspend" : action === "activate" ? "Activate" : action === "promote_admin" ? "Promote" : "Demote",
+      variant: isSuspend ? "destructive" : "default",
+      input: isSuspend,
+      inputPlaceholder: "Reason for suspension (optional)…",
+    });
+    if (!result.ok) return;
     setActingId(userId);
     try {
-      const reason = action === "suspend" ? prompt("Reason for suspension (optional):") ?? "" : "";
+      const reason = isSuspend ? result.value ?? "" : "";
       await api.patch(`/api/admin/users/${userId}`, { action, reason: reason || undefined });
       load();
     } catch (err) {
@@ -1042,7 +1060,13 @@ function UsersTab() {
   };
 
   const deleteUser = async (userId: string, email: string) => {
-    if (!confirm(`DELETE user "${email}"?\n\nThis will:\n- Anonymize their PII (email, name, password)\n- Revoke all sessions and OAuth links\n- Remove them from all projects\n- Mark account as DELETED\n\nFinancial and audit records are RETAINED for legal reasons.\n\nThis cannot be undone.`)) return;
+    const result = await confirm({
+      title: `Delete user "${email}"?`,
+      description: "This will anonymize their personal data, revoke all sessions, remove them from all projects, and mark the account as DELETED.\n\nFinancial and audit records are retained for legal reasons.\n\nThis action cannot be undone.",
+      confirmText: "Delete user",
+      variant: "destructive",
+    });
+    if (!result.ok) return;
     setActingId(userId);
     try {
       await api.del(`/api/admin/users/${userId}?reason=Admin+deletion`);
@@ -1816,6 +1840,7 @@ type PrivacyRequest = {
 };
 
 function PrivacyTab() {
+  const { confirm } = useConfirm();
   const [requests, setRequests] = useState<PrivacyRequest[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -1833,10 +1858,22 @@ function PrivacyTab() {
   useEffect(load, [statusFilter]);
 
   const update = async (id: string, status: "PROCESSING" | "READY" | "COMPLETED" | "DENIED") => {
+    let denialReason = "";
+    if (status === "DENIED") {
+      const result = await confirm({
+        title: "Deny this request?",
+        description: "Enter an optional reason for the denial.",
+        confirmText: "Deny request",
+        variant: "destructive",
+        input: true,
+        inputPlaceholder: "Reason for denial (optional)…",
+      });
+      if (!result.ok) { setActingId(null); return; }
+      denialReason = result.value ?? "";
+    }
     setActingId(id);
     try {
-      const result = status === "DENIED" ? prompt("Reason for denial (optional):") ?? "" : "";
-      await api.patch("/api/admin/privacy-requests", { requestId: id, status, result: result || undefined });
+      await api.patch("/api/admin/privacy-requests", { requestId: id, status, result: denialReason || undefined });
       load();
     } catch (err) {
       toast.error((err as Error).message);
