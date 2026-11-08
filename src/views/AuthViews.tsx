@@ -284,7 +284,7 @@ function LoginForm() {
       <CardContent className="space-y-4">
         <GoogleButton />
         <GoogleDivider />
-        <form onSubmit={submit} className="space-y-3">
+        <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
             <Input className="input-premium"
@@ -295,6 +295,7 @@ function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
+              placeholder="you@example.com"
             />
           </div>
           <div className="space-y-1.5">
@@ -307,6 +308,7 @@ function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
+              placeholder="Enter your password"
             />
           </div>
           {error && (
@@ -343,7 +345,7 @@ function LoginForm() {
               </AlertDescription>
             </Alert>
           )}
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full h-11" disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Sign in
           </Button>
@@ -450,7 +452,7 @@ function RegisterForm() {
       <CardContent className="space-y-4">
         <GoogleButton label="Sign up with Google" />
         <GoogleDivider />
-        <form onSubmit={submit} className="space-y-3">
+        <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="displayName">Display name</Label>
             <Input className="input-premium"
@@ -461,6 +463,8 @@ function RegisterForm() {
               required
               disabled={loading}
               maxLength={80}
+              placeholder="e.g. Ahmad Muhammad"
+              autoComplete="name"
             />
           </div>
           <div className="space-y-1.5">
@@ -473,6 +477,7 @@ function RegisterForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
+              placeholder="you@example.com"
             />
           </div>
           <div className="space-y-1.5">
@@ -486,17 +491,18 @@ function RegisterForm() {
               required
               disabled={loading}
               minLength={8}
+              placeholder="Min. 8 characters"
             />
             <p className="text-xs text-muted-foreground">At least 8 characters, with a letter and a digit.</p>
           </div>
-          <label className="flex items-start gap-2 text-sm">
+          <label className={`flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${terms ? "border-primary/30 bg-primary/5" : "border-border/60 hover:bg-muted/40"}`}>
             <input
               type="checkbox"
               checked={terms}
               onChange={(e) => setTerms(e.target.checked)}
-              className="mt-1"
+              className="mt-0.5 h-4 w-4 rounded shrink-0"
             />
-            <span className="text-muted-foreground">
+            <span className="text-xs text-muted-foreground leading-relaxed">
               I accept the Terms of Service and Privacy Notice. I understand
               this is a project collaboration platform, not a payment custodian.
             </span>
@@ -506,7 +512,7 @@ function RegisterForm() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full h-11" disabled={loading || !terms}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Create account
           </Button>
