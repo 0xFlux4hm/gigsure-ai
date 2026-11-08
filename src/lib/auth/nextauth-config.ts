@@ -261,11 +261,20 @@ export const authOptions: NextAuthOptions = {
         if (existingIdentity) {
           // Returning Google user — check their account is active
           if (existingIdentity.user.accountStatus !== "ACTIVE") {
-            logSecurityEvent("warn", "auth.google_blocked_account", {
-              userId: existingIdentity.userId,
-              status: existingIdentity.user.accountStatus,
-            });
-            return false;
+            // Auto-activate PENDING_REGISTRATION accounts (legacy users who
+            // signed up before the Terms of Service gate was removed)
+            if (existingIdentity.user.accountStatus === "PENDING_REGISTRATION") {
+              await db.user.update({
+                where: { id: existingIdentity.userId },
+                data: { accountStatus: "ACTIVE" },
+              });
+            } else {
+              logSecurityEvent("warn", "auth.google_blocked_account", {
+                userId: existingIdentity.userId,
+                status: existingIdentity.user.accountStatus,
+              });
+              return false;
+            }
           }
           // Update lastAuthenticatedAt
           await db.userIdentity.update({
