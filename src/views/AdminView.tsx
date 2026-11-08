@@ -30,7 +30,7 @@ import {
   Banknote,
   RefreshCw,
   Download,
-  // Pay-app style icons
+  //  icons
   Home,
   Bell,
   Globe,
@@ -124,7 +124,7 @@ export function AdminView() {
 
   return (
     <div className="page-enter flex h-[calc(100vh-3.5rem)] -m-4 sm:-m-6 bg-muted/20">
-      {/* Slim icon rail (Pay-app style left sidebar) */}
+      {/* Slim icon rail ( left sidebar) */}
       <aside className="hidden sm:flex w-16 shrink-0 flex-col items-center bg-white dark:bg-slate-950 border-r border-border/60 py-3 gap-1">
         {navGroups.map((group, gi) => (
           <div key={gi} className="flex flex-col items-center gap-1 shrink-0">
@@ -153,7 +153,7 @@ export function AdminView() {
 
       {/* Main content area */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Admin top strip — search + tab title + actions (Pay-app style top bar) */}
+        {/* Admin top strip — search + tab title + actions ( top bar) */}
         <div className="shrink-0 border-b border-border/60 bg-background/80 backdrop-blur-xl px-4 sm:px-6 py-3">
           <div className="flex items-center gap-3">
             {/* Mobile nav select */}
@@ -172,7 +172,7 @@ export function AdminView() {
               <p className="text-xs text-muted-foreground truncate">{getTabDescription(tab)}</p>
             </div>
 
-            {/* Search bar (center, Pay-app style) */}
+            {/* Search bar (center, ) */}
             <form onSubmit={handleSearch} className="ml-auto relative w-full max-w-xs hidden md:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -183,14 +183,14 @@ export function AdminView() {
               />
             </form>
 
-            {/* EN language pill (Pay-app style) */}
+            {/* EN language pill () */}
             <button className="hidden md:flex items-center gap-1 text-xs text-muted-foreground px-2.5 py-1.5 rounded-full border border-border/60 hover:bg-muted transition-colors">
               <Globe className="h-3.5 w-3.5" />
               <span>EN</span>
               <ChevronDown className="h-3 w-3" />
             </button>
 
-            {/* Notification bell (Pay-app style, red dot) */}
+            {/* Notification bell (, red dot) */}
             <button
               onClick={() => setTab("disputes")}
               className="relative h-9 w-9 rounded-full hover:bg-muted transition-colors flex items-center justify-center"
@@ -202,7 +202,7 @@ export function AdminView() {
               )}
             </button>
 
-            {/* Avatar (Pay-app style) */}
+            {/* Avatar () */}
             <button
               onClick={() => navigate({ view: "settings-profile" })}
               className="h-9 w-9 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white text-xs font-bold flex items-center justify-center shadow-sm hover:ring-2 hover:ring-primary/30 transition-all"
@@ -470,18 +470,27 @@ function OverviewTab({ onNavigate }: { onNavigate: (tab: AdminTab) => void }) {
 
   return (
     <div className="space-y-5">
-      {/* Top row: Black bank card + compact stat tiles */}
+      {/* Top row: Balance summary + compact stat tiles */}
       <div className="grid lg:grid-cols-3 gap-4">
-        {/* Black bank card (Pay-app style hero) */}
+        {/* Balance summary card */}
         <div className="lg:col-span-2">
-          <BlackBankCard
-            balance={formatMinor(c.funding.confirmedVolumeMinor, "NGN")}
-            subBalance={`Escrow · ${formatMinor(c.funding.releaseVolumeMinor, "NGN")} released`}
-            cardLabel="PLATFORM ESCROW WALLET"
-            cardHolder="GigSure Operations"
-            cardNumber="4562 1122 4595 7852"
+          <button
             onClick={() => onNavigate("payments")}
-          />
+            className="block w-full text-left rounded-2xl border border-border/60 bg-card p-5 sm:p-6 shadow-sm hover:shadow-md hover:border-primary/30 transition-all"
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Total confirmed volume</div>
+                <div className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight">{formatMinor(c.funding.confirmedVolumeMinor, "NGN")}</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {formatMinor(c.funding.releaseVolumeMinor, "NGN")} released · {c.funding.confirmed} confirmed records
+                </div>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm shadow-sm">
+                G
+              </div>
+            </div>
+          </button>
         </div>
 
         {/* Compact stat tiles (top-right column of reference) */}
@@ -520,7 +529,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (tab: AdminTab) => void }) {
 
       {/* Middle row: Upcoming payments + Recent transactions + Savings panel */}
       <div className="grid lg:grid-cols-3 gap-4">
-        {/* Upcoming payments (Pay-app style list) */}
+        {/* Upcoming payments ( list) */}
         <Card className="premium-card overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center justify-between">
@@ -547,37 +556,37 @@ function OverviewTab({ onNavigate }: { onNavigate: (tab: AdminTab) => void }) {
                 <div className="text-sm font-semibold shrink-0">{item.amount}</div>
               </button>
             ))}
-            {/* Quick action menu (Pay-app style dark menu) */}
-            <div className="px-4 pb-4 pt-2 border-t border-border/40 bg-muted/20">
-              <div className="rounded-xl bg-slate-900 dark:bg-slate-950 text-white p-2">
+            {/* Quick links */}
+            <div className="px-4 pb-4 pt-2 border-t border-border/40">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => onNavigate("gateway")}
-                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/10 transition-colors text-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border/60 hover:bg-muted transition-colors"
                 >
-                  <CreditCard className="h-4 w-4 text-emerald-400" /> Apple pay / Gateway
+                  <Settings className="h-3.5 w-3.5" /> Gateway settings
                 </button>
                 <button
                   onClick={() => onNavigate("payouts")}
-                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/10 transition-colors text-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border/60 hover:bg-muted transition-colors"
                 >
-                  <Send className="h-4 w-4 text-emerald-400" /> Transfer to account
+                  <Send className="h-3.5 w-3.5" /> Payouts
                 </button>
                 <button
                   onClick={() => onNavigate("audit")}
-                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/10 transition-colors text-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border/60 hover:bg-muted transition-colors"
                 >
-                  <FileText className="h-4 w-4 text-emerald-400" /> Report for transactions
+                  <FileText className="h-3.5 w-3.5" /> Audit log
                 </button>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Recent transactions (Pay-app style list) */}
+        {/* Recent transactions ( list) */}
         <Card className="premium-card overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center justify-between">
-              <span>Recent Transaction</span>
+              <span>Recent activity</span>
               <button onClick={() => onNavigate("audit")} className="text-[11px] text-primary hover:underline">View all</button>
             </CardTitle>
           </CardHeader>
@@ -603,7 +612,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (tab: AdminTab) => void }) {
           </CardContent>
         </Card>
 
-        {/* Savings panel (Pay-app style right column) */}
+        {/* Savings panel ( right column) */}
         <Card className="premium-card overflow-hidden bg-gradient-to-br from-white to-emerald-50/40 dark:from-card dark:to-emerald-950/10">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -644,7 +653,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (tab: AdminTab) => void }) {
 
       {/* Bottom row: System health donut + 7-day trends + integrity feed */}
       <div className="grid lg:grid-cols-3 gap-4">
-        {/* Donut — contract acceptance (Pay-app style) */}
+        {/* Donut — contract acceptance () */}
         <Card className="premium-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -740,55 +749,7 @@ function iconForAction(action: string): React.ComponentType<{ className?: string
 }
 
 // ---------------------------------------------------------------------------
-// Pay-app style hero — black bank card
-// ---------------------------------------------------------------------------
-
-function BlackBankCard({ balance, subBalance, cardLabel, cardHolder, cardNumber, onClick }: {
-  balance: string;
-  subBalance: string;
-  cardLabel: string;
-  cardHolder: string;
-  cardNumber: string;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="block w-full text-left rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 p-5 sm:p-6 shadow-xl ring-1 ring-white/10 hover:ring-white/20 transition-all"
-    >
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-[11px] uppercase tracking-wider text-slate-400 font-medium">{cardLabel}</div>
-          <div className="mt-2 text-2xl sm:text-3xl font-bold text-white tracking-tight">{balance}</div>
-          <div className="mt-1 text-xs text-slate-400">{subBalance}</div>
-        </div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white font-bold text-sm shadow-lg">
-          G
-        </div>
-      </div>
-
-      <div className="mt-6 flex items-end justify-between gap-4">
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-slate-500">Card holder</div>
-          <div className="text-sm font-medium text-white mt-0.5">{cardHolder}</div>
-        </div>
-        {/* Mastercard-style circles */}
-        <div className="flex items-center -space-x-3">
-          <div className="h-7 w-7 rounded-full bg-rose-500/90" />
-          <div className="h-7 w-7 rounded-full bg-amber-400/90 mix-blend-screen" />
-        </div>
-      </div>
-
-      {/* Card number */}
-      <div className="mt-3 font-mono text-base sm:text-lg tracking-[0.2em] text-white/90">
-        {cardNumber}
-      </div>
-    </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Compact stat tile (Pay-app style rounded card)
+// Compact stat tile
 // ---------------------------------------------------------------------------
 
 function CompactStat({ icon: Icon, label, value, sub, tone = "default", onClick }: {
@@ -823,7 +784,7 @@ function CompactStat({ icon: Icon, label, value, sub, tone = "default", onClick 
 }
 
 // ---------------------------------------------------------------------------
-// Mini line chart (pure SVG, no dependencies — Pay-app style sparkline + bars)
+// Mini line chart (pure SVG, no dependencies —  sparkline + bars)
 // ---------------------------------------------------------------------------
 
 function MiniLineChart({ data, highlightIndex = -1, accent = "emerald" }: {
@@ -874,7 +835,7 @@ function MiniLineChart({ data, highlightIndex = -1, accent = "emerald" }: {
 }
 
 // ---------------------------------------------------------------------------
-// Mini donut chart (pure SVG — Pay-app style progress ring)
+// Mini donut chart (pure SVG —  progress ring)
 // ---------------------------------------------------------------------------
 
 function MiniDonut({ value, centerLabel, centerSub }: {
