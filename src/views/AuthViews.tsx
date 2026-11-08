@@ -397,40 +397,40 @@ function RegisterForm() {
       if (res.verificationUrl) setVerifyUrl(res.verificationUrl);
       if (res.created) {
         toast.success("Account created", { description: "Welcome to GigSure AI." });
-        // Auto-login after registration, then redirect to dashboard
-        const signInResult = await signIn("credentials", {
-          email,
-          password,
-          redirect: false,
-          callbackUrl: "/?view=dashboard",
-        });
-        if (signInResult?.ok) {
-          // instead of hard window.location.href navigation. Same reason as
-          // LoginForm — hard navigation can race with the session cookie set.
-          try {
-            await updateSession();
-          } catch {
-            window.location.href = signInResult.url ?? "/?view=dashboard";
-            return;
-          }
-          setLoading(false);
-          navigate({ view: "dashboard" });
-        } else {
-          // Auto-login failed — email verification is required before login.
-          // Show a clear message about whether the email was actually sent.
-          if (res.emailSent === false) {
-            setError(
-              "Account created, but the verification email could not be sent. " +
-              "Please contact support."
-            );
-            toast.error("Verification email not sent", { description: "Please contact support." });
+        // Auto-login after registration, then redirect to dashboard.
+        // Use a timeout so we don't hang forever if NextAuth is slow.
+        try {
+          const signInPromise = signIn("credentials", {
+            email,
+            password,
+            redirect: false,
+            callbackUrl: "/?view=dashboard",
+          });
+          const timeoutPromise = new Promise<{ ok: false; error: string; url: null }>((resolve) =>
+            setTimeout(() => resolve({ ok: false, error: "timeout", url: null }), 10000)
+          );
+          const signInResult = await Promise.race([signInPromise, timeoutPromise]) as { ok?: boolean; error?: string; url?: string | null };
+
+          if (signInResult?.ok) {
+            try {
+              await updateSession();
+            } catch {
+              // If in-band refresh fails, hard-reload to dashboard
+              window.location.href = "/?view=dashboard";
+              return;
+            }
+            setLoading(false);
+            navigate({ view: "dashboard" });
           } else {
-            setError(
-              "Account created! We sent a verification link to your email. " +
-              "Click the link in the email to verify your account, then sign in."
-            );
-            toast.success("Verification email sent", { description: "Check your inbox to verify your account." });
+            // Auto-login failed or timed out — redirect to login page
+            // so the user can sign in manually
+            toast.info("Please sign in", { description: "Your account was created. Sign in to continue." });
+            navigate({ view: "login" });
           }
+        } catch {
+          // signIn threw — navigate to login
+          toast.info("Please sign in", { description: "Your account was created. Sign in to continue." });
+          navigate({ view: "login" });
         }
       }
     } catch (err) {
