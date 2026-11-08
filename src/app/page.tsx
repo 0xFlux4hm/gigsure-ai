@@ -67,22 +67,6 @@ function Router() {
     return null;
   }
 
-  // SECURITY: Detect PENDING_REGISTRATION users (new Google sign-ups)
-  // and redirect them to the registration completion page.
-  // They cannot access any other view until they accept Terms of Service.
-  const accountStatus = (session.user as { accountStatus?: string }).accountStatus;
-  if (accountStatus === "PENDING_REGISTRATION" && view !== "google-registration") {
-    if (typeof window !== "undefined") {
-      navigate({ view: "google-registration" });
-    }
-    return null;
-  }
-
-  // Google registration view is shown OUTSIDE the AppShell (full-screen)
-  if (view === "google-registration") {
-    return <GoogleRegistrationView />;
-  }
-
   // Authenticated views — wrap in AppShell
   return (
     <AppShell>

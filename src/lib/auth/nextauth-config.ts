@@ -341,7 +341,7 @@ export const authOptions: NextAuthOptions = {
                 displayName: displayName || "Google User",
                 passwordHash: null, // no password — Google OAuth only
                 emailVerifiedAt: new Date(), // Google verified the email
-                accountStatus: "PENDING_REGISTRATION", // must accept terms
+                accountStatus: "ACTIVE", // Google-verified users go straight to dashboard
               },
             });
             await tx.userIdentity.create({
