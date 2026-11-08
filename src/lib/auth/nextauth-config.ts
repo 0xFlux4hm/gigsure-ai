@@ -47,45 +47,6 @@ export const authOptions: NextAuthOptions = {
   jwt: {
     maxAge: 60 * 60 * 24 * 7,
   },
-  cookies: {
-    // use __Secure- / __Host- prefixes in production.
-    //   __Secure- → browser refuses to set the cookie over HTTP (downgrade defense)
-    //   __Host-   → browser refuses to set the cookie from any subdomain (no Domain attr, Path=/)
-    // NextAuth v4 normally applies these automatically when useSecureCookies=true,
-    // but our explicit override was stripping them. Restore them here.
-    //
-    // `maxAge`. Without `maxAge`, browsers treat the cookie as a "session
-    // cookie" that lives until the browser is closed — the 7-day JWT
-    // maxAge in `session.maxAge` was effectively ignored at the browser
-    // level, so users stayed logged in forever (until browser close).
-    // Setting `maxAge` to match `session.maxAge` ensures the browser also
-    // discards the cookie after 7 days of inactivity.
-    sessionToken: {
-      name: process.env.NODE_ENV === "production"
-        ? "__Secure-gigsure_session_token"
-        : "gigsure_session_token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 60 * 60 * 24 * 7, // 7 days — matches session.maxAge above
-      },
-    },
-    csrfToken: {
-      name: process.env.NODE_ENV === "production"
-        ? "__Host-gigsure_csrf_token"
-        : "gigsure_csrf_token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-        // CSRF cookie should also expire — default to same 7-day window.
-        maxAge: 60 * 60 * 24 * 7,
-      },
-    },
-  },
   pages: {
     signIn: "/?view=login",
     error: "/?view=login&error=1",
