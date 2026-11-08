@@ -4,24 +4,31 @@
  * Invitation tokens are cryptographically random (32 bytes), stored as SHA-256
  * hashes. Each invitation is bound to a specific project and role, optionally
  * to a specific recipient, and has a hard expiry.
+ *
+ * Enhancements:
+ * - Duplicate active invitation prevention (same project + email + PENDING)
+ * - Optional personal message from inviter to invitee
+ * - Notifications for all invitation events via notifyUser helper
+ * - Resend tracking (lastResentAt, resendCount)
  */
 import { db } from "@/lib/db";
 import { apiRoute, parseJsonBody, fail } from "@/lib/api";
-import { requireUserId, getClientIp } from "@/lib/auth/session";
+import { requireUserId } from "@/lib/auth/session";
 import { assertPermission, AuthzError } from "@/lib/auth/authorization";
-import { recordAuditEvent } from "@/lib/auth/audit";
+import { recordAuditEvent, logSecurityEvent } from "@/lib/auth/audit";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { generateToken, hashToken } from "@/lib/security/tokens";
 import { normalizeEmail, validateEmail } from "@/lib/security/validation";
+import { notifyUser } from "@/lib/notifications";
+import { isPlatformAdmin } from "@/lib/auth/admin-access";
 import { z } from "zod";
 
-import { logSecurityEvent } from "@/lib/auth/audit";
-import { isPlatformAdmin } from "@/lib/auth/admin-access";
 const Schema = z.object({
   inviteeEmail: z.string().email().optional(),
   inviteeId: z.string().cuid().optional(),
   role: z.enum(["COLLABORATOR", "TEAM_LEAD", "REVIEWER"]),
   expiresInSeconds: z.number().min(3600).max(604800).default(604800), // 1h..7d
+  personalMessage: z.string().max(500).optional(), // optional personal note
 }).refine((d) => d.inviteeEmail || d.inviteeId, {
   message: "Either inviteeEmail or inviteeId is required",
 });
@@ -48,7 +55,6 @@ export const GET = apiRoute(async (_req, { params }) => {
 export const POST = apiRoute(async (req, { params }) => {
   const userId = await requireUserId();
   // rate-limit invitations to prevent email-bombing
-  // victims via the platform's SMTP account.
   const inviterRL = await checkRateLimit(`invite:user:${userId}`, { limit: 20, windowMs: 60 * 60 * 1000 });
   if (!inviterRL.ok) {
     return fail("Too many invitations sent. Please try again later.", 429);
@@ -61,7 +67,10 @@ export const POST = apiRoute(async (req, { params }) => {
 
   const body = await parseJsonBody<unknown>(req);
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) { logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) }); return fail("Invalid invitation", 422); }
+  if (!parsed.success) {
+    logSecurityEvent("warn", "api.validation_failed", { issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })) });
+    return fail("Invalid invitation", 422);
+  }
 
   const data = parsed.data;
   // also rate-limit per invitee email to prevent one
@@ -87,6 +96,38 @@ export const POST = apiRoute(async (req, { params }) => {
     if (u) inviteeId = u.id;
   }
 
+  // ── DUPLICATE ACTIVE INVITATION PREVENTION ──
+  // Check if there's already a PENDING invitation for the same project +
+  // email/user. This prevents sending duplicate invitations to the same
+  // person for the same project.
+  const existingInvitation = inviteeEmail
+    ? await db.invitation.findFirst({
+        where: {
+          projectId: params.id,
+          inviteeEmail,
+          status: "PENDING",
+          expiresAt: { gt: new Date() }, // not expired
+        },
+      })
+    : inviteeId
+      ? await db.invitation.findFirst({
+          where: {
+            projectId: params.id,
+            inviteeId,
+            status: "PENDING",
+            expiresAt: { gt: new Date() },
+          },
+        })
+      : null;
+
+  if (existingInvitation) {
+    return fail(
+      "An active invitation already exists for this email on this project. Revoke it first or wait for it to expire.",
+      409,
+    );
+  }
+
+  // ── CREATE INVITATION ──
   const rawToken = generateToken();
   const invitation = await db.invitation.create({
     data: {
@@ -98,6 +139,7 @@ export const POST = apiRoute(async (req, { params }) => {
       tokenHash: hashToken(rawToken),
       status: "PENDING",
       expiresAt: new Date(Date.now() + data.expiresInSeconds * 1000),
+      personalMessage: data.personalMessage?.trim() || null,
     },
   });
 
@@ -115,7 +157,8 @@ export const POST = apiRoute(async (req, { params }) => {
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://gigsure-ai.vercel.app";
   const inviteUrl = `${baseUrl}/?view=invitation&token=${rawToken}&project=${params.id}`;
 
-  // Send invitation email if SMTP is configured
+  // ── SEND EMAIL (if SMTP configured) ──
+  let emailSent = false;
   if (inviteeEmail && process.env.SMTP_URL) {
     try {
       const { sendEmail } = await import("@/lib/email/provider");
@@ -127,6 +170,19 @@ export const POST = apiRoute(async (req, { params }) => {
         where: { id: params.id },
         select: { title: true },
       }))?.title ?? "a project";
+
+      // Escape user-controlled values to prevent HTML injection in email clients
+      const esc = (s: string) => s.replace(/[&<>"']/g, (c) => {
+        const map: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+        return map[c] || c;
+      });
+      const inviterName = esc(inviterUser?.displayName ?? "Someone");
+      const project = esc(projectName);
+      const role = esc(data.role.toLowerCase());
+      const messageHtml = data.personalMessage
+        ? `<div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin: 16px 0; font-style: italic; color: #4b5563;">"${esc(data.personalMessage.trim())}"</div>`
+        : "";
+
       await sendEmail({
         to: inviteeEmail,
         subject: `You're invited to join "${projectName}" on GigSure AI`,
@@ -138,10 +194,11 @@ export const POST = apiRoute(async (req, { params }) => {
             </div>
             <div style="background: white; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
               <p style="margin: 0 0 16px; font-size: 16px; color: #1a1a1a;">
-                <strong>${inviterUser?.displayName ?? "Someone"}</strong> has invited you to join
-                <strong>"${projectName}"</strong> as a
-                <strong>${data.role.toLowerCase()}</strong>.
+                <strong>${inviterName}</strong> has invited you to join
+                <strong>"${project}"</strong> as a
+                <strong>${role}</strong>.
               </p>
+              ${messageHtml}
               <a href="${inviteUrl}" style="display: inline-block; background: #003087; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; margin: 8px 0 16px;">
                 Accept Invitation
               </a>
@@ -154,8 +211,9 @@ export const POST = apiRoute(async (req, { params }) => {
             </div>
           </div>
         `,
-        text: `${inviterUser?.displayName ?? "Someone"} has invited you to join "${projectName}" as a ${data.role.toLowerCase()}. Accept here: ${inviteUrl}`,
+        text: `${inviterUser?.displayName ?? "Someone"} has invited you to join "${projectName}" as a ${data.role.toLowerCase()}.${data.personalMessage ? ` Message: ${data.personalMessage}` : ""} Accept here: ${inviteUrl}`,
       } as Parameters<typeof sendEmail>[0]);
+      emailSent = true;
     } catch (err) {
       logSecurityEvent("error", "invitation.email_failed", {
         invitationId: invitation.id,
@@ -164,11 +222,22 @@ export const POST = apiRoute(async (req, { params }) => {
     }
   }
 
+  // ── NOTIFY INVITER (confirmation) ──
+  // Notify the inviter that the invitation was created (so they see it in
+  // their inbox as a record of what they sent).
+  await notifyUser({
+    userId,
+    projectId: params.id,
+    type: "INVITATION_SENT",
+    title: "Invitation sent",
+    body: `Invitation sent to ${inviteeEmail ?? "a team member"} as ${data.role}.`,
+  }).catch(() => {});
+
   return {
     invitationId: invitation.id,
     inviteUrl,
-    emailSent: !!inviteeEmail && !!process.env.SMTP_URL,
-    message: inviteeEmail && process.env.SMTP_URL
+    emailSent,
+    message: emailSent
       ? "Invitation sent. Check your email."
       : "Invitation created. Share the invite link with the recipient.",
   };

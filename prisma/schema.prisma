@@ -240,17 +240,22 @@ model ProjectMembership {
 }
 
 model Invitation {
-  id          String   @id @default(cuid())
-  projectId   String
-  inviteeId   String?  // optional: bound to a specific user
-  inviteeEmail String?
-  inviterId   String
-  role        String   // COLLABORATOR | TEAM_LEAD | REVIEWER
-  tokenHash   String   @unique // cryptographically random, hashed
-  status      String   @default("PENDING") // PENDING | ACCEPTED | REJECTED | REVOKED | EXPIRED
-  expiresAt   DateTime
-  consumedAt   DateTime?
-  createdAt   DateTime @default(now())
+  id              String   @id @default(cuid())
+  projectId       String
+  inviteeId       String?  // optional: bound to a specific user
+  inviteeEmail    String?
+  inviterId       String
+  role            String   // COLLABORATOR | TEAM_LEAD | REVIEWER
+  tokenHash       String   @unique // cryptographically random, hashed
+  status          String   @default("PENDING") // PENDING | ACCEPTED | REJECTED | REVOKED | EXPIRED
+  expiresAt       DateTime
+  consumedAt      DateTime?
+  createdAt       DateTime @default(now())
+  // Enhancement fields:
+  personalMessage String?  // optional personal note from inviter to invitee
+  lastResentAt    DateTime? // last time the invitation was resent
+  resendCount     Int      @default(0) // number of times resent
+  revokedById     String?  // who revoked (if revoked)
 
   project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   invitee  User?   @relation("InvitationInvitee", fields: [inviteeId], references: [id])
@@ -258,6 +263,7 @@ model Invitation {
 
   @@index([projectId])
   @@index([inviteeId])
+  @@index([inviteeEmail])  // for duplicate-active-invitation lookups
 }
 
 model ContractVersion {

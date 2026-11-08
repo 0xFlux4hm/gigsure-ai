@@ -18,6 +18,9 @@ type InvitationInfo = {
   inviterEmail: string;
   role: string;
   expiresAt: string;
+  personalMessage?: string | null;
+  createdAt?: string;
+  lastResentAt?: string | null;
 };
 
 export function InvitationView({ token }: { token?: string }) {
@@ -104,6 +107,13 @@ export function InvitationView({ token }: { token?: string }) {
                   <p className="text-sm text-muted-foreground mb-2">Project description</p>
                   <p className="text-sm">{info.projectDescription}</p>
                 </div>
+                {/* Personal message from inviter */}
+                {info.personalMessage && (
+                  <div className="rounded-lg bg-muted/40 border border-border/60 p-3">
+                    <p className="text-xs text-muted-foreground mb-1">Message from {info.inviterName}:</p>
+                    <p className="text-sm italic">"{info.personalMessage}"</p>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <p className="text-muted-foreground text-xs">Project owner</p>
@@ -116,7 +126,11 @@ export function InvitationView({ token }: { token?: string }) {
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs">Role</p>
-                    <p className="font-medium">{info.role}</p>
+                    <p className="font-medium">
+                      {info.role === "COLLABORATOR" ? "Service Provider" :
+                       info.role === "TEAM_LEAD" ? "Team Lead" :
+                       info.role === "REVIEWER" ? "Reviewer" : info.role}
+                    </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs">Expires</p>
