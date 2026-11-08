@@ -1041,6 +1041,20 @@ function UsersTab() {
     }
   };
 
+  const deleteUser = async (userId: string, email: string) => {
+    if (!confirm(`DELETE user "${email}"?\n\nThis will:\n- Anonymize their PII (email, name, password)\n- Revoke all sessions and OAuth links\n- Remove them from all projects\n- Mark account as DELETED\n\nFinancial and audit records are RETAINED for legal reasons.\n\nThis cannot be undone.`)) return;
+    setActingId(userId);
+    try {
+      await api.del(`/api/admin/users/${userId}?reason=Admin+deletion`);
+      toast.success("User deleted", { description: `${email} has been anonymized and deactivated.` });
+      load();
+    } catch (err) {
+      toast.error("Failed to delete user", { description: (err as Error).message });
+    } finally {
+      setActingId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Card className="premium-card">
@@ -1145,6 +1159,9 @@ function UsersTab() {
                               <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => act(u.id, "promote_admin")}>Promote</Button>
                             ) : (
                               <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => act(u.id, "demote_admin")}>Demote</Button>
+                            )}
+                            {u.accountStatus !== "DELETED" && u.platformRole !== "ADMIN" && (
+                              <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => deleteUser(u.id, u.email)}>Delete</Button>
                             )}
                           </div>
                         )}
