@@ -148,16 +148,16 @@ export const authOptions: NextAuthOptions = {
           });
           return null;
         }
-        // Allow login for unverified users — they'll see a "Verify your email"
-        // banner on the dashboard. Verification email is auto-resent on login.
+        // Require email verification before login.
+        // If the user hasn't verified their email, block login AND auto-resend
+        // a fresh verification email so they can verify right away.
         if (!user.emailVerifiedAt) {
-          logSecurityEvent("info", "auth.login_unverified_email", {
+          logSecurityEvent("warn", "auth.login_blocked_email_not_verified", {
             userId: user.id,
             email,
           });
 
-          // AUTO-RESEND: automatically send a new verification email so the
-          // user doesn't have to find the "Resend" link manually.
+          // AUTO-RESEND: send a fresh verification email on login attempt
           try {
             const rawToken = generateToken();
             await db.emailVerificationToken.create({
@@ -174,14 +174,13 @@ export const authOptions: NextAuthOptions = {
               await sendEmail(verificationEmail(email, verificationUrl));
             }
           } catch (err) {
-            // Don't fail login because of resend failure — just log it
             logSecurityEvent("error", "auth.auto_resend_failed", {
               userId: user.id,
               message: (err as Error)?.message,
             });
           }
 
-          // Allow login — user will see a verification banner on the dashboard
+          return null;
         }
         await db.user.update({
           where: { id: user.id },

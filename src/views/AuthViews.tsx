@@ -370,7 +370,6 @@ function LoginForm() {
 
 function RegisterForm() {
   const { navigate } = useNav();
-  const { update: updateSession } = useSession();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -396,29 +395,16 @@ function RegisterForm() {
       });
       if (res.verificationUrl) setVerifyUrl(res.verificationUrl);
       if (res.created) {
-        toast.success("Account created", { description: "Welcome to GigSure AI." });
-        // Auto-login after registration, then hard-redirect to dashboard.
-        // Hard redirect avoids the updateSession() hang that was causing
-        // the spinner to go forever on slow mobile connections.
-        try {
-          const signInResult = await signIn("credentials", {
-            email,
-            password,
-            redirect: false,
-            callbackUrl: "/?view=dashboard",
-          });
-          if (signInResult?.ok) {
-            // Hard redirect — the session cookie is set by signIn()
-            window.location.href = "/?view=dashboard";
-            return;
-          } else {
-            // Auto-login failed — redirect to login page
-            toast.info("Please sign in", { description: "Your account was created. Sign in to continue." });
-            navigate({ view: "login" });
-          }
-        } catch {
-          toast.info("Please sign in", { description: "Your account was created. Sign in to continue." });
-          navigate({ view: "login" });
+        toast.success("Account created", { description: "Check your email to verify your account." });
+        // Don't auto-login — email must be verified first.
+        // Redirect to verify-email view so user can enter the token
+        // (or click the link in their email).
+        if (res.verificationUrl) {
+          // Dev mode — show the link directly
+          setVerifyUrl(res.verificationUrl);
+        } else {
+          // Production — redirect to verify-email page with instructions
+          navigate({ view: "verify-email" });
         }
       }
     } catch (err) {
