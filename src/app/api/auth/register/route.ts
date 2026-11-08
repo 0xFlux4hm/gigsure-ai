@@ -84,7 +84,7 @@ export const POST = apiRoute(async (req) => {
         emailNormalized: email,
         displayName,
         passwordHash,
-        emailVerifiedAt: new Date(), // Auto-verify so users can log in immediately
+        emailVerifiedAt: null, // Email verification required — email sent after registration
         accountStatus: "ACTIVE",
       },
     });

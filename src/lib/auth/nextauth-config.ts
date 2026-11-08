@@ -148,20 +148,16 @@ export const authOptions: NextAuthOptions = {
           });
           return null;
         }
-        // Require email verification before login (security).
-        // Without this, anyone can register with someone else's email
-        // and gain immediate access to the platform.
+        // Allow login for unverified users — they'll see a "Verify your email"
+        // banner on the dashboard. Verification email is auto-resent on login.
         if (!user.emailVerifiedAt) {
-          logSecurityEvent("warn", "auth.login_blocked_email_not_verified", {
+          logSecurityEvent("info", "auth.login_unverified_email", {
             userId: user.id,
             email,
           });
 
           // AUTO-RESEND: automatically send a new verification email so the
-          // user doesn't have to find the "Resend it" link manually. This
-          // addresses the common UX issue where users register, don't receive
-          // the email (or lose it), try to login, see "Invalid email or
-          // password", and don't know what to do next.
+          // user doesn't have to find the "Resend" link manually.
           try {
             const rawToken = generateToken();
             await db.emailVerificationToken.create({
@@ -185,7 +181,7 @@ export const authOptions: NextAuthOptions = {
             });
           }
 
-          return null;
+          // Allow login — user will see a verification banner on the dashboard
         }
         await db.user.update({
           where: { id: user.id },
@@ -472,7 +468,7 @@ export const authOptions: NextAuthOptions = {
         }
         const u = await db.user.findUnique({
           where: { id: token.userId as string },
-          select: { passwordChangedAt: true, accountStatus: true },
+          select: { passwordChangedAt: true, accountStatus: true, emailVerifiedAt: true },
         });
         if (!u) {
           // User deleted — invalidate session
@@ -502,8 +498,9 @@ export const authOptions: NextAuthOptions = {
         if (u.accountStatus !== "ACTIVE" && u.accountStatus !== "PENDING_REGISTRATION") {
           return { ...token, userId: undefined } as typeof token;
         }
-        // Store accountStatus in token so the session callback can expose it
+        // Store accountStatus + emailVerified in token so the session callback can expose it
         token.accountStatus = u.accountStatus;
+        token.emailVerified = !!u.emailVerifiedAt;
         if (u.passwordChangedAt && u.passwordChangedAt.getTime() > (token.issuedAt as number)) {
           // Password changed after this JWT was issued — invalidate
           return { ...token, userId: undefined } as typeof token;
@@ -529,9 +526,8 @@ export const authOptions: NextAuthOptions = {
         (session.user as { provider?: string }).provider = token.provider as string;
         (session.user as { jti?: string }).jti = token.jti as string;
         (session.user as { issuedAt?: number }).issuedAt = token.issuedAt as number;
-        // Expose accountStatus so the frontend can detect PENDING_REGISTRATION
-        // users and redirect them to the onboarding/terms page
         (session.user as { accountStatus?: string }).accountStatus = token.accountStatus as string;
+        (session.user as { emailVerified?: boolean }).emailVerified = token.emailVerified as boolean;
       }
       return session;
     },

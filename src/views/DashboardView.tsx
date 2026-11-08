@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useNav } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { api, timeAgo, formatMinor } from "@/lib/client-api";
 import {
   FolderKanban,
@@ -15,6 +17,9 @@ import {
   LayoutDashboard,
   Clock,
   Users,
+  Mail,
+  Loader2,
+  Send,
 } from "lucide-react";
 import {
   PageHeader,
@@ -27,6 +32,7 @@ import {
   AccountSetupCard,
   buildStandardSetupSteps,
 } from "@/components/shared/AccountSetupCard";
+import { toast } from "sonner";
 
 type DashboardData = {
   projects: Array<{
@@ -83,9 +89,29 @@ function statusBadgeClass(status: string): string {
 
 export function DashboardView() {
   const { navigate } = useNav();
+  const { data: session, update: updateSession } = useSession();
   const [data, setData] = useState<DashboardData | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resending, setResending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  const emailVerified = (session?.user as { emailVerified?: boolean })?.emailVerified;
+  const userEmail = session?.user?.email ?? "";
+
+  const resendVerification = async () => {
+    setResending(true);
+    try {
+      await api.post("/api/auth/resend-verification", { email: userEmail });
+      setEmailSent(true);
+      toast.success("Verification email sent", { description: `Check ${userEmail} for a new link.` });
+      await updateSession();
+    } catch {
+      toast.error("Could not resend", { description: "Please wait a minute and try again." });
+    } finally {
+      setResending(false);
+    }
+  };
 
   useEffect(() => {
     Promise.all([
@@ -112,6 +138,33 @@ export function DashboardView() {
           </Button>
         }
       />
+
+      {/* Email verification banner */}
+      {emailVerified === false && (
+        <Alert className="border-amber-500/30 bg-amber-500/5">
+          <Mail className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="flex flex-wrap items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <span className="font-medium text-amber-700 dark:text-amber-400">Verify your email address</span>
+              <span className="text-sm text-muted-foreground ml-2">
+                {emailSent
+                  ? "A new verification link has been sent. Check your inbox."
+                  : `We sent a verification link to ${userEmail}. Click the link to verify your account.`}
+              </span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+              onClick={resendVerification}
+              disabled={resending || emailSent}
+            >
+              {resending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
+              {emailSent ? "Sent" : "Resend"}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Stat cards — 2 cols mobile, 4 cols desktop */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
