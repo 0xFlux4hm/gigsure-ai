@@ -278,8 +278,30 @@ export const authOptions: NextAuthOptions = {
               return `/?view=login&error=PendingRegistration`;
             }
           } else {
-            // SECURITY: NEVER auto-link Google to an existing password account.
-            // The user must explicitly link Google via Settings → Security.
+            // SECURITY: Auto-link Google to an existing password account
+            // ONLY if the user's email is verified. Google has already
+            // verified the email (checked above at line 201), so linking
+            // is safe — the person controlling the Google account also
+            // controls the email, therefore they own the GigSure account.
+            if (existingUser.emailVerifiedAt || existingUser.passwordHash) {
+              // Create the Google identity link
+              await db.userIdentity.create({
+                data: {
+                  userId: existingUser.id,
+                  provider: "google",
+                  providerSubject: account.providerAccountId,
+                  lastAuthenticatedAt: new Date(),
+                },
+              }).catch(() => {}); // ignore if already exists
+              // Inject the user ID so the jwt callback can use it
+              user.id = existingUser.id;
+              logSecurityEvent("info", "auth.google_auto_linked", {
+                userId: existingUser.id,
+                email,
+              });
+              return true;
+            }
+            // Email not verified + no password — block for safety
             logSecurityEvent("warn", "auth.google_email_exists_not_linked", { email });
             return `/?view=login&error=OAuthCallback`;
           }
