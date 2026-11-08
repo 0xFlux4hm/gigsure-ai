@@ -437,7 +437,7 @@ function RegisterForm() {
               required
               disabled={loading}
               maxLength={80}
-              placeholder="e.g. Ahmad Muhammad"
+              placeholder="e.g. John Doe"
               autoComplete="name"
             />
           </div>
