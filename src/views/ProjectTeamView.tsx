@@ -66,6 +66,7 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [myRole, setMyRole] = useState<string | null>(null);
 
   // Invitation management: search + filter
   const [search, setSearch] = useState("");
@@ -74,11 +75,18 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
   // Member management
   const [actingMemberId, setActingMemberId] = useState<string | null>(null);
 
+  // Permission helpers — based on the existing backend permission model:
+  // project:invite → OWNER only
+  // project:manage_team → OWNER + TEAM_LEAD
+  const canInvite = myRole === "OWNER";
+  const canManageTeam = myRole === "OWNER" || myRole === "TEAM_LEAD";
+
   const load = () => {
     setLoading(true);
     Promise.all([
       api.get<{ members: Member[] }>(`/api/projects/${projectId}/members`).then((r) => setMembers(r.members)).catch(() => setMembers([])),
       api.get<{ invitations: Invitation[] }>(`/api/projects/${projectId}/invitations`).then((r) => setInvitations(r.invitations)).catch(() => setInvitations([])),
+      api.get<{ myRole: string | null }>(`/api/projects/${projectId}`).then((r) => setMyRole(r.myRole)).catch(() => setMyRole(null)),
     ]).finally(() => setLoading(false));
   };
   useEffect(load, [projectId]);
@@ -166,6 +174,14 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
   const pendingCount = invitations.filter((i) => i.status === "PENDING").length;
   const acceptedCount = invitations.filter((i) => i.status === "ACCEPTED").length;
 
+  // Split into Active (PENDING + ACCEPTED) and History (EXPIRED, REVOKED, REJECTED)
+  const activeInvitations = filteredInvitations.filter(
+    (inv) => inv.status === "PENDING" || inv.status === "ACCEPTED",
+  );
+  const historyInvitations = filteredInvitations.filter(
+    (inv) => inv.status === "EXPIRED" || inv.status === "REVOKED" || inv.status === "REJECTED",
+  );
+
   if (loading) {
     return <LoadingState label="Loading team…" />;
   }
@@ -174,11 +190,11 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
     <div className="page-enter space-y-6">
       <PageHeader
         title="Team"
-        description="Manage project members and invitations."
+        description={canManageTeam ? "Manage project members and invitations." : "Project members and invitations."}
         icon={Users}
-        actions={
+        actions={canInvite ? (
           <Button onClick={() => setOpen(true)}><UserPlus className="mr-2 h-4 w-4" /> Invite</Button>
-        }
+        ) : undefined}
       />
 
       {/* Members card */}
@@ -193,8 +209,8 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
             <EmptyState
               icon={Users}
               title="No members yet"
-              description="Invite collaborators to join this project."
-              action={<Button onClick={() => setOpen(true)}><UserPlus className="mr-2 h-4 w-4" /> Invite</Button>}
+              description={canInvite ? "Invite collaborators to join this project." : "No members have joined this project yet."}
+              action={canInvite ? <Button onClick={() => setOpen(true)}><UserPlus className="mr-2 h-4 w-4" /> Invite</Button> : undefined}
             />
           ) : (
             <ul className="divide-y">
@@ -213,10 +229,10 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
                     </div>
                   )}
                   <Badge variant={m.role === "OWNER" ? "default" : "secondary"} className="text-xs shrink-0">
-                    {m.role}
+                    {m.role === "OWNER" ? "Owner" : m.role === "CLIENT" ? "Client" : m.role === "COLLABORATOR" ? "Service Provider" : m.role === "TEAM_LEAD" ? "Team Lead" : m.role === "REVIEWER" ? "Reviewer" : m.role}
                   </Badge>
-                  {/* Member management dropdown — not for OWNER, not for self */}
-                  {m.role !== "OWNER" && (
+                  {/* Member management dropdown — only for authorized users, not for OWNER */}
+                  {canManageTeam && m.role !== "OWNER" && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -265,23 +281,16 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
       </Card>
 
       {/* Invitations card with search + filter */}
+      {/* Search + filter (only if there are invitations) */}
       {invitations.length > 0 && (
         <Card className="premium-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center justify-between">
-              <span>Invitations ({invitations.length})</span>
-              <div className="flex items-center gap-2">
-                {pendingCount > 0 && <Badge variant="outline" className="text-[10px] badge-warning">{pendingCount} pending</Badge>}
-                {acceptedCount > 0 && <Badge variant="outline" className="text-[10px] badge-success">{acceptedCount} accepted</Badge>}
-              </div>
-            </CardTitle>
-            {/* Search + filter row */}
-            <div className="flex gap-2 mt-2">
+          <CardContent className="p-3">
+            <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   className="pl-8 h-8 text-sm"
-                  placeholder="Search by email or name…"
+                  placeholder="Search by name or email…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -289,83 +298,102 @@ export function ProjectTeamView({ projectId }: { projectId: string }) {
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[130px] h-8 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">All</SelectItem>
+                  <SelectItem value="ALL">All statuses</SelectItem>
                   <SelectItem value="PENDING">Pending</SelectItem>
                   <SelectItem value="ACCEPTED">Accepted</SelectItem>
-                  <SelectItem value="REJECTED">Rejected</SelectItem>
+                  <SelectItem value="REJECTED">Declined</SelectItem>
                   <SelectItem value="REVOKED">Revoked</SelectItem>
                   <SelectItem value="EXPIRED">Expired</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Active invitations */}
+      {invitations.length > 0 && activeInvitations.length > 0 && (
+        <Card className="premium-card">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>Active invitations ({activeInvitations.length})</span>
+              <div className="flex items-center gap-2">
+                {pendingCount > 0 && <Badge variant="outline" className="text-[10px] badge-warning">{pendingCount} pending</Badge>}
+                {acceptedCount > 0 && <Badge variant="outline" className="text-[10px] badge-success">{acceptedCount} accepted</Badge>}
+              </div>
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {filteredInvitations.length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                No invitations match your search.
-              </div>
-            ) : (
-              <ul className="divide-y">
-                {filteredInvitations.map((inv) => {
-                  const inviteeName = inv.invitee?.displayName ?? inv.inviteeEmail ?? "—";
-                  const isExpired = inv.status === "PENDING" && new Date(inv.expiresAt) < new Date();
-                  return (
-                    <li key={inv.id} className="p-3 flex flex-wrap items-center gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium truncate">{inviteeName}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Invited as {inv.role === "COLLABORATOR" ? "Service Provider" : inv.role === "TEAM_LEAD" ? "Team Lead" : "Reviewer"} by {inv.inviter.displayName} · {timeAgo(inv.createdAt)}
-                        </div>
-                        {/* Dates: created, expiry, last resent */}
-                        <div className="text-[10px] text-muted-foreground/70 mt-0.5 flex flex-wrap gap-x-3">
-                          <span>Created: {formatDate(inv.createdAt)}</span>
-                          <span>Expires: {formatDate(inv.expiresAt)}</span>
-                          {inv.lastResentAt && (
-                            <span>Last resent: {timeAgo(inv.lastResentAt)}</span>
-                          )}
-                          {inv.resendCount && inv.resendCount > 0 && (
-                            <span>Resent {inv.resendCount}× </span>
-                          )}
-                        </div>
-                        {/* Personal message preview */}
-                        {inv.personalMessage && (
-                          <div className="text-[11px] italic text-muted-foreground mt-1 truncate">
-                            "{inv.personalMessage}"
-                          </div>
-                        )}
+            <ul className="divide-y">
+              {activeInvitations.map((inv) => {
+                const inviteeName = inv.invitee?.displayName ?? inv.inviteeEmail ?? "—";
+                const isExpired = inv.status === "PENDING" && new Date(inv.expiresAt) < new Date();
+                return (
+                  <li key={inv.id} className="p-3 flex flex-wrap items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{inviteeName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Invited as {inv.role === "COLLABORATOR" ? "Service Provider" : inv.role === "TEAM_LEAD" ? "Team Lead" : "Reviewer"} by {inv.inviter.displayName} · {timeAgo(inv.createdAt)}
                       </div>
-                      <Badge
-                        variant={isExpired ? "secondary" : inv.status === "PENDING" ? "outline" : "secondary"}
-                        className={`text-xs shrink-0 ${inv.status === "ACCEPTED" ? "badge-success" : inv.status === "PENDING" && !isExpired ? "badge-warning" : ""}`}
-                      >
-                        {isExpired ? "EXPIRED" : formatStatus(inv.status)}
-                      </Badge>
-                      {/* Actions: resend + revoke (only for PENDING + not expired) */}
-                      {inv.status === "PENDING" && !isExpired && (
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 text-xs"
-                            onClick={() => resend(inv.id)}
-                          >
-                            <Send className="h-3.5 w-3.5 mr-1" /> Resend
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => revoke(inv.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
+                      <div className="text-[10px] text-muted-foreground/70 mt-0.5 flex flex-wrap gap-x-3">
+                        <span>Sent: {formatDate(inv.createdAt)}</span>
+                        <span>Expires: {formatDate(inv.expiresAt)}</span>
+                        {inv.lastResentAt && (<span>Last resent: {timeAgo(inv.lastResentAt)}</span>)}
+                        {inv.resendCount && inv.resendCount > 0 && (<span>Resent {inv.resendCount}×</span>)}
+                      </div>
+                      {inv.personalMessage && (
+                        <div className="text-[11px] italic text-muted-foreground mt-1 truncate">"{inv.personalMessage}"</div>
                       )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+                    </div>
+                    <Badge
+                      variant={isExpired ? "secondary" : inv.status === "PENDING" ? "outline" : "secondary"}
+                      className={`text-xs shrink-0 ${inv.status === "ACCEPTED" ? "badge-success" : inv.status === "PENDING" && !isExpired ? "badge-warning" : ""}`}
+                    >
+                      {isExpired ? "Expired" : inv.status === "PENDING" ? "Awaiting response" : "Invitation accepted"}
+                    </Badge>
+                    {canInvite && inv.status === "PENDING" && !isExpired && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => resend(inv.id)}>
+                          <Send className="h-3.5 w-3.5 mr-1" /> Resend
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => revoke(inv.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Invitation history */}
+      {invitations.length > 0 && historyInvitations.length > 0 && (
+        <Card className="premium-card">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Invitation history ({historyInvitations.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ul className="divide-y">
+              {historyInvitations.map((inv) => {
+                const inviteeName = inv.invitee?.displayName ?? inv.inviteeEmail ?? "—";
+                return (
+                  <li key={inv.id} className="p-3 flex flex-wrap items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{inviteeName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Invited as {inv.role === "COLLABORATOR" ? "Service Provider" : inv.role === "TEAM_LEAD" ? "Team Lead" : "Reviewer"} by {inv.inviter.displayName} · {timeAgo(inv.createdAt)}
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className="text-xs shrink-0 text-muted-foreground">
+                      {inv.status === "EXPIRED" ? "Invitation expired" : inv.status === "REVOKED" ? "Invitation withdrawn" : "Declined"}
+                    </Badge>
+                  </li>
+                );
+              })}
+            </ul>
           </CardContent>
         </Card>
       )}
