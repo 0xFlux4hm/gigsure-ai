@@ -47,6 +47,7 @@ import { exportAdminPDF } from "@/lib/pdf/export";
 import { toast } from "sonner";
 import { EmptyState, formatStatus } from "@/components/shared/page-components";
 import { useConfirm } from "@/components/shared/ConfirmDialog";
+import { translateAuditAction, translateMetadata } from "@/lib/audit/audit-translator";
 type AdminTab = "overview" | "users" | "projects" | "payments" | "payouts" | "disputes" | "kyc" | "audit" | "ai" | "privacy" | "webhooks" | "gateway";
 
 export function AdminView() {
@@ -1565,88 +1566,167 @@ type AuditEvent = {
   ipAddress: string | null;
   createdAt: string;
   actor: { id: string; displayName: string; email: string } | null;
+  project?: { id: string; title: string } | null;
 };
 
 function AuditTab() {
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [total, setTotal] = useState(0);
-  const [topActions, setTopActions] = useState<Array<{ action: string; _count: { action: number } }>>([]);
   const [loading, setLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState("");
   const [actorFilter, setActorFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const load = () => {
     setLoading(true);
     const params = new URLSearchParams();
     if (actionFilter) params.set("action", actionFilter);
     if (actorFilter) params.set("actorId", actorFilter);
-    api.get<{ events: AuditEvent[]; total: number; topActions: typeof topActions }>(`/api/admin/audit?${params.toString()}`)
-      .then((r) => { setEvents(r.events); setTotal(r.total); setTopActions(r.topActions); })
+    api.get<{ events: AuditEvent[]; total: number }>(`/api/admin/audit?${params.toString()}`)
+      .then((r) => { setEvents(r.events); setTotal(r.total); })
       .finally(() => setLoading(false));
   };
   useEffect(load, [actionFilter, actorFilter]);
 
+  const toggleExpand = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Categories from loaded events
+  const categories = Array.from(new Set(events.map((e) => translateAuditAction(e.action).category)));
+
+  const filteredEvents = categoryFilter === "ALL"
+    ? events
+    : events.filter((e) => translateAuditAction(e.action).category === categoryFilter);
+
+  const toneStyles: Record<string, string> = {
+    success: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
+    info: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400",
+    warning: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
+    destructive: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400",
+  };
+
   return (
     <div className="space-y-4">
+      {/* Filters */}
       <Card className="premium-card">
-        <CardContent className="p-3 flex gap-2 items-end">
-          <div className="flex-1 space-y-1">
-            <Label className="text-xs">Filter by action</Label>
-            <Input className="input-premium" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} placeholder="e.g. auth, project, payment" />
+        <CardContent className="p-3 space-y-2">
+          <div className="flex gap-2">
+            <div className="flex-1 space-y-1">
+              <Label className="text-xs">Search by action</Label>
+              <Input className="input-premium" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} placeholder="e.g. auth, project, payment" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <Label className="text-xs">Filter by user ID</Label>
+              <Input className="input-premium" value={actorFilter} onChange={(e) => setActorFilter(e.target.value)} placeholder="cmv…" />
+            </div>
           </div>
-          <div className="flex-1 space-y-1">
-            <Label className="text-xs">Filter by user ID</Label>
-            <Input className="input-premium" value={actorFilter} onChange={(e) => setActorFilter(e.target.value)} placeholder="cmv…" />
-          </div>
+          {/* Category filter chips */}
+          {categories.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <button
+                onClick={() => setCategoryFilter("ALL")}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-colors ${categoryFilter === "ALL" ? "bg-primary text-primary-foreground" : "bg-muted/60 text-muted-foreground hover:bg-muted"}`}
+              >
+                All
+              </button>
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-colors ${categoryFilter === cat ? "bg-primary text-primary-foreground" : "bg-muted/60 text-muted-foreground hover:bg-muted"}`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
+      {/* Activity log */}
       <Card className="premium-card">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Audit Log ({total})</CardTitle>
+          <CardTitle className="text-base">Activity Log ({total})</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {loading ? <LoadingState /> : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/30 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="text-left p-2">Action</th>
-                    <th className="text-left p-2">User</th>
-                    <th className="text-left p-2">Target</th>
-                    <th className="text-left p-2">IP</th>
-                    <th className="text-left p-2">Timestamp</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.length === 0 && (
-                    <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">No audit events.</td></tr>
-                  )}
-                  {events.map((e) => {
-                    let meta: Record<string, unknown> = {};
-                    try { meta = JSON.parse(e.metadata || "{}"); } catch {}
-                    return (
-                      <tr key={e.id} className="border-t hover:bg-muted/30">
-                        <td className="p-2">
-                          <Badge variant="outline" className="text-xs badge-info">{e.action}</Badge>
-                        </td>
-                        <td className="p-2">
-                          <div className="font-medium">{e.actor?.displayName ?? "System"}</div>
-                          <div className="text-xs text-muted-foreground">{e.actor?.email ?? "—"}</div>
-                        </td>
-                        <td className="p-2">
-                          {e.targetType ? (
-                            <Badge variant="secondary" className="text-xs badge-warning">{e.targetType}</Badge>
-                          ) : "—"}
-                        </td>
-                        <td className="p-2 text-xs text-muted-foreground font-mono">{e.ipAddress ?? "—"}</td>
-                        <td className="p-2 text-xs text-muted-foreground">{formatDateTime(e.createdAt)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          {loading ? <LoadingState /> : filteredEvents.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">No activity found.</div>
+          ) : (
+            <ul className="divide-y max-h-[600px] overflow-y-auto">
+              {filteredEvents.map((e) => {
+                const info = translateAuditAction(e.action);
+                const details = translateMetadata(e.metadata);
+                const isExpanded = expanded.has(e.id);
+                const Icon = info.icon;
+
+                return (
+                  <li key={e.id} className="p-3">
+                    <button
+                      onClick={() => toggleExpand(e.id)}
+                      className="w-full flex items-start gap-3 text-left"
+                    >
+                      {/* Icon */}
+                      <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${toneStyles[info.tone] || toneStyles.info}`}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+
+                      {/* Content */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium truncate">{info.title}</span>
+                          <span className="text-[11px] text-muted-foreground shrink-0">{timeAgo(e.createdAt)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{info.description}</p>
+                        {/* Admin context: user, project, category, IP */}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                          {e.actor && (
+                            <span className="text-[10px] text-muted-foreground">
+                              <span className="font-medium text-foreground/80">{e.actor.displayName}</span>
+                              <span className="ml-1">({e.actor.email})</span>
+                            </span>
+                          )}
+                          {e.project && (
+                            <span className="text-[10px] text-muted-foreground">
+                              · Project: <span className="text-foreground/80">{e.project.title}</span>
+                            </span>
+                          )}
+                          <span className="text-[10px] text-muted-foreground">· {info.category}</span>
+                          {e.ipAddress && (
+                            <span className="text-[10px] text-muted-foreground font-mono">· IP {e.ipAddress}</span>
+                          )}
+                          {details.length > 0 && (
+                            <span className="text-[10px] text-primary flex items-center gap-0.5">
+                              · {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                              {details.length} detail{details.length !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground/60 mt-0.5">{formatDateTime(e.createdAt)}</div>
+                      </div>
+                    </button>
+
+                    {/* Expandable details */}
+                    {isExpanded && details.length > 0 && (
+                      <div className="mt-2 ml-12 grid grid-cols-2 gap-x-4 gap-y-1">
+                        {details.map((d, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs">
+                            <span className="text-muted-foreground font-medium min-w-[80px]">{d.label}:</span>
+                            <span className="text-foreground truncate">{d.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </CardContent>
       </Card>
